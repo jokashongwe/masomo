@@ -1,0 +1,375 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum StudentSex {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum Currency {
+  USD
+  CDF
+}
+
+enum FeeChargeType {
+  TOTAL
+  BY_MODULE
+}
+
+enum UserRole {
+  SYSTEM_ADMIN
+  FINANCE_MANAGER
+  FINANCE_VIEWER
+  SCHOOL_MANAGER
+}
+
+model User {
+  id Int @id @default(autoincrement())
+
+  email String @unique
+  name  String
+  passwordHash String
+
+  role UserRole
+
+  sessions Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Session {
+  id Int @id @default(autoincrement())
+
+  tokenHash String @unique
+  expiresAt DateTime
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model School {
+  id Int @id @default(autoincrement())
+
+  name     String
+  logo     String?
+  address  String
+  city     String
+  contacts String?
+  email    String?
+
+  sections Section[]
+}
+
+model Section {
+  id Int @id @default(autoincrement())
+
+  codeSection String
+  nameSection String
+
+  schoolId Int
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+
+  options Option[]
+
+  @@unique([schoolId, codeSection])
+}
+
+model Option {
+  id Int @id @default(autoincrement())
+
+  codeOption String
+  nameOption String
+
+  sectionId Int
+  section   Section @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+
+  levels Level[]
+
+  @@unique([sectionId, codeOption])
+}
+
+model Level {
+  id Int @id @default(autoincrement())
+
+  codeLevel String
+  name       String
+  nextLevel  String?
+
+  optionId Int
+  option   Option @relation(fields: [optionId], references: [id], onDelete: Restrict)
+
+  classes SchoolClass[]
+  feeLevels FeeLevel[]
+
+  @@unique([optionId, codeLevel])
+}
+
+model SchoolClass {
+  id Int @id @default(autoincrement())
+
+  codeClass String
+
+  levelId Int
+  level   Level @relation(fields: [levelId], references: [id], onDelete: Restrict)
+
+  students Student[]
+
+  @@unique([levelId, codeClass])
+  @@index([levelId])
+}
+
+model AcademicYear {
+  id Int @id @default(autoincrement())
+
+  name String @unique
+
+  startDate DateTime
+  endDate DateTime
+
+  // Only one academic year should be "in progress" at a time.
+  // Enforced by application logic (admin API): setting one true will turn off others.
+  isCurrent Boolean @default(false)
+
+  students Student[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Student {
+  id Int @id @default(autoincrement())
+
+  name     String
+  postnom  String
+  firstName String
+  sex      StudentSex
+  birthDate DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  academicYearId Int
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+
+  classId Int
+  schoolClass SchoolClass @relation(fields: [classId], references: [id], onDelete: Restrict)
+
+  studentTutors StudentTutor[]
+
+  @@index([classId])
+}
+
+model Tutor {
+  id Int @id @default(autoincrement())
+
+  name     String
+  postnom  String
+  firstName String
+  address  String
+  contact  String @unique
+
+  createdAt DateTime @default(now())
+
+  studentTutors StudentTutor[]
+}
+
+model StudentTutor {
+  studentId Int
+  tutorId   Int
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tutor   Tutor   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, tutorId])
+}
+
+// ----------------------------
+// Finance (Fees / Modules)
+// ----------------------------
+
+model Fee {
+  id Int @id @default(autoincrement())
+
+  code String @unique
+  name String
+  chargeType FeeChargeType
+
+  // Optional description (e.g. "Tuition fee", "Registration form fee")
+  description String?
+
+  // TOTAL fees: one amount per currency
+  totalAmounts FeeTotalAmount[]
+
+  // BY_MODULE fees: amounts per module and per tranche (both multi-currency)
+  moduleAmounts FeeModuleAmount[]
+  trancheAmounts FeeTrancheAmount[]
+
+  feeLevels FeeLevel[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FeeLevel {
+  feeId   Int
+  levelId Int
+
+  fee   Fee   @relation(fields: [feeId], references: [id], onDelete: Cascade)
+  level Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@id([feeId, levelId])
+  @@index([levelId])
+}
+
+model BillingModule {
+  id Int @id @default(autoincrement())
+
+  name String
+
+  // Day/Month only (no year)
+  startDay   Int
+  startMonth Int
+  endDay     Int
+  endMonth   Int
+
+  tranches ModuleTranche[]
+  feeModuleAmounts FeeModuleAmount[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, startDay, startMonth, endDay, endMonth])
+}
+
+model ModuleTranche {
+  id Int @id @default(autoincrement())
+
+  codeTranche String
+
+  moduleId Int
+  module   BillingModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  feeTrancheAmounts FeeTrancheAmount[]
+
+  @@unique([moduleId, codeTranche])
+  @@index([moduleId])
+}
+
+model FeeTotalAmount {
+  id Int @id @default(autoincrement())
+
+  feeId Int
+  fee   Fee @relation(fields: [feeId], references: [id], onDelete: Cascade)
+
+  currency Currency
+  amount   Decimal @db.Decimal(18, 2)
+
+  @@unique([feeId, currency])
+  @@index([feeId])
+}
+
+model FeeModuleAmount {
+  id Int @id @default(autoincrement())
+
+  feeId Int
+  fee   Fee @relation(fields: [feeId], references: [id], onDelete: Cascade)
+
+  moduleId Int
+  module   BillingModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  currency Currency
+  amount   Decimal @db.Decimal(18, 2)
+
+  @@unique([feeId, moduleId, currency])
+  @@index([moduleId])
+}
+
+model FeeTrancheAmount {
+  id Int @id @default(autoincrement())
+
+  feeId Int
+  fee   Fee @relation(fields: [feeId], references: [id], onDelete: Cascade)
+
+  trancheId Int
+  tranche   ModuleTranche @relation(fields: [trancheId], references: [id], onDelete: Cascade)
+
+  currency Currency
+  amount   Decimal @db.Decimal(18, 2)
+
+  @@unique([feeId, trancheId, currency])
+  @@index([trancheId])
+}
+
+enum WalletTransactionType {
+  DEPOSIT
+  EXPENSE
+}
+
+model Wallet {
+  id Int @id @default(autoincrement())
+
+  // Balance per currency
+  balanceUSD Decimal @db.Decimal(18, 2) @default(0)
+  balanceCDF Decimal @db.Decimal(18, 2) @default(0)
+
+  transactions WalletTransaction[]
+  expenses Expense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WalletTransaction {
+  id Int @id @default(autoincrement())
+
+  walletId Int
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  type WalletTransactionType
+  currency Currency
+  amount Decimal @db.Decimal(18, 2)
+
+  // Link to expense when type=EXPENSE (optional)
+  expenseId Int? @unique
+  expense Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  note String?
+
+  createdAt DateTime @default(now())
+
+  @@index([walletId])
+  @@index([type])
+}
+
+model Expense {
+  id Int @id @default(autoincrement())
+
+  walletId Int
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  currency Currency
+  amount Decimal @db.Decimal(18, 2)
+
+  description String?
+  occurredAt DateTime @default(now())
+
+  transaction WalletTransaction?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([walletId])
+}
+
