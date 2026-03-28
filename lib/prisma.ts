@@ -3,7 +3,6 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 // PrismaClient doit rester en singleton en dev (Next recharge souvent).
 declare global {
-  // eslint-disable-next-line no-var
   var prisma: PrismaClient | undefined;
 }
 

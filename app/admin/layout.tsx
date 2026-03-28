@@ -105,6 +105,18 @@ function IconCalendar() {
   );
 }
 
+function IconReports() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19V5" />
+      <path d="M9 19V9" />
+      <path d="M14 19V13" />
+      <path d="M19 19V7" />
+      <path d="M4 19H20" />
+    </svg>
+  );
+}
+
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -118,7 +130,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       <div className="flex min-h-screen">
         <aside className="w-64 shrink-0 border-r border-zinc-200/70 dark:border-zinc-800 bg-white/70 dark:bg-black/40">
           <div className="p-4">
-            <div className="text-sm font-semibold text-black dark:text-white">KelaApp Admin</div>
+            <div className="text-sm font-semibold text-black dark:text-white">Administration</div>
             <div className="text-xs text-zinc-600 dark:text-zinc-300 mt-1">
               {user.name} ({user.role})
             </div>
@@ -133,7 +145,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 <span className="text-zinc-900 dark:text-white">
                   <IconSchools />
                 </span>
-                Dashboard
+                Tableau de bord
               </Link>
 
               {showSchool ? (
@@ -145,7 +157,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                     <span className="text-zinc-900 dark:text-white">
                       <IconSchools />
                     </span>
-                    Schools
+                    Écoles
                   </Link>
                   <Link
                     href="/admin/sections"
@@ -172,7 +184,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                     <span className="text-zinc-900 dark:text-white">
                       <IconLevels />
                     </span>
-                    Levels
+                    Niveaux
                   </Link>
                   <Link
                     href="/admin/classes"
@@ -190,7 +202,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                     <span className="text-zinc-900 dark:text-white">
                       <IconStudents />
                     </span>
-                    Students
+                    Élèves
                   </Link>
                 </>
               ) : null}
@@ -203,7 +215,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                   <span className="text-zinc-900 dark:text-white">
                     <IconFinance />
                   </span>
-                  Finance
+                  Finances
                 </Link>
               ) : null}
 
@@ -215,7 +227,19 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                   <span className="text-zinc-900 dark:text-white">
                     <IconWallet />
                   </span>
-                  Wallet
+                  Portefeuille
+                </Link>
+              ) : null}
+
+              {showFinance ? (
+                <Link
+                  href="/admin/reports"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-100 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+                >
+                  <span className="text-zinc-900 dark:text-white">
+                    <IconReports />
+                  </span>
+                  Rapports
                 </Link>
               ) : null}
 
@@ -227,7 +251,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                   <span className="text-zinc-900 dark:text-white">
                     <IconUsers />
                   </span>
-                  Users
+                  Utilisateurs
                 </Link>
               ) : null}
 
@@ -239,7 +263,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                   <span className="text-zinc-900 dark:text-white">
                     <IconCalendar />
                   </span>
-                  Academic Years
+                  Années scolaires
                 </Link>
               ) : null}
             </div>

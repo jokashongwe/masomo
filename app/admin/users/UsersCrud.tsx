@@ -7,10 +7,10 @@ type UserRole = "SYSTEM_ADMIN" | "FINANCE_MANAGER" | "FINANCE_VIEWER" | "SCHOOL_
 type UserRow = { id: number; email: string; name: string; role: UserRole; createdAt: string | Date };
 
 const ROLES: { value: UserRole; label: string }[] = [
-  { value: "SYSTEM_ADMIN", label: "System Administrator" },
-  { value: "FINANCE_MANAGER", label: "Finance Manager" },
-  { value: "FINANCE_VIEWER", label: "Finance Viewer" },
-  { value: "SCHOOL_MANAGER", label: "School Manager" },
+  { value: "SYSTEM_ADMIN", label: "Administrateur système" },
+  { value: "FINANCE_MANAGER", label: "Responsable finances" },
+  { value: "FINANCE_VIEWER", label: "Lecteur finances" },
+  { value: "SCHOOL_MANAGER", label: "Responsable scolaire" },
 ];
 
 export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] }) {
@@ -53,7 +53,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error?.formErrors ? String(data.error.formErrors) : data?.error ?? "Create failed");
+        setError(data?.error?.formErrors ? String(data.error.formErrors) : data?.error ?? "Échec de création");
         return;
       }
       setCreate({ email: "", name: "", password: "", role: "SCHOOL_MANAGER" });
@@ -76,7 +76,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error?.formErrors ? String(data.error.formErrors) : data?.error ?? "Update failed");
+        setError(data?.error?.formErrors ? String(data.error.formErrors) : data?.error ?? "Échec de mise à jour");
         return;
       }
       setEditingId(null);
@@ -88,14 +88,14 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
 
   async function handleDelete(id: number) {
     setError(null);
-    const ok = window.confirm("Delete this user?");
+    const ok = window.confirm("Supprimer cet utilisateur ?");
     if (!ok) return;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error ?? "Delete failed");
+        setError(data?.error ?? "Échec de suppression");
         return;
       }
       setEditingId(null);
@@ -108,7 +108,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Create User</h2>
+        <h2 className="text-lg font-semibold text-black dark:text-white">Créer un utilisateur</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
@@ -120,7 +120,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
           />
           <input
             required
-            placeholder="Name"
+            placeholder="Nom"
             className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
             value={create.name}
             onChange={(e) => setCreate((c) => ({ ...c, name: e.target.value }))}
@@ -128,7 +128,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
           <input
             required
             type="password"
-            placeholder="Password (min 6)"
+            placeholder="Mot de passe (min 6)"
             className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
             value={create.password}
             onChange={(e) => setCreate((c) => ({ ...c, password: e.target.value }))}
@@ -150,20 +150,20 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
             type="submit"
             className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
           >
-            {submitting ? "Saving..." : "Create"}
+            {submitting ? "Enregistrement..." : "Créer"}
           </button>
         </form>
       </div>
 
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Existing Users</h2>
+        <h2 className="text-lg font-semibold text-black dark:text-white">Utilisateurs existants</h2>
         <div className="mt-3 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="text-left text-zinc-700 dark:text-zinc-300">
                 <th className="py-2 pr-3">Email</th>
-                <th className="py-2 pr-3">Name</th>
-                <th className="py-2 pr-3">Role</th>
+                <th className="py-2 pr-3">Nom</th>
+                <th className="py-2 pr-3">Rôle</th>
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
@@ -171,7 +171,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
               {users.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="py-6 text-zinc-600 dark:text-zinc-300">
-                    No users yet.
+                    Aucun utilisateur.
                   </td>
                 </tr>
               ) : (
@@ -190,7 +190,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
                           }}
                           className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40"
                         >
-                          Edit
+                          Modifier
                         </button>
                         <button
                           type="button"
@@ -198,7 +198,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
                           onClick={() => handleDelete(u.id)}
                           className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
                         >
-                          Delete
+                          Supprimer
                         </button>
                       </div>
                     </td>
@@ -211,7 +211,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
 
         {editing ? (
           <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
-            <h3 className="font-semibold text-black dark:text-white">Edit: {editing.email}</h3>
+            <h3 className="font-semibold text-black dark:text-white">Modifier : {editing.email}</h3>
             <form onSubmit={handleUpdate} className="mt-3 space-y-3">
               <input
                 required
@@ -223,14 +223,14 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
               />
               <input
                 required
-                placeholder="Name"
+                placeholder="Nom"
                 className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
                 value={update.name}
                 onChange={(e) => setUpdate((x) => ({ ...x, name: e.target.value }))}
               />
               <input
                 type="password"
-                placeholder="New password (optional)"
+                placeholder="Nouveau mot de passe (optionnel)"
                 className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
                 value={update.password}
                 onChange={(e) => setUpdate((x) => ({ ...x, password: e.target.value }))}
@@ -253,7 +253,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
                   disabled={submitting}
                   className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
                 >
-                  {submitting ? "Saving..." : "Save changes"}
+                  {submitting ? "Enregistrement..." : "Enregistrer"}
                 </button>
                 <button
                   type="button"
@@ -261,7 +261,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
                   onClick={() => setEditingId(null)}
                   className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
                 >
-                  Close
+                  Fermer
                 </button>
               </div>
             </form>

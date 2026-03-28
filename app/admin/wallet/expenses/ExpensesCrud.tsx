@@ -78,7 +78,7 @@ export default function ExpensesCrud({
     if (!canWrite) return;
     const amount = Number(create.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
-      setError("Amount must be > 0");
+      setError("Le montant doit être > 0");
       return;
     }
 
@@ -96,7 +96,7 @@ export default function ExpensesCrud({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error ?? "Failed to create expense");
+        setError(data?.error ?? "Échec de création de la dépense");
         return;
       }
       setCreate({ currency: "USD", amount: "", description: "", occurredAt: "" });
@@ -112,7 +112,7 @@ export default function ExpensesCrud({
     setError(null);
     const amount = Number(update.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
-      setError("Amount must be > 0");
+      setError("Le montant doit être > 0");
       return;
     }
 
@@ -130,7 +130,7 @@ export default function ExpensesCrud({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error ?? "Failed to update expense");
+        setError(data?.error ?? "Échec de mise à jour de la dépense");
         return;
       }
       setEditingId(null);
@@ -143,14 +143,14 @@ export default function ExpensesCrud({
   async function handleDelete(id: number) {
     if (!canWrite) return;
     setError(null);
-    const ok = window.confirm("Delete this expense?");
+    const ok = window.confirm("Supprimer cette dépense ?");
     if (!ok) return;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/admin/wallet/expenses/${id}`, { method: "DELETE" });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error ?? "Failed to delete expense");
+        setError(data?.error ?? "Échec de suppression de la dépense");
         return;
       }
       router.refresh();
@@ -173,18 +173,18 @@ export default function ExpensesCrud({
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <div className="text-xl font-semibold text-black dark:text-white">Expenses</div>
-            <div className="text-sm text-zinc-600 dark:text-zinc-300">CRUD expenses (USD/CDF) and track deductions.</div>
+            <div className="text-xl font-semibold text-black dark:text-white">Dépenses</div>
+            <div className="text-sm text-zinc-600 dark:text-zinc-300">Gérer les dépenses (USD/CDF) et suivre les sorties.</div>
           </div>
           <div className="text-sm text-zinc-600 dark:text-zinc-300">
-            {total} total
+            {total} au total
           </div>
         </div>
       </div>
 
       <form onSubmit={handleCreate} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <div className="text-lg font-semibold text-black dark:text-white">Add Expense</div>
-        {!canWrite ? <div className="text-sm text-zinc-600 dark:text-zinc-300 mt-1">Read-only</div> : null}
+        <div className="text-lg font-semibold text-black dark:text-white">Ajouter une dépense</div>
+        {!canWrite ? <div className="text-sm text-zinc-600 dark:text-zinc-300 mt-1">Lecture seule</div> : null}
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-3">
           <select
@@ -202,7 +202,7 @@ export default function ExpensesCrud({
             type="number"
             min="0"
             step="0.01"
-            placeholder="Amount"
+            placeholder="Montant"
             className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
             value={create.amount}
             onChange={(e) => setCreate((c) => ({ ...c, amount: e.target.value }))}
@@ -234,21 +234,21 @@ export default function ExpensesCrud({
           disabled={!canWrite || submitting}
           className="mt-4 w-full rounded-lg bg-zinc-900 text-white px-4 py-3 hover:bg-zinc-800 disabled:opacity-50"
         >
-          {submitting ? "Saving..." : "Save expense"}
+          {submitting ? "Enregistrement..." : "Enregistrer la dépense"}
         </button>
       </form>
 
       {editing ? (
         <form onSubmit={handleUpdate} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-lg font-semibold text-black dark:text-white">Edit Expense #{editing.id}</div>
+            <div className="text-lg font-semibold text-black dark:text-white">Modifier la dépense #{editing.id}</div>
             <button
               type="button"
               disabled={submitting}
               onClick={() => setEditingId(null)}
               className="text-sm text-zinc-700 dark:text-zinc-200 hover:underline"
             >
-              Cancel
+              Annuler
             </button>
           </div>
 
@@ -268,7 +268,7 @@ export default function ExpensesCrud({
               type="number"
               min="0"
               step="0.01"
-              placeholder="Amount"
+              placeholder="Montant"
               className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
               value={update.amount}
               onChange={(e) => setUpdate((u) => ({ ...u, amount: e.target.value }))}
@@ -298,7 +298,7 @@ export default function ExpensesCrud({
             disabled={!canWrite || submitting}
             className="mt-4 w-full rounded-lg bg-zinc-900 text-white px-4 py-3 hover:bg-zinc-800 disabled:opacity-50"
           >
-            {submitting ? "Saving..." : "Save changes"}
+            {submitting ? "Enregistrement..." : "Enregistrer"}
           </button>
         </form>
       ) : null}
@@ -309,8 +309,8 @@ export default function ExpensesCrud({
             <tr className="text-left text-zinc-700 dark:text-zinc-300">
               <th className="py-2 pr-3">Date</th>
               <th className="py-2 pr-3">Description</th>
-              <th className="py-2 pr-3">Currency</th>
-              <th className="py-2 pr-3">Amount</th>
+              <th className="py-2 pr-3">Devise</th>
+              <th className="py-2 pr-3">Montant</th>
               <th className="py-2 pr-3">Actions</th>
             </tr>
           </thead>
@@ -318,7 +318,7 @@ export default function ExpensesCrud({
             {expenses.length === 0 ? (
               <tr>
                 <td colSpan={5} className="py-8 text-zinc-600 dark:text-zinc-300">
-                  No expenses found.
+                  Aucune dépense trouvée.
                 </td>
               </tr>
             ) : (
@@ -339,7 +339,7 @@ export default function ExpensesCrud({
                         }}
                         className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40 disabled:opacity-50"
                       >
-                        Edit
+                        Modifier
                       </button>
                       <button
                         type="button"
@@ -347,7 +347,7 @@ export default function ExpensesCrud({
                         onClick={() => handleDelete(e.id)}
                         className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
                       >
-                        Delete
+                        Supprimer
                       </button>
                     </div>
                   </td>
@@ -368,7 +368,7 @@ export default function ExpensesCrud({
               href={pageLinks(page - 1)}
               className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-sm hover:bg-white/60 dark:hover:bg-black/40"
             >
-              Prev
+              Précédent
             </a>
           ) : null}
           {page < pageCount ? (
@@ -376,7 +376,7 @@ export default function ExpensesCrud({
               href={pageLinks(page + 1)}
               className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-sm hover:bg-white/60 dark:hover:bg-black/40"
             >
-              Next
+              Suivant
             </a>
           ) : null}
         </div>

@@ -74,7 +74,7 @@ export default function ClassCrud({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error?.message ?? data?.error ?? "Create failed");
+        setError(data?.error?.message ?? data?.error ?? "Échec de création");
         return;
       }
       setCreate({
@@ -103,7 +103,7 @@ export default function ClassCrud({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error?.message ?? data?.error ?? "Update failed");
+        setError(data?.error?.message ?? data?.error ?? "Échec de mise à jour");
         return;
       }
       setEditingId(null);
@@ -115,14 +115,14 @@ export default function ClassCrud({
 
   async function handleDelete(id: number) {
     setError(null);
-    const ok = window.confirm("Delete this class?");
+    const ok = window.confirm("Supprimer cette classe ?");
     if (!ok) return;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/admin/classes/${id}`, { method: "DELETE" });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error ?? "Delete failed");
+        setError(data?.error ?? "Échec de suppression");
         return;
       }
       router.refresh();
@@ -134,11 +134,11 @@ export default function ClassCrud({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Create Class</h2>
+        <h2 className="text-lg font-semibold text-black dark:text-white">Créer une classe</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
-            placeholder="Code class"
+            placeholder="Code classe"
             className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
             value={create.codeClass}
             onChange={(e) => setCreate((c) => ({ ...c, codeClass: e.target.value }))}
@@ -160,19 +160,19 @@ export default function ClassCrud({
             type="submit"
             className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
           >
-            {submitting ? "Saving..." : "Create"}
+            {submitting ? "Enregistrement..." : "Créer"}
           </button>
         </form>
       </div>
 
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Existing Classes</h2>
+        <h2 className="text-lg font-semibold text-black dark:text-white">Classes existantes</h2>
         <div className="mt-3 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="text-left text-zinc-700 dark:text-zinc-300">
                 <th className="py-2 pr-3">Code</th>
-                <th className="py-2 pr-3">Level</th>
+                <th className="py-2 pr-3">Niveau</th>
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
@@ -180,7 +180,7 @@ export default function ClassCrud({
               {classes.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="py-6 text-zinc-600 dark:text-zinc-300">
-                    No classes yet.
+                    Aucune classe.
                   </td>
                 </tr>
               ) : (
@@ -198,7 +198,7 @@ export default function ClassCrud({
                           }}
                           className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40"
                         >
-                          Edit
+                          Modifier
                         </button>
                         <button
                           type="button"
@@ -206,7 +206,7 @@ export default function ClassCrud({
                           onClick={() => handleDelete(c.id)}
                           className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
                         >
-                          Delete
+                          Supprimer
                         </button>
                       </div>
                     </td>
@@ -219,11 +219,11 @@ export default function ClassCrud({
 
         {editing ? (
           <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
-            <h3 className="font-semibold text-black dark:text-white">Edit: {editing.codeClass}</h3>
+            <h3 className="font-semibold text-black dark:text-white">Modifier : {editing.codeClass}</h3>
             <form onSubmit={handleUpdate} className="mt-3 space-y-3">
               <input
                 required
-                placeholder="Code class"
+                placeholder="Code classe"
                 className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
                 value={update.codeClass}
                 onChange={(e) => setUpdate((u) => ({ ...u, codeClass: e.target.value }))}
@@ -247,7 +247,7 @@ export default function ClassCrud({
                   disabled={submitting}
                   className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
                 >
-                  {submitting ? "Saving..." : "Save changes"}
+                  {submitting ? "Enregistrement..." : "Enregistrer"}
                 </button>
                 <button
                   type="button"
@@ -255,7 +255,7 @@ export default function ClassCrud({
                   onClick={() => setEditingId(null)}
                   className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
                 >
-                  Cancel
+                  Annuler
                 </button>
               </div>
             </form>

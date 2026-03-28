@@ -28,9 +28,9 @@ export default async function AdminHomePage() {
   if (!isSystemAdmin(user.role)) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-10">
-        <h1 className="text-2xl font-semibold text-black dark:text-white">Admin dashboard</h1>
+        <h1 className="text-2xl font-semibold text-black dark:text-white">Tableau de bord</h1>
         <p className="mt-2 text-zinc-600 dark:text-zinc-300">
-          Your role has access to specific areas. Use the left sidebar to navigate.
+          Votre rôle donne accès à certaines sections. Utilisez la barre latérale pour naviguer.
         </p>
       </div>
     );
@@ -44,9 +44,9 @@ export default async function AdminHomePage() {
   if (!currentYear) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-10">
-        <h1 className="text-2xl font-semibold text-black dark:text-white">System Administrator Dashboard</h1>
+        <h1 className="text-2xl font-semibold text-black dark:text-white">Tableau de bord (Administrateur système)</h1>
         <p className="mt-2 text-zinc-600 dark:text-zinc-300">
-          No academic year is currently in progress. Configure it first from system admin.
+          Aucune année scolaire n’est en cours. Configurez-en une dans “Années scolaires”.
         </p>
       </div>
     );
@@ -159,9 +159,9 @@ export default async function AdminHomePage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
-      <h1 className="text-2xl font-semibold text-black dark:text-white">System Administrator Dashboard</h1>
+      <h1 className="text-2xl font-semibold text-black dark:text-white">Tableau de bord (Administrateur système)</h1>
       <p className="mt-2 text-zinc-600 dark:text-zinc-300">
-        {currentYear.name} overview and finance stats derived from students and configured fees.
+        Vue d’ensemble {currentYear.name} et statistiques calculées à partir des élèves et des frais configurés.
       </p>
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -185,7 +185,7 @@ export default async function AdminHomePage() {
           <div className="text-sm font-medium opacity-95">Total élèves inscrits</div>
           <div className="mt-2 text-2xl font-semibold">{studentTotal}</div>
           <div className="text-sm opacity-90 mt-1">
-            This year: {studentsThisYear.length}
+            Année en cours : {studentsThisYear.length}
           </div>
         </div>
 
@@ -198,18 +198,18 @@ export default async function AdminHomePage() {
 
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-5">
-          <div className="font-semibold text-black dark:text-white">Students breakdown</div>
+          <div className="font-semibold text-black dark:text-white">Répartition des élèves</div>
           <div className="mt-3 space-y-2 text-sm">
             <div className="flex items-center justify-between">
-              <span className="text-zinc-600 dark:text-zinc-300">Male</span>
+              <span className="text-zinc-600 dark:text-zinc-300">Garçons</span>
               <span className="font-medium">{totalMale}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-zinc-600 dark:text-zinc-300">Female</span>
+              <span className="text-zinc-600 dark:text-zinc-300">Filles</span>
               <span className="font-medium">{totalFemale}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-zinc-600 dark:text-zinc-300">Other</span>
+              <span className="text-zinc-600 dark:text-zinc-300">Autre</span>
               <span className="font-medium">{totalOther}</span>
             </div>
           </div>
@@ -218,26 +218,26 @@ export default async function AdminHomePage() {
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-5 lg:col-span-2">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <div className="font-semibold text-black dark:text-white">Key shortcuts</div>
+              <div className="font-semibold text-black dark:text-white">Accès rapides</div>
               <div className="text-sm text-zinc-600 dark:text-zinc-300 mt-1">
-                Manage finance and school data from here.
+                Gérez les finances et les données scolaires.
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
               <Link href="/admin/finance/fees" className="rounded-lg bg-zinc-900 text-white px-4 py-2 text-sm hover:bg-zinc-800">
-                Fees
+                Frais
               </Link>
               <Link href="/admin/finance/modules" className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40">
                 Modules
               </Link>
               <Link href="/admin/students" className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40">
-                Students
+                Élèves
               </Link>
             </div>
           </div>
 
           <div className="mt-4 rounded-xl bg-gradient-to-r from-white/70 to-white/20 dark:from-white/10 dark:to-white/5 border border-zinc-200/70 dark:border-zinc-800/70 p-4 text-sm text-zinc-700 dark:text-zinc-200">
-            Tip: “Perçu” is currently computed from students enrolled during the year and the configured fees attached to their levels (TOTAL + BY_MODULE, summed across modules or current module).
+            Astuce : “Perçu” est calculé à partir des élèves inscrits pendant l’année et des frais attachés à leurs niveaux (TOTAL + PAR MODULE).
           </div>
         </div>
       </div>

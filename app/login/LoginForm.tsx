@@ -22,13 +22,13 @@ export default function LoginForm() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error ?? "Login failed");
+        setError(data?.error ?? "Échec de connexion");
         return;
       }
       router.replace("/admin");
       router.refresh();
     } catch {
-      setError("Network error");
+      setError("Erreur réseau");
     } finally {
       setSubmitting(false);
     }
@@ -47,7 +47,7 @@ export default function LoginForm() {
       <input
         required
         type="password"
-        placeholder="Password"
+        placeholder="Mot de passe"
         className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
@@ -58,7 +58,7 @@ export default function LoginForm() {
         disabled={submitting}
         className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
       >
-        {submitting ? "Signing in..." : "Sign in"}
+        {submitting ? "Connexion..." : "Se connecter"}
       </button>
     </form>
   );

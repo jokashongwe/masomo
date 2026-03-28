@@ -62,12 +62,12 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
     setSuccess(null);
 
     if (classId === "") {
-      setError("Please select a class.");
+      setError("Veuillez sélectionner une classe.");
       return;
     }
 
     if (!student.birthDate) {
-      setError("Please provide student birth date.");
+      setError("Veuillez renseigner la date de naissance de l’élève.");
       return;
     }
 
@@ -76,13 +76,13 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
       [t.name, t.postnom, t.firstName, t.address, t.contact].some((v) => v.trim().length === 0),
     );
     if (tutorMissing) {
-      setError("Please complete all tutor fields.");
+      setError("Veuillez compléter tous les champs du tuteur.");
       return;
     }
 
     const studentMissing = [student.name, student.postnom, student.firstName].some((v) => v.trim().length === 0);
     if (studentMissing) {
-      setError("Please complete all student fields.");
+      setError("Veuillez compléter tous les champs de l’élève.");
       return;
     }
 
@@ -112,17 +112,17 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
 
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error || "Enrollment failed.");
+        setError(data?.error || "Échec de l’inscription.");
         return;
       }
 
-      setSuccess(`Student enrolled successfully (ID: ${data?.studentId ?? "unknown"}).`);
+      setSuccess(`Élève inscrit avec succès (ID : ${data?.studentId ?? "inconnu"}).`);
 
       setClassId("");
       setStudent({ name: "", postnom: "", firstName: "", sex: "MALE", birthDate: "" });
       setTutors([{ ...defaultTutor }, { ...defaultTutor }]);
     } catch {
-      setError("Network error while enrolling student.");
+      setError("Erreur réseau pendant l’inscription.");
     } finally {
       setSubmitting(false);
     }
@@ -132,13 +132,13 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
     <form onSubmit={onSubmit} className="mt-6 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-black/40 p-6">
       <div className="space-y-6">
         <div>
-          <label className="block text-sm font-medium text-black dark:text-white">Class</label>
+          <label className="block text-sm font-medium text-black dark:text-white">Classe</label>
           <select
             className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
             value={classId}
             onChange={(e) => setClassId(e.target.value === "" ? "" : Number(e.target.value))}
           >
-            <option value="">Select a class...</option>
+            <option value="">Sélectionner une classe...</option>
             {classOptions.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.label}
@@ -148,12 +148,12 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
         </div>
 
         <div>
-          <h2 className="text-lg font-semibold text-black dark:text-white">Student</h2>
+          <h2 className="text-lg font-semibold text-black dark:text-white">Élève</h2>
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input
               required
               className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
-              placeholder="Name"
+              placeholder="Nom"
               value={student.name}
               onChange={(e) => setStudent((s) => ({ ...s, name: e.target.value }))}
             />
@@ -167,7 +167,7 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
             <input
               required
               className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
-              placeholder="First name"
+              placeholder="Prénom"
               value={student.firstName}
               onChange={(e) => setStudent((s) => ({ ...s, firstName: e.target.value }))}
             />
@@ -176,9 +176,9 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
               value={student.sex}
               onChange={(e) => setStudent((s) => ({ ...s, sex: e.target.value as Sex }))}
             >
-              <option value="MALE">Male</option>
-              <option value="FEMALE">Female</option>
-              <option value="OTHER">Other</option>
+              <option value="MALE">Masculin</option>
+              <option value="FEMALE">Féminin</option>
+              <option value="OTHER">Autre</option>
             </select>
             <input
               required
@@ -192,14 +192,14 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
 
         <div>
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-black dark:text-white">Tutor(s)</h2>
+            <h2 className="text-lg font-semibold text-black dark:text-white">Tuteur(s)</h2>
             <button
               type="button"
               onClick={handleAddTutor}
               className="rounded-lg bg-zinc-900 text-white px-3 py-2 text-sm hover:bg-zinc-800 disabled:opacity-50"
               disabled={tutors.length >= 10}
             >
-              Add tutor
+              Ajouter un tuteur
             </button>
           </div>
 
@@ -207,14 +207,14 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
             {tutors.map((t, index) => (
               <div key={index} className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 bg-white/50 dark:bg-black/30">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-black dark:text-white">Tutor #{index + 1}</h3>
+                  <h3 className="font-medium text-black dark:text-white">Tuteur #{index + 1}</h3>
                   <button
                     type="button"
                     onClick={() => handleRemoveTutor(index)}
                     disabled={tutors.length <= 1}
                     className="text-sm text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white disabled:opacity-50"
                   >
-                    Remove
+                    Retirer
                   </button>
                 </div>
 
@@ -222,7 +222,7 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
                   <input
                     required
                     className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
-                    placeholder="Name"
+                    placeholder="Nom"
                     value={t.name}
                     onChange={(e) => updateTutor(index, { name: e.target.value })}
                   />
@@ -236,7 +236,7 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
                   <input
                     required
                     className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
-                    placeholder="First name"
+                    placeholder="Prénom"
                     value={t.firstName}
                     onChange={(e) => updateTutor(index, { firstName: e.target.value })}
                   />
@@ -250,7 +250,7 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
                   <input
                     required
                     className="sm:col-span-2 rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
-                    placeholder="Address"
+                    placeholder="Adresse"
                     value={t.address}
                     onChange={(e) => updateTutor(index, { address: e.target.value })}
                   />
@@ -271,7 +271,7 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
             disabled={submitting}
             className="w-full rounded-lg bg-zinc-900 text-white px-4 py-3 hover:bg-zinc-800 disabled:opacity-50"
           >
-            {submitting ? "Enrolling..." : "Enroll student"}
+            {submitting ? "Inscription..." : "Inscrire l’élève"}
           </button>
         </div>
       </div>

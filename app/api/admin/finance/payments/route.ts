@@ -1,0 +1,98 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { requireFinanceReadApi, requireFinanceWriteApi } from "@/lib/rbac";
+import { createFeePayment } from "@/lib/fee-payments";
+import type { Prisma } from "@/generated/prisma/client";
+
+const createSchema = z.object({
+  studentId: z.coerce.number().int().positive(),
+  feeId: z.coerce.number().int().positive(),
+  currency: z.enum(["USD", "CDF"]),
+  amount: z.coerce.number().positive(),
+  paidAt: z.coerce.date().optional(),
+  source: z.enum(["BANK_SLIP", "MANUAL", "IMPORT"]).default("MANUAL"),
+  bankSlipReference: z.string().optional().or(z.literal("")).transform((v) => (v ? v : undefined)),
+  note: z.string().optional().or(z.literal("")).transform((v) => (v ? v : undefined)),
+  allocationMode: z.enum(["AUTO", "MODULE", "TRANCHE", "TOTAL_DIRECT"]).default("AUTO"),
+  moduleId: z.coerce.number().int().positive().optional(),
+  trancheId: z.coerce.number().int().positive().optional(),
+});
+
+const listQuerySchema = z.object({
+  studentId: z.coerce.number().int().positive().optional(),
+  feeId: z.coerce.number().int().positive().optional(),
+  q: z.string().optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  take: z.coerce.number().int().min(1).max(100).optional().default(20),
+});
+
+export async function GET(req: Request) {
+  const auth = await requireFinanceReadApi();
+  if (!auth.ok) return auth.response;
+
+  const url = new URL(req.url);
+  const parsed = listQuerySchema.safeParse({
+    studentId: url.searchParams.get("studentId") ?? undefined,
+    feeId: url.searchParams.get("feeId") ?? undefined,
+    q: url.searchParams.get("q") ?? undefined,
+    page: url.searchParams.get("page") ?? undefined,
+    take: url.searchParams.get("take") ?? undefined,
+  });
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+
+  const { studentId, feeId, q, page, take } = parsed.data;
+
+  const where: Prisma.FeePaymentWhereInput = {};
+  if (studentId) where.studentId = studentId;
+  if (feeId) where.feeId = feeId;
+  if (q && q.trim()) {
+    where.OR = [
+      { receiptNumber: { contains: q, mode: "insensitive" } },
+      { bankSlipReference: { contains: q, mode: "insensitive" } },
+      { student: { name: { contains: q, mode: "insensitive" } } },
+      { student: { postnom: { contains: q, mode: "insensitive" } } },
+      { student: { firstName: { contains: q, mode: "insensitive" } } },
+      { fee: { code: { contains: q, mode: "insensitive" } } },
+      { fee: { name: { contains: q, mode: "insensitive" } } },
+    ];
+  }
+
+  const total = await prisma.feePayment.count({ where });
+  const items = await prisma.feePayment.findMany({
+    where,
+    orderBy: [{ paidAt: "desc" }, { id: "desc" }],
+    skip: (page - 1) * take,
+    take,
+    include: {
+      student: { select: { id: true, name: true, postnom: true, firstName: true } },
+      fee: { select: { id: true, code: true, name: true, chargeType: true } },
+      allocations: { include: { module: true, tranche: true } },
+    },
+  });
+
+  return NextResponse.json({
+    items,
+    total,
+    page,
+    pageCount: Math.max(1, Math.ceil(total / take)),
+  });
+}
+
+export async function POST(req: Request) {
+  const auth = await requireFinanceWriteApi();
+  if (!auth.ok) return auth.response;
+
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = createSchema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+
+  try {
+    const created = await createFeePayment(parsed.data);
+    return NextResponse.json({ payment: created }, { status: 201 });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to create payment" }, { status: 409 });
+  }
+}
+

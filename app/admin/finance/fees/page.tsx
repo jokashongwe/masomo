@@ -48,16 +48,16 @@ export default async function AdminFinanceFeesPage() {
     <div className="max-w-6xl mx-auto px-4 py-10">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-black dark:text-white">Fees</h1>
+          <h1 className="text-2xl font-semibold text-black dark:text-white">Frais</h1>
           <p className="mt-2 text-zinc-600 dark:text-zinc-300">
-            CRUD fees, attach them to levels, and configure amounts in USD/CDF (TOTAL or BY_MODULE).
+            Gérer les frais, les attacher aux niveaux, et configurer les montants en USD/CDF (TOTAL ou PAR MODULE).
           </p>
         </div>
         <Link
           href="/admin/finance"
           className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
         >
-          Back
+          Retour
         </Link>
       </div>
 

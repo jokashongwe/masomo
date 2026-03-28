@@ -26,7 +26,7 @@ export default async function AdminStudentsPage({
     return (
       <div className="max-w-6xl mx-auto px-4 py-10">
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 bg-white/60 dark:bg-black/40">
-          No academic year in progress. Please configure it from system admin.
+          Aucune année scolaire en cours. Veuillez la configurer via l’administrateur système.
         </div>
       </div>
     );
@@ -121,9 +121,9 @@ export default async function AdminStudentsPage({
     <div className="max-w-6xl mx-auto px-4 py-10">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold text-black dark:text-white">Students</h1>
+          <h1 className="text-2xl font-semibold text-black dark:text-white">Élèves</h1>
           <p className="mt-2 text-zinc-600 dark:text-zinc-300">
-            Search and filter students. Pagination is server-side.
+            Rechercher et filtrer les élèves. La pagination est côté serveur.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -131,13 +131,13 @@ export default async function AdminStudentsPage({
             href="/enroll"
             className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 text-sm"
           >
-            Enroll
+            Inscrire
           </Link>
           <Link
             href="/admin"
             className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
           >
-            Back to Admin
+            Retour à l’admin
           </Link>
         </div>
       </div>
@@ -145,22 +145,22 @@ export default async function AdminStudentsPage({
       <div className="mt-6 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white/60 dark:bg-black/40">
         <form method="GET" className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-black dark:text-white">Search</label>
+            <label className="block text-sm font-medium text-black dark:text-white">Recherche</label>
             <input
               name="q"
               defaultValue={q ?? ""}
               className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
-              placeholder="Name, postnom, first name"
+              placeholder="Nom, postnom, prénom"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-black dark:text-white">Class</label>
+            <label className="block text-sm font-medium text-black dark:text-white">Classe</label>
             <select
               name="classId"
               defaultValue={classIdStr ?? ""}
               className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
             >
-              <option value="">All classes</option>
+              <option value="">Toutes les classes</option>
               {classOptions.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.label}
@@ -169,7 +169,7 @@ export default async function AdminStudentsPage({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-black dark:text-white">Page size</label>
+            <label className="block text-sm font-medium text-black dark:text-white">Taille de page</label>
             <select
               name="take"
               defaultValue={String(take)}
@@ -186,13 +186,13 @@ export default async function AdminStudentsPage({
               type="submit"
               className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800"
             >
-              Search
+              Rechercher
             </button>
             <Link
               href="/admin/students"
               className="ml-3 text-sm text-zinc-600 dark:text-zinc-300 hover:underline"
             >
-              Reset
+              Réinitialiser
             </Link>
           </div>
         </form>
@@ -202,18 +202,18 @@ export default async function AdminStudentsPage({
         <table className="min-w-full text-sm">
           <thead>
             <tr className="text-left text-zinc-700 dark:text-zinc-300">
-              <th className="py-2 pr-3">Student</th>
-              <th className="py-2 pr-3">Sex</th>
-              <th className="py-2 pr-3">Birth date</th>
-              <th className="py-2 pr-3">Class</th>
-              <th className="py-2 pr-3">Tutors</th>
+              <th className="py-2 pr-3">Élève</th>
+              <th className="py-2 pr-3">Sexe</th>
+              <th className="py-2 pr-3">Date de naissance</th>
+              <th className="py-2 pr-3">Classe</th>
+              <th className="py-2 pr-3">Tuteurs</th>
             </tr>
           </thead>
           <tbody>
             {items.length === 0 ? (
               <tr>
                 <td colSpan={5} className="py-8 text-zinc-600 dark:text-zinc-300">
-                  No students found.
+                  Aucun élève trouvé.
                 </td>
               </tr>
             ) : (
@@ -243,7 +243,7 @@ export default async function AdminStudentsPage({
 
       <div className="mt-6 flex items-center justify-between gap-3 flex-wrap">
         <div className="text-sm text-zinc-600 dark:text-zinc-300">
-          Showing page {page} of {pageCount} ({total} total).
+          Page {page} sur {pageCount} ({total} au total).
         </div>
         <div className="flex items-center gap-2">
           {page > 1 ? (
@@ -251,7 +251,7 @@ export default async function AdminStudentsPage({
               href={buildQuery(page - 1)}
               className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-sm hover:bg-white/60 dark:hover:bg-black/40"
             >
-              Prev
+              Précédent
             </Link>
           ) : null}
           {page < pageCount ? (
@@ -259,7 +259,7 @@ export default async function AdminStudentsPage({
               href={buildQuery(page + 1)}
               className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-sm hover:bg-white/60 dark:hover:bg-black/40"
             >
-              Next
+              Suivant
             </Link>
           ) : null}
         </div>

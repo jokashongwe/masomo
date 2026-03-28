@@ -67,7 +67,7 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error ?? "Failed to create academic year");
+        setError(data?.error ?? "Échec de création de l’année scolaire");
         return;
       }
       setCreate({ name: "", startDate: "", endDate: "", isCurrent: false });
@@ -95,7 +95,7 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error ?? "Failed to update academic year");
+        setError(data?.error ?? "Échec de mise à jour de l’année scolaire");
         return;
       }
       setEditingId(null);
@@ -107,14 +107,14 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
 
   async function handleDelete(id: number) {
     setError(null);
-    const ok = window.confirm("Delete this academic year?");
+    const ok = window.confirm("Supprimer cette année scolaire ?");
     if (!ok) return;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/admin/academic-years/${id}`, { method: "DELETE" });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error ?? "Delete failed");
+        setError(data?.error ?? "Échec de suppression");
         return;
       }
       router.refresh();
@@ -126,11 +126,11 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Create</h2>
+        <h2 className="text-lg font-semibold text-black dark:text-white">Créer</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
-            placeholder="Name (unique)"
+            placeholder="Nom (unique)"
             className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
             value={create.name}
             onChange={(e) => setCreate((c) => ({ ...c, name: e.target.value }))}
@@ -157,23 +157,23 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
               checked={create.isCurrent}
               onChange={(e) => setCreate((c) => ({ ...c, isCurrent: e.target.checked }))}
             />
-            Mark as current
+            Marquer comme année en cours
           </label>
           <button
             disabled={submitting}
             type="submit"
             className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
           >
-            {submitting ? "Saving..." : "Create year"}
+            {submitting ? "Enregistrement..." : "Créer l’année"}
           </button>
         </form>
       </div>
 
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Existing Years</h2>
+        <h2 className="text-lg font-semibold text-black dark:text-white">Années existantes</h2>
         <div className="mt-3 space-y-3">
           {years.length === 0 ? (
-            <div className="text-sm text-zinc-600 dark:text-zinc-300">No years yet.</div>
+            <div className="text-sm text-zinc-600 dark:text-zinc-300">Aucune année.</div>
           ) : (
             years.map((y) => (
               <div key={y.id} className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3">
@@ -185,9 +185,9 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
                     </div>
                     <div className="text-xs mt-1">
                       {y.isCurrent ? (
-                        <span className="inline-flex rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5">Current</span>
+                        <span className="inline-flex rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5">En cours</span>
                       ) : (
-                        <span className="inline-flex rounded-full bg-zinc-100 text-zinc-700 px-2 py-0.5">Not current</span>
+                        <span className="inline-flex rounded-full bg-zinc-100 text-zinc-700 px-2 py-0.5">Inactive</span>
                       )}
                     </div>
                   </div>
@@ -200,7 +200,7 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
                       }}
                       className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40"
                     >
-                      Edit
+                      Modifier
                     </button>
                     <button
                       type="button"
@@ -208,7 +208,7 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
                       onClick={() => handleDelete(y.id)}
                       className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
                     >
-                      Delete
+                      Supprimer
                     </button>
                   </div>
                 </div>
@@ -219,10 +219,10 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
 
         {editing ? (
           <form onSubmit={handleUpdate} className="mt-4 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white/60 dark:bg-black/40 space-y-3">
-            <h3 className="font-semibold text-black dark:text-white">Edit: {editing.name}</h3>
+            <h3 className="font-semibold text-black dark:text-white">Modifier : {editing.name}</h3>
             <input
               required
-              placeholder="Name"
+              placeholder="Nom"
               className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
               value={update.name}
               onChange={(e) => setUpdate((u) => ({ ...u, name: e.target.value }))}
@@ -249,7 +249,7 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
                 checked={update.isCurrent}
                 onChange={(e) => setUpdate((u) => ({ ...u, isCurrent: e.target.checked }))}
               />
-              Mark as current
+              Marquer comme année en cours
             </label>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <button
@@ -257,7 +257,7 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
                 disabled={submitting}
                 className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
               >
-                {submitting ? "Saving..." : "Save"}
+                {submitting ? "Enregistrement..." : "Enregistrer"}
               </button>
               <button
                 type="button"
@@ -265,7 +265,7 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
                 onClick={() => setEditingId(null)}
                 className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
               >
-                Cancel
+                Annuler
               </button>
             </div>
           </form>

@@ -7,14 +7,14 @@ export default async function AdminFinanceHomePage() {
     <div className="max-w-5xl mx-auto px-4 py-10">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-black dark:text-white">Finance</h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-300">Manage fees, billing modules and tranches.</p>
+          <h1 className="text-2xl font-semibold text-black dark:text-white">Finances</h1>
+          <p className="mt-2 text-zinc-600 dark:text-zinc-300">Gérer les frais, les modules de facturation et les tranches.</p>
         </div>
         <Link
           href="/admin"
           className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
         >
-          Back to Admin
+          Retour à l’admin
         </Link>
       </div>
 
@@ -26,7 +26,10 @@ export default async function AdminFinanceHomePage() {
           Tranches
         </Link>
         <Link className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white/60 dark:bg-black/40" href="/admin/finance/fees">
-          Fees
+          Frais
+        </Link>
+        <Link className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white/60 dark:bg-black/40" href="/admin/finance/payments">
+          Paiements
         </Link>
       </div>
     </div>

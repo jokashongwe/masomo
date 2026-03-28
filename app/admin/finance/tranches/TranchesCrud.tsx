@@ -59,7 +59,7 @@ export default function TranchesCrud({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error?.message ?? data?.error ?? "Create failed");
+        setError(data?.error?.message ?? data?.error ?? "Échec de création");
         return;
       }
       setCreate({ codeTranche: "", moduleId: initialModules[0]?.id ?? 0 });
@@ -82,7 +82,7 @@ export default function TranchesCrud({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error?.message ?? data?.error ?? "Update failed");
+        setError(data?.error?.message ?? data?.error ?? "Échec de mise à jour");
         return;
       }
       setEditingId(null);
@@ -94,14 +94,14 @@ export default function TranchesCrud({
 
   async function handleDelete(id: number) {
     setError(null);
-    const ok = window.confirm("Delete this tranche?");
+    const ok = window.confirm("Supprimer cette tranche ?");
     if (!ok) return;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/admin/finance/tranches/${id}`, { method: "DELETE" });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error ?? "Delete failed");
+        setError(data?.error ?? "Échec de suppression");
         return;
       }
       router.refresh();
@@ -113,7 +113,7 @@ export default function TranchesCrud({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Create Tranche</h2>
+        <h2 className="text-lg font-semibold text-black dark:text-white">Créer une tranche</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
@@ -139,13 +139,13 @@ export default function TranchesCrud({
             type="submit"
             className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
           >
-            {submitting ? "Saving..." : "Create"}
+            {submitting ? "Enregistrement..." : "Créer"}
           </button>
         </form>
       </div>
 
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Existing Tranches</h2>
+        <h2 className="text-lg font-semibold text-black dark:text-white">Tranches existantes</h2>
         <div className="mt-3 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
@@ -159,7 +159,7 @@ export default function TranchesCrud({
               {tranches.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="py-6 text-zinc-600 dark:text-zinc-300">
-                    No tranches yet.
+                    Aucune tranche.
                   </td>
                 </tr>
               ) : (
@@ -177,7 +177,7 @@ export default function TranchesCrud({
                           }}
                           className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40"
                         >
-                          Edit
+                          Modifier
                         </button>
                         <button
                           type="button"
@@ -185,7 +185,7 @@ export default function TranchesCrud({
                           onClick={() => handleDelete(t.id)}
                           className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
                         >
-                          Delete
+                          Supprimer
                         </button>
                       </div>
                     </td>
@@ -198,7 +198,7 @@ export default function TranchesCrud({
 
         {editing ? (
           <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
-            <h3 className="font-semibold text-black dark:text-white">Edit: {editing.codeTranche}</h3>
+            <h3 className="font-semibold text-black dark:text-white">Modifier : {editing.codeTranche}</h3>
             <form onSubmit={handleUpdate} className="mt-3 space-y-3">
               <input
                 required
@@ -226,7 +226,7 @@ export default function TranchesCrud({
                   disabled={submitting}
                   className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
                 >
-                  {submitting ? "Saving..." : "Save changes"}
+                  {submitting ? "Enregistrement..." : "Enregistrer"}
                 </button>
                 <button
                   type="button"
@@ -234,7 +234,7 @@ export default function TranchesCrud({
                   onClick={() => setEditingId(null)}
                   className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
                 >
-                  Cancel
+                  Annuler
                 </button>
               </div>
             </form>

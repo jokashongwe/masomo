@@ -19,7 +19,7 @@ export default function DepositForm({ canWrite }: { canWrite: boolean }) {
     if (!canWrite) return;
     const parsedAmount = Number(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      setError("Amount must be > 0");
+      setError("Le montant doit être > 0");
       return;
     }
 
@@ -32,14 +32,14 @@ export default function DepositForm({ canWrite }: { canWrite: boolean }) {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error?.message ?? data?.error ?? "Deposit failed");
+        setError(data?.error?.message ?? data?.error ?? "Échec du dépôt");
         return;
       }
       setAmount("");
       setNote("");
       router.refresh();
     } catch {
-      setError("Network error");
+      setError("Erreur réseau");
     } finally {
       setSubmitting(false);
     }
@@ -49,15 +49,15 @@ export default function DepositForm({ canWrite }: { canWrite: boolean }) {
     <form onSubmit={onSubmit} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <div className="font-semibold text-black dark:text-white">Deposit</div>
-          <div className="text-sm text-zinc-600 dark:text-zinc-300">Add money to the wallet.</div>
+          <div className="font-semibold text-black dark:text-white">Dépôt</div>
+          <div className="text-sm text-zinc-600 dark:text-zinc-300">Ajouter de l’argent au portefeuille.</div>
         </div>
-        {!canWrite ? <div className="text-sm text-zinc-600 dark:text-zinc-300">Read-only</div> : null}
+        {!canWrite ? <div className="text-sm text-zinc-600 dark:text-zinc-300">Lecture seule</div> : null}
       </div>
 
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="sm:col-span-1">
-          <label className="block text-sm font-medium text-black dark:text-white">Currency</label>
+          <label className="block text-sm font-medium text-black dark:text-white">Devise</label>
           <select
             className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
             value={currency}
@@ -69,7 +69,7 @@ export default function DepositForm({ canWrite }: { canWrite: boolean }) {
           </select>
         </div>
         <div className="sm:col-span-1">
-          <label className="block text-sm font-medium text-black dark:text-white">Amount</label>
+          <label className="block text-sm font-medium text-black dark:text-white">Montant</label>
           <input
             className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
             value={amount}
@@ -83,12 +83,12 @@ export default function DepositForm({ canWrite }: { canWrite: boolean }) {
           />
         </div>
         <div className="sm:col-span-1">
-          <label className="block text-sm font-medium text-black dark:text-white">Note (optional)</label>
+          <label className="block text-sm font-medium text-black dark:text-white">Note (optionnel)</label>
           <input
             className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="e.g. Deposit"
+            placeholder="ex: Dépôt"
             disabled={!canWrite}
           />
         </div>
@@ -101,7 +101,7 @@ export default function DepositForm({ canWrite }: { canWrite: boolean }) {
         disabled={!canWrite || submitting}
         className="mt-4 w-full rounded-lg bg-zinc-900 text-white px-4 py-3 hover:bg-zinc-800 disabled:opacity-50"
       >
-        {submitting ? "Depositing..." : "Deposit"}
+        {submitting ? "Dépôt en cours..." : "Déposer"}
       </button>
     </form>
   );

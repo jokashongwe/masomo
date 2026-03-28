@@ -58,28 +58,34 @@ export async function destroySession() {
 export type CurrentUser = { id: number; email: string; name: string; role: UserRole };
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!token) return null;
+  try {
+    const token = (await cookies()).get(SESSION_COOKIE)?.value;
+    if (!token) return null;
 
-  const tokenHash = sha256Hex(token);
+    const tokenHash = sha256Hex(token);
 
-  const session = await prisma.session.findUnique({
-    where: { tokenHash },
-    include: { user: true },
-  });
+    const session = await prisma.session.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
 
-  if (!session) return null;
-  if (session.expiresAt.getTime() < Date.now()) {
-    await prisma.session.delete({ where: { tokenHash } }).catch(() => null);
+    if (!session) return null;
+    if (session.expiresAt.getTime() < Date.now()) {
+      await prisma.session.delete({ where: { tokenHash } }).catch(() => null);
+      return null;
+    }
+
+    return {
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+      role: session.user.role,
+    };
+  }
+  catch (error) {
+    console.error(error);
     return null;
   }
-
-  return {
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name,
-    role: session.user.role,
-  };
 }
 
 export function canReadFinance(role: UserRole) {

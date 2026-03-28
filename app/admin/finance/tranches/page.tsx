@@ -15,14 +15,14 @@ export default async function AdminFinanceTranchesPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-black dark:text-white">Module Tranches</h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-300">Tranches belong to modules and have a code.</p>
+          <p className="mt-2 text-zinc-600 dark:text-zinc-300">Les tranches appartiennent aux modules et ont un code.</p>
         </div>
         <div className="flex gap-2">
           <Link
             href="/admin/finance"
             className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
           >
-            Back
+            Retour
           </Link>
         </div>
       </div>

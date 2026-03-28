@@ -66,7 +66,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error?.message ?? data?.error ?? "Create failed");
+        setError(data?.error?.message ?? data?.error ?? "Échec de création");
         return;
       }
       setCreate({ name: "", startDay: 1, startMonth: 1, endDay: 1, endMonth: 1 });
@@ -89,7 +89,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error?.message ?? data?.error ?? "Update failed");
+        setError(data?.error?.message ?? data?.error ?? "Échec de mise à jour");
         return;
       }
       setEditingId(null);
@@ -101,14 +101,14 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
 
   async function handleDelete(id: number) {
     setError(null);
-    const ok = window.confirm("Delete this module? (This will delete its tranches too)");
+    const ok = window.confirm("Supprimer ce module ? (cela supprimera aussi ses tranches)");
     if (!ok) return;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/admin/finance/modules/${id}`, { method: "DELETE" });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error ?? "Delete failed");
+        setError(data?.error ?? "Échec de suppression");
         return;
       }
       router.refresh();
@@ -120,18 +120,18 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Create Module</h2>
+        <h2 className="text-lg font-semibold text-black dark:text-white">Créer un module</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
-            placeholder="Module name"
+            placeholder="Nom du module"
             className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
             value={create.name}
             onChange={(e) => setCreate((c) => ({ ...c, name: e.target.value }))}
           />
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <div className="text-xs text-zinc-600 dark:text-zinc-300">Start (DD/MM)</div>
+              <div className="text-xs text-zinc-600 dark:text-zinc-300">Début (JJ/MM)</div>
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="number"
@@ -152,7 +152,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
               </div>
             </div>
             <div className="space-y-1">
-              <div className="text-xs text-zinc-600 dark:text-zinc-300">End (DD/MM)</div>
+              <div className="text-xs text-zinc-600 dark:text-zinc-300">Fin (JJ/MM)</div>
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="number"
@@ -178,19 +178,19 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
             type="submit"
             className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
           >
-            {submitting ? "Saving..." : "Create"}
+            {submitting ? "Enregistrement..." : "Créer"}
           </button>
         </form>
       </div>
 
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Existing Modules</h2>
+        <h2 className="text-lg font-semibold text-black dark:text-white">Modules existants</h2>
         <div className="mt-3 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="text-left text-zinc-700 dark:text-zinc-300">
-                <th className="py-2 pr-3">Name</th>
-                <th className="py-2 pr-3">Period</th>
+                <th className="py-2 pr-3">Nom</th>
+                <th className="py-2 pr-3">Période</th>
                 <th className="py-2 pr-3">Tranches</th>
                 <th className="py-2 pr-3">Actions</th>
               </tr>
@@ -199,7 +199,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
               {modules.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="py-6 text-zinc-600 dark:text-zinc-300">
-                    No modules yet.
+                    Aucun module.
                   </td>
                 </tr>
               ) : (
@@ -222,7 +222,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                           }}
                           className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40"
                         >
-                          Edit
+                          Modifier
                         </button>
                         <button
                           type="button"
@@ -230,7 +230,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                           onClick={() => handleDelete(m.id)}
                           className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
                         >
-                          Delete
+                          Supprimer
                         </button>
                       </div>
                     </td>
@@ -243,18 +243,18 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
 
         {editing ? (
           <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
-            <h3 className="font-semibold text-black dark:text-white">Edit: {editing.name}</h3>
+            <h3 className="font-semibold text-black dark:text-white">Modifier : {editing.name}</h3>
             <form onSubmit={handleUpdate} className="mt-3 space-y-3">
               <input
                 required
-                placeholder="Module name"
+                placeholder="Nom du module"
                 className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
                 value={update.name}
                 onChange={(e) => setUpdate((u) => ({ ...u, name: e.target.value }))}
               />
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <div className="text-xs text-zinc-600 dark:text-zinc-300">Start (DD/MM)</div>
+                  <div className="text-xs text-zinc-600 dark:text-zinc-300">Début (JJ/MM)</div>
                   <div className="grid grid-cols-2 gap-2">
                     <input
                       type="number"
@@ -275,7 +275,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs text-zinc-600 dark:text-zinc-300">End (DD/MM)</div>
+                  <div className="text-xs text-zinc-600 dark:text-zinc-300">Fin (JJ/MM)</div>
                   <div className="grid grid-cols-2 gap-2">
                     <input
                       type="number"
@@ -303,7 +303,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                   disabled={submitting}
                   className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
                 >
-                  {submitting ? "Saving..." : "Save changes"}
+                  {submitting ? "Enregistrement..." : "Enregistrer"}
                 </button>
                 <button
                   type="button"
@@ -311,7 +311,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                   onClick={() => setEditingId(null)}
                   className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
                 >
-                  Cancel
+                  Annuler
                 </button>
               </div>
             </form>

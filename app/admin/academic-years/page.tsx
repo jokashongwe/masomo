@@ -11,9 +11,9 @@ export default async function AdminAcademicYearsPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
-      <h1 className="text-2xl font-semibold text-black dark:text-white">Academic Years</h1>
+      <h1 className="text-2xl font-semibold text-black dark:text-white">Années scolaires</h1>
       <p className="mt-2 text-zinc-600 dark:text-zinc-300">
-        Manage school years. Exactly one year must be marked as “current”.
+        Gérer les années scolaires. Exactement une année doit être marquée “en cours”.
       </p>
       <div className="mt-6">
         <AcademicYearsCrud initialYears={years} />

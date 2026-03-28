@@ -143,6 +143,7 @@ model AcademicYear {
   isCurrent Boolean @default(false)
 
   students Student[]
+  feePayments FeePayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -167,6 +168,7 @@ model Student {
   schoolClass SchoolClass @relation(fields: [classId], references: [id], onDelete: Restrict)
 
   studentTutors StudentTutor[]
+  feePayments FeePayment[]
 
   @@index([classId])
 }
@@ -217,6 +219,7 @@ model Fee {
   trancheAmounts FeeTrancheAmount[]
 
   feeLevels FeeLevel[]
+  payments FeePayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -246,6 +249,7 @@ model BillingModule {
 
   tranches ModuleTranche[]
   feeModuleAmounts FeeModuleAmount[]
+  paymentAllocations FeePaymentAllocation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -262,6 +266,7 @@ model ModuleTranche {
   module   BillingModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
   feeTrancheAmounts FeeTrancheAmount[]
+  paymentAllocations FeePaymentAllocation[]
 
   @@unique([moduleId, codeTranche])
   @@index([moduleId])
@@ -315,6 +320,13 @@ model FeeTrancheAmount {
 enum WalletTransactionType {
   DEPOSIT
   EXPENSE
+  FEE_PAYMENT
+}
+
+enum FeePaymentSource {
+  BANK_SLIP
+  MANUAL
+  IMPORT
 }
 
 model Wallet {
@@ -345,6 +357,10 @@ model WalletTransaction {
   expenseId Int? @unique
   expense Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
 
+  // Link to fee payment when type=FEE_PAYMENT (optional)
+  feePaymentId Int? @unique
+  feePayment FeePayment? @relation(fields: [feePaymentId], references: [id], onDelete: SetNull)
+
   note String?
 
   createdAt DateTime @default(now())
@@ -371,5 +387,60 @@ model Expense {
   updatedAt DateTime @updatedAt
 
   @@index([walletId])
+}
+
+model FeePayment {
+  id Int @id @default(autoincrement())
+
+  receiptNumber String @unique
+  source FeePaymentSource
+  bankSlipReference String?
+
+  studentId Int
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  academicYearId Int
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+
+  feeId Int
+  fee Fee @relation(fields: [feeId], references: [id], onDelete: Restrict)
+
+  currency Currency
+  amount Decimal @db.Decimal(18, 2)
+  paidAt DateTime @default(now())
+
+  note String?
+
+  allocations FeePaymentAllocation[]
+  walletTransaction WalletTransaction?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId, academicYearId])
+  @@index([feeId])
+  @@index([paidAt])
+}
+
+model FeePaymentAllocation {
+  id Int @id @default(autoincrement())
+
+  paymentId Int
+  payment FeePayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  currency Currency
+  amount Decimal @db.Decimal(18, 2)
+
+  moduleId Int?
+  module BillingModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+
+  trancheId Int?
+  tranche ModuleTranche? @relation(fields: [trancheId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([paymentId])
+  @@index([moduleId])
+  @@index([trancheId])
 }
 

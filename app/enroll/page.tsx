@@ -12,9 +12,9 @@ export default async function EnrollPage() {
   if (!currentYear) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-10">
-        <h1 className="text-2xl font-semibold text-black dark:text-white">Enroll Student</h1>
+        <h1 className="text-2xl font-semibold text-black dark:text-white">Inscription d’un élève</h1>
         <p className="mt-2 text-zinc-600 dark:text-zinc-300">
-          No academic year is currently in progress. Please contact system admin.
+          Aucune année scolaire n’est en cours. Veuillez contacter l’administrateur système.
         </p>
       </div>
     );
@@ -45,16 +45,16 @@ export default async function EnrollPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
-      <h1 className="text-2xl font-semibold text-black dark:text-white">Enroll Student</h1>
+      <h1 className="text-2xl font-semibold text-black dark:text-white">Inscription d’un élève</h1>
       <p className="mt-2 text-zinc-600 dark:text-zinc-300">
-        Enter the student details and their tutor(s), then assign them to a class.
+        Renseignez les informations de l’élève et de ses tuteurs, puis assignez-le à une classe.
       </p>
 
       <div className="mt-8">
         {classOptions.length === 0 ? (
           <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 bg-white/60 dark:bg-black/40">
-            No classes found yet. Create your `School` / `Section` / `Option` / `Level` / `Class` first,
-            then come back to enroll students.
+            Aucune classe trouvée. Créez d’abord `École` / `Section` / `Option` / `Niveau` / `Classe`,
+            puis revenez pour inscrire des élèves.
           </div>
         ) : (
           <EnrollmentForm classOptions={classOptions} />
