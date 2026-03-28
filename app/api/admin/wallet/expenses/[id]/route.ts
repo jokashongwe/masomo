@@ -10,6 +10,7 @@ const expenseUpdateSchema = z.object({
   amount: z.coerce.number().positive(),
   description: z.string().optional().or(z.literal("")).transform((v) => (v ? v : undefined)),
   occurredAt: z.coerce.date().optional(),
+  academicYearId: z.coerce.number().int().positive().optional(),
 });
 
 export async function GET(
@@ -44,6 +45,16 @@ export async function PUT(
 
   const parsed = expenseUpdateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+
+  if (parsed.data.academicYearId != null) {
+    const yearOk = await prisma.academicYear.findUnique({
+      where: { id: parsed.data.academicYearId },
+      select: { id: true },
+    });
+    if (!yearOk) {
+      return NextResponse.json({ error: "Année scolaire introuvable" }, { status: 400 });
+    }
+  }
 
   // Updating an expense requires adjusting wallet balances.
   // We also update the linked WalletTransaction when present.
@@ -105,6 +116,7 @@ export async function PUT(
           amount: newAmount,
           description: parsed.data.description,
           occurredAt: parsed.data.occurredAt ?? undefined,
+          ...(parsed.data.academicYearId != null ? { academicYearId: parsed.data.academicYearId } : {}),
         },
       });
 
@@ -115,6 +127,7 @@ export async function PUT(
           currency: newCurrency,
           amount: newAmount,
           note: parsed.data.description ? `Expense: ${parsed.data.description}` : undefined,
+          ...(parsed.data.academicYearId != null ? { academicYearId: parsed.data.academicYearId } : {}),
         },
       });
     });

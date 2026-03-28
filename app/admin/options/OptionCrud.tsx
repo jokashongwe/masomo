@@ -2,6 +2,23 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  adminCard,
+  adminCardGrid,
+  adminDangerButton,
+  adminErrorBox,
+  adminGhostButton,
+  adminInput,
+  adminNestedCard,
+  adminPrimaryButton,
+  adminPrimaryButtonBlock,
+  adminSecondaryButton,
+  adminSectionTitle,
+  adminTable,
+  adminTableWrap,
+  adminTh,
+  adminTr,
+} from "../components/admin-ui";
 
 type Section = { id: number; codeSection: string; nameSection: string; school?: { name: string } | null };
 type Option = { id: number; codeOption: string; nameOption: string; sectionId: number; section?: { codeSection: string; nameSection: string } | null };
@@ -119,27 +136,27 @@ export default function OptionCrud({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Créer une option</h2>
+    <div className={adminCardGrid}>
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Créer une option</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
             placeholder="Code option"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.codeOption}
             onChange={(e) => setCreate((c) => ({ ...c, codeOption: e.target.value }))}
           />
           <input
             required
             placeholder="Nom de l’option"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.nameOption}
             onChange={(e) => setCreate((c) => ({ ...c, nameOption: e.target.value }))}
           />
           <select
             required
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.sectionId}
             onChange={(e) => setCreate((c) => ({ ...c, sectionId: Number(e.target.value) }))}
           >
@@ -152,23 +169,23 @@ export default function OptionCrud({
           <button
             disabled={submitting || sections.length === 0}
             type="submit"
-            className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+            className={adminPrimaryButtonBlock}
           >
             {submitting ? "Enregistrement..." : "Créer"}
           </button>
         </form>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Options existantes</h2>
-        <div className="mt-3 overflow-x-auto">
-          <table className="min-w-full text-sm">
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Options existantes</h2>
+        <div className={adminTableWrap}>
+          <table className={adminTable}>
             <thead>
-              <tr className="text-left text-zinc-700 dark:text-zinc-300">
-                <th className="py-2 pr-3">Code</th>
-                <th className="py-2 pr-3">Nom</th>
-                <th className="py-2 pr-3">Section</th>
-                <th className="py-2 pr-3">Actions</th>
+              <tr>
+                <th className={adminTh}>Code</th>
+                <th className={adminTh}>Nom</th>
+                <th className={adminTh}>Section</th>
+                <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -183,7 +200,7 @@ export default function OptionCrud({
                   const sectionLabel = sections.find((s) => s.id === o.sectionId);
                   const label = sectionLabel ? `${sectionLabel.codeSection} - ${sectionLabel.nameSection}` : "-";
                   return (
-                    <tr key={o.id} className="border-t border-zinc-200 dark:border-zinc-800">
+                    <tr key={o.id} className={adminTr}>
                       <td className="py-3 pr-3 font-medium">{o.codeOption}</td>
                       <td className="py-3 pr-3">{o.nameOption}</td>
                       <td className="py-3 pr-3">{label}</td>
@@ -195,7 +212,7 @@ export default function OptionCrud({
                               setEditingId(o.id);
                               resetUpdateFromEditing(o);
                             }}
-                            className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40"
+                            className={adminGhostButton}
                           >
                             Modifier
                           </button>
@@ -203,7 +220,7 @@ export default function OptionCrud({
                             type="button"
                             disabled={submitting}
                             onClick={() => handleDelete(o.id)}
-                            className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            className={adminDangerButton}
                           >
                             Supprimer
                           </button>
@@ -218,26 +235,26 @@ export default function OptionCrud({
         </div>
 
         {editing ? (
-          <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
-            <h3 className="font-semibold text-black dark:text-white">Modifier : {editing.codeOption}</h3>
+          <div className={adminNestedCard}>
+            <h3 className={`font-semibold ${adminSectionTitle}`}>Modifier : {editing.codeOption}</h3>
             <form onSubmit={handleUpdate} className="mt-3 space-y-3">
               <input
                 required
                 placeholder="Code option"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.codeOption}
                 onChange={(e) => setUpdate((u) => ({ ...u, codeOption: e.target.value }))}
               />
               <input
                 required
                 placeholder="Nom de l’option"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.nameOption}
                 onChange={(e) => setUpdate((u) => ({ ...u, nameOption: e.target.value }))}
               />
               <select
                 required
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.sectionId}
                 onChange={(e) => setUpdate((u) => ({ ...u, sectionId: Number(e.target.value) }))}
               >
@@ -252,7 +269,7 @@ export default function OptionCrud({
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+                  className={adminPrimaryButton}
                 >
                   {submitting ? "Enregistrement..." : "Enregistrer"}
                 </button>
@@ -260,7 +277,7 @@ export default function OptionCrud({
                   type="button"
                   disabled={submitting}
                   onClick={() => setEditingId(null)}
-                  className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
+                  className={adminSecondaryButton}
                 >
                   Annuler
                 </button>
@@ -269,7 +286,7 @@ export default function OptionCrud({
           </div>
         ) : null}
 
-        {error ? <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{error}</div> : null}
+        {error ? <div className={adminErrorBox}>{error}</div> : null}
       </div>
     </div>
   );

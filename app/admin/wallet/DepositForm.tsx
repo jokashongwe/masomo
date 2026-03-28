@@ -1,22 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  adminCard,
+  adminErrorBox,
+  adminInput,
+  adminLabel,
+  adminPrimaryButtonBlock,
+  adminSectionTitle,
+} from "../components/admin-ui";
 
 type Currency = "USD" | "CDF";
 
-export default function DepositForm({ canWrite }: { canWrite: boolean }) {
+export default function DepositForm({
+  canWrite,
+  academicYears,
+  defaultAcademicYearId,
+}: {
+  canWrite: boolean;
+  academicYears: { id: number; name: string }[];
+  defaultAcademicYearId: number | null;
+}) {
   const router = useRouter();
   const [currency, setCurrency] = useState<Currency>("USD");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [academicYearId, setAcademicYearId] = useState<number | null>(defaultAcademicYearId);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setAcademicYearId(defaultAcademicYearId);
+  }, [defaultAcademicYearId]);
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!canWrite) return;
+    if (academicYearId == null) {
+      setError("Sélectionnez une année scolaire.");
+      return;
+    }
     const parsedAmount = Number(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       setError("Le montant doit être > 0");
@@ -28,7 +53,7 @@ export default function DepositForm({ canWrite }: { canWrite: boolean }) {
       const res = await fetch("/api/admin/wallet/deposit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currency, amount: parsedAmount, note }),
+        body: JSON.stringify({ currency, amount: parsedAmount, note, academicYearId }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -46,20 +71,42 @@ export default function DepositForm({ canWrite }: { canWrite: boolean }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+    <form onSubmit={onSubmit} className={adminCard}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="font-semibold text-black dark:text-white">Dépôt</div>
+          <div className={adminSectionTitle}>Dépôt</div>
           <div className="text-sm text-zinc-600 dark:text-zinc-300">Ajouter de l’argent au portefeuille.</div>
         </div>
         {!canWrite ? <div className="text-sm text-zinc-600 dark:text-zinc-300">Lecture seule</div> : null}
       </div>
 
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="sm:col-span-1">
-          <label className="block text-sm font-medium text-black dark:text-white">Devise</label>
+          <label className={`block ${adminLabel}`}>Année scolaire</label>
           <select
-            className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={`mt-2 ${adminInput}`}
+            value={academicYearId ?? ""}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setAcademicYearId(Number.isFinite(v) && v > 0 ? v : null);
+            }}
+            disabled={!canWrite || academicYears.length === 0}
+            required
+          >
+            {academicYears.length === 0 ? (
+              <option value="">—</option>
+            ) : null}
+            {academicYears.map((y) => (
+              <option key={y.id} value={y.id}>
+                {y.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="sm:col-span-1">
+          <label className={`block ${adminLabel}`}>Devise</label>
+          <select
+            className={`mt-2 ${adminInput}`}
             value={currency}
             onChange={(e) => setCurrency(e.target.value as Currency)}
             disabled={!canWrite}
@@ -69,9 +116,9 @@ export default function DepositForm({ canWrite }: { canWrite: boolean }) {
           </select>
         </div>
         <div className="sm:col-span-1">
-          <label className="block text-sm font-medium text-black dark:text-white">Montant</label>
+          <label className={`block ${adminLabel}`}>Montant</label>
           <input
-            className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={`mt-2 ${adminInput}`}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
@@ -83,9 +130,9 @@ export default function DepositForm({ canWrite }: { canWrite: boolean }) {
           />
         </div>
         <div className="sm:col-span-1">
-          <label className="block text-sm font-medium text-black dark:text-white">Note (optionnel)</label>
+          <label className={`block ${adminLabel}`}>Note (optionnel)</label>
           <input
-            className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={`mt-2 ${adminInput}`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="ex: Dépôt"
@@ -94,12 +141,12 @@ export default function DepositForm({ canWrite }: { canWrite: boolean }) {
         </div>
       </div>
 
-      {error ? <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 text-sm">{error}</div> : null}
+      {error ? <div className={`${adminErrorBox} mt-3`}>{error}</div> : null}
 
       <button
         type="submit"
-        disabled={!canWrite || submitting}
-        className="mt-4 w-full rounded-lg bg-zinc-900 text-white px-4 py-3 hover:bg-zinc-800 disabled:opacity-50"
+        disabled={!canWrite || submitting || academicYearId == null}
+        className={`${adminPrimaryButtonBlock} mt-4`}
       >
         {submitting ? "Dépôt en cours..." : "Déposer"}
       </button>

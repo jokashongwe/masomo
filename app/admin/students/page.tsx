@@ -2,6 +2,19 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import { requireRoles, canManageSchool } from "@/lib/auth";
+import AdminPageHeader from "../components/AdminPageHeader";
+import {
+  adminCard,
+  adminGhostButton,
+  adminInput,
+  adminLabel,
+  adminPage,
+  adminPrimaryButton,
+  adminTable,
+  adminTableWrap,
+  adminTh,
+  adminTr,
+} from "../components/admin-ui";
 
 function parseIntSafe(value: string | undefined, fallback: number) {
   if (!value) return fallback;
@@ -24,8 +37,8 @@ export default async function AdminStudentsPage({
   });
   if (!currentYear) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-10">
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 bg-white/60 dark:bg-black/40">
+      <div className={adminPage}>
+        <div className={adminCard}>
           Aucune année scolaire en cours. Veuillez la configurer via l’administrateur système.
         </div>
       </div>
@@ -118,48 +131,33 @@ export default async function AdminStudentsPage({
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold text-black dark:text-white">Élèves</h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-300">
-            Rechercher et filtrer les élèves. La pagination est côté serveur.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/enroll"
-            className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 text-sm"
-          >
+    <div className={adminPage}>
+      <AdminPageHeader
+        kicker="Scolarité"
+        title="Élèves"
+        subtitle="Rechercher et filtrer les élèves. La pagination est côté serveur."
+        actions={
+          <Link href="/admin/enroll" className={adminPrimaryButton}>
             Inscrire
           </Link>
-          <Link
-            href="/admin"
-            className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
-          >
-            Retour à l’admin
-          </Link>
-        </div>
-      </div>
+        }
+        backLabel="Retour à l’admin"
+      />
 
-      <div className="mt-6 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white/60 dark:bg-black/40">
-        <form method="GET" className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+      <div className={`${adminCard} mt-6`}>
+        <form method="GET" className="grid grid-cols-1 items-end gap-3 md:grid-cols-4">
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-black dark:text-white">Recherche</label>
+            <label className={`block ${adminLabel}`}>Recherche</label>
             <input
               name="q"
               defaultValue={q ?? ""}
-              className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+              className={`mt-2 ${adminInput}`}
               placeholder="Nom, postnom, prénom"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-black dark:text-white">Classe</label>
-            <select
-              name="classId"
-              defaultValue={classIdStr ?? ""}
-              className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
-            >
+            <label className={`block ${adminLabel}`}>Classe</label>
+            <select name="classId" defaultValue={classIdStr ?? ""} className={`mt-2 ${adminInput}`}>
               <option value="">Toutes les classes</option>
               {classOptions.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -169,12 +167,8 @@ export default async function AdminStudentsPage({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-black dark:text-white">Taille de page</label>
-            <select
-              name="take"
-              defaultValue={String(take)}
-              className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
-            >
+            <label className={`block ${adminLabel}`}>Taille de page</label>
+            <select name="take" defaultValue={String(take)} className={`mt-2 ${adminInput}`}>
               <option value="10">10</option>
               <option value="20">20</option>
               <option value="50">50</option>
@@ -182,31 +176,25 @@ export default async function AdminStudentsPage({
           </div>
 
           <div className="md:col-span-4">
-            <button
-              type="submit"
-              className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800"
-            >
+            <button type="submit" className={adminPrimaryButton}>
               Rechercher
             </button>
-            <Link
-              href="/admin/students"
-              className="ml-3 text-sm text-zinc-600 dark:text-zinc-300 hover:underline"
-            >
+            <Link href="/admin/students" className={`${adminGhostButton} ml-3 text-sm`}>
               Réinitialiser
             </Link>
           </div>
         </form>
       </div>
 
-      <div className="mt-6 overflow-x-auto">
-        <table className="min-w-full text-sm">
+      <div className={`${adminTableWrap} mt-6`}>
+        <table className={adminTable}>
           <thead>
-            <tr className="text-left text-zinc-700 dark:text-zinc-300">
-              <th className="py-2 pr-3">Élève</th>
-              <th className="py-2 pr-3">Sexe</th>
-              <th className="py-2 pr-3">Date de naissance</th>
-              <th className="py-2 pr-3">Classe</th>
-              <th className="py-2 pr-3">Tuteurs</th>
+            <tr>
+              <th className={adminTh}>Élève</th>
+              <th className={adminTh}>Sexe</th>
+              <th className={adminTh}>Date de naissance</th>
+              <th className={adminTh}>Classe</th>
+              <th className={adminTh}>Tuteurs</th>
             </tr>
           </thead>
           <tbody>
@@ -221,7 +209,7 @@ export default async function AdminStudentsPage({
                 const classLabel = `${s.schoolClass.codeClass} - ${s.schoolClass.level.codeLevel} (${s.schoolClass.level.option.section.codeSection}) - ${s.schoolClass.level.option.section.school.name}`;
                 const tutorNames = s.studentTutors.map((st) => `${st.tutor.firstName} ${st.tutor.name} ${st.tutor.postnom}`.trim());
                 return (
-                  <tr key={s.id} className="border-t border-zinc-200 dark:border-zinc-800">
+                  <tr key={s.id} className={adminTr}>
                     <td className="py-3 pr-3">
                       {s.firstName} {s.name} {s.postnom}
                     </td>
@@ -247,18 +235,12 @@ export default async function AdminStudentsPage({
         </div>
         <div className="flex items-center gap-2">
           {page > 1 ? (
-            <Link
-              href={buildQuery(page - 1)}
-              className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-sm hover:bg-white/60 dark:hover:bg-black/40"
-            >
+            <Link href={buildQuery(page - 1)} className={adminGhostButton}>
               Précédent
             </Link>
           ) : null}
           {page < pageCount ? (
-            <Link
-              href={buildQuery(page + 1)}
-              className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-sm hover:bg-white/60 dark:hover:bg-black/40"
-            >
+            <Link href={buildQuery(page + 1)} className={adminGhostButton}>
               Suivant
             </Link>
           ) : null}

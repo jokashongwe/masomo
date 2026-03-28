@@ -2,11 +2,32 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  adminCard,
+  adminErrorBox,
+  adminGhostButton,
+  adminInput,
+  adminPrimaryButton,
+  adminSegmentActive,
+  adminSegmentInactive,
+  adminTable,
+  adminTh,
+  adminTr,
+} from "../../components/admin-ui";
 
 type StudentOpt = { id: number; label: string };
 type FeeOpt = { id: number; code: string; name: string; chargeType: "TOTAL" | "BY_MODULE" };
 type ModuleOpt = { id: number; name: string; startDay: number; startMonth: number; endDay: number; endMonth: number };
-type TrancheOpt = { id: number; codeTranche: string; moduleId: number; moduleName: string };
+type TrancheOpt = {
+  id: number;
+  codeTranche: string;
+  moduleId: number;
+  moduleName: string;
+  startDay: number;
+  startMonth: number;
+  endDay: number;
+  endMonth: number;
+};
 
 type PaymentListItem = {
   id: number;
@@ -138,56 +159,56 @@ export default function PaymentsClient({
   return (
     <div className="space-y-6">
       <div className="flex gap-2 flex-wrap">
-        <button type="button" onClick={() => setTab("BANK")} className={`rounded-lg px-4 py-2 text-sm ${tab === "BANK" ? "bg-zinc-900 text-white" : "border border-zinc-200 dark:border-zinc-800"}`}>
-          1) Bordereau banque
+        <button type="button" onClick={() => setTab("BANK")} className={tab === "BANK" ? adminSegmentActive : adminSegmentInactive}>
+          Bordereau banque
         </button>
-        <button type="button" onClick={() => setTab("DIRECT")} className={`rounded-lg px-4 py-2 text-sm ${tab === "DIRECT" ? "bg-zinc-900 text-white" : "border border-zinc-200 dark:border-zinc-800"}`}>
-          2) Paiement direct (non-tranche)
+        <button type="button" onClick={() => setTab("DIRECT")} className={tab === "DIRECT" ? adminSegmentActive : adminSegmentInactive}>
+          Paiement direct (non-tranche)
         </button>
-        <button type="button" onClick={() => setTab("IMPORT")} className={`rounded-lg px-4 py-2 text-sm ${tab === "IMPORT" ? "bg-zinc-900 text-white" : "border border-zinc-200 dark:border-zinc-800"}`}>
-          3) Import Excel
+        <button type="button" onClick={() => setTab("IMPORT")} className={tab === "IMPORT" ? adminSegmentActive : adminSegmentInactive}>
+          Import Excel
         </button>
       </div>
 
       {tab !== "IMPORT" ? (
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4 space-y-3">
+        <div className={`${adminCard} space-y-3`}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <select className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2" value={studentId} onChange={(e) => setStudentId(Number(e.target.value))}>
+            <select className={adminInput} value={studentId} onChange={(e) => setStudentId(Number(e.target.value))}>
               {students.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.label}
                 </option>
               ))}
             </select>
-            <select className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2" value={feeId} onChange={(e) => setFeeId(Number(e.target.value))}>
+            <select className={adminInput} value={feeId} onChange={(e) => setFeeId(Number(e.target.value))}>
               {fees.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.code} - {f.name} ({f.chargeType})
                 </option>
               ))}
             </select>
-            <select className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2" value={currency} onChange={(e) => setCurrency(e.target.value as "USD" | "CDF")}>
+            <select className={adminInput} value={currency} onChange={(e) => setCurrency(e.target.value as "USD" | "CDF")}>
               <option value="USD">USD</option>
               <option value="CDF">CDF</option>
             </select>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <input className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2" placeholder="Montant" value={amount} onChange={(e) => setAmount(e.target.value)} type="number" min="0" step="0.01" />
-            <input className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2" type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} />
-            <input className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2" placeholder="Référence bordereau (optionnel)" value={bankSlipReference} onChange={(e) => setBankSlipReference(e.target.value)} />
-            <input className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2" placeholder="Note (optionnel)" value={note} onChange={(e) => setNote(e.target.value)} />
+            <input className={adminInput} placeholder="Montant" value={amount} onChange={(e) => setAmount(e.target.value)} type="number" min="0" step="0.01" />
+            <input className={adminInput} type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} />
+            <input className={adminInput} placeholder="Référence bordereau (optionnel)" value={bankSlipReference} onChange={(e) => setBankSlipReference(e.target.value)} />
+            <input className={adminInput} placeholder="Note (optionnel)" value={note} onChange={(e) => setNote(e.target.value)} />
           </div>
 
           {tab === "BANK" && selectedFee?.chargeType === "BY_MODULE" ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <select className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2" value={allocationMode} onChange={(e) => setAllocationMode(e.target.value as "AUTO" | "MODULE" | "TRANCHE")}>
+              <select className={adminInput} value={allocationMode} onChange={(e) => setAllocationMode(e.target.value as "AUTO" | "MODULE" | "TRANCHE")}>
                 <option value="AUTO">Répartition auto sur modules/tranches impayés</option>
                 <option value="MODULE">Payer un module</option>
                 <option value="TRANCHE">Payer une tranche</option>
               </select>
 
-              <select className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2" value={moduleId} onChange={(e) => setModuleId(Number(e.target.value))} disabled={allocationMode !== "MODULE"}>
+              <select className={adminInput} value={moduleId} onChange={(e) => setModuleId(Number(e.target.value))} disabled={allocationMode !== "MODULE"}>
                 {modules.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name} ({fmtDM(m.startDay, m.startMonth)}-{fmtDM(m.endDay, m.endMonth)})
@@ -195,10 +216,10 @@ export default function PaymentsClient({
                 ))}
               </select>
 
-              <select className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2" value={trancheId} onChange={(e) => setTrancheId(Number(e.target.value))} disabled={allocationMode !== "TRANCHE"}>
+              <select className={adminInput} value={trancheId} onChange={(e) => setTrancheId(Number(e.target.value))} disabled={allocationMode !== "TRANCHE"}>
                 {tranches.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.codeTranche} ({t.moduleName})
+                    {t.codeTranche} — {t.moduleName} ({fmtDM(t.startDay, t.startMonth)}→{fmtDM(t.endDay, t.endMonth)})
                   </option>
                 ))}
               </select>
@@ -207,53 +228,53 @@ export default function PaymentsClient({
 
           <div className="flex gap-3">
             {tab === "BANK" ? (
-              <button type="button" disabled={submitting} onClick={() => createPayment("BANK_SLIP", selectedFee?.chargeType === "TOTAL" ? "TOTAL_DIRECT" : allocationMode)} className="rounded-lg bg-zinc-900 text-white px-4 py-2 disabled:opacity-50">
+              <button type="button" disabled={submitting} onClick={() => createPayment("BANK_SLIP", selectedFee?.chargeType === "TOTAL" ? "TOTAL_DIRECT" : allocationMode)} className={adminPrimaryButton}>
                 {submitting ? "Enregistrement..." : "Enregistrer paiement banque + générer reçu"}
               </button>
             ) : (
-              <button type="button" disabled={submitting} onClick={() => createPayment("MANUAL", "TOTAL_DIRECT")} className="rounded-lg bg-zinc-900 text-white px-4 py-2 disabled:opacity-50">
+              <button type="button" disabled={submitting} onClick={() => createPayment("MANUAL", "TOTAL_DIRECT")} className={adminPrimaryButton}>
                 {submitting ? "Enregistrement..." : "Enregistrer paiement direct"}
               </button>
             )}
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4 space-y-3">
+        <div className={`${adminCard} space-y-3`}>
           <p className="text-sm text-zinc-700 dark:text-zinc-200">
             Colonnes attendues: <code>studentId</code>, <code>feeCode</code>, <code>amount</code>, <code>currency</code>, <code>paidAt</code>, <code>bankSlipReference</code>, <code>note</code>.
           </p>
           <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files?.[0] ?? null)} />
-          <button type="button" disabled={submitting || !importFile} onClick={submitImport} className="rounded-lg bg-zinc-900 text-white px-4 py-2 disabled:opacity-50">
+          <button type="button" disabled={submitting || !importFile} onClick={submitImport} className={adminPrimaryButton}>
             {submitting ? "Import..." : "Importer Excel"}
           </button>
           {importResult ? <div className="text-sm rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-emerald-800">{importResult}</div> : null}
         </div>
       )}
 
-      {error ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{error}</div> : null}
+      {error ? <div className={adminErrorBox}>{error}</div> : null}
 
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <div className="flex items-center gap-2">
+      <div className={adminCard}>
+        <div className="flex flex-wrap items-center gap-2">
           <input
-            className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-sm"
+            className={`min-w-0 flex-1 ${adminInput}`}
             placeholder="Recherche (reçu, élève, frais...)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <button type="button" onClick={loadList} className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-sm">
+          <button type="button" onClick={loadList} className={adminGhostButton}>
             Charger
           </button>
         </div>
         <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className={adminTable}>
             <thead>
-              <tr className="text-left text-zinc-700 dark:text-zinc-300">
-                <th className="py-2 pr-3">Reçu</th>
-                <th className="py-2 pr-3">Date</th>
-                <th className="py-2 pr-3">Élève</th>
-                <th className="py-2 pr-3">Frais</th>
-                <th className="py-2 pr-3">Source</th>
-                <th className="py-2 pr-3">Montant</th>
+              <tr>
+                <th className={adminTh}>Reçu</th>
+                <th className={adminTh}>Date</th>
+                <th className={adminTh}>Élève</th>
+                <th className={adminTh}>Frais</th>
+                <th className={adminTh}>Source</th>
+                <th className={adminTh}>Montant</th>
               </tr>
             </thead>
             <tbody>
@@ -265,7 +286,7 @@ export default function PaymentsClient({
                 </tr>
               ) : (
                 items.map((p) => (
-                  <tr key={p.id} className="border-t border-zinc-200 dark:border-zinc-800">
+                  <tr key={p.id} className={adminTr}>
                     <td className="py-3 pr-3 font-medium">{p.receiptNumber}</td>
                     <td className="py-3 pr-3">{p.paidAt.slice(0, 10)}</td>
                     <td className="py-3 pr-3">{p.student.firstName} {p.student.name} {p.student.postnom}</td>

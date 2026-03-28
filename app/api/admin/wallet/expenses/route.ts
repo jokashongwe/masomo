@@ -9,6 +9,7 @@ const listQuerySchema = z.object({
   currency: z.enum(["USD", "CDF"]).optional(),
   page: z.coerce.number().int().min(1).optional(),
   take: z.coerce.number().int().min(1).max(50).optional(),
+  academicYearId: z.coerce.number().int().positive().optional(),
 });
 
 const expenseCreateSchema = z.object({
@@ -16,6 +17,7 @@ const expenseCreateSchema = z.object({
   amount: z.coerce.number().positive(),
   description: z.string().optional().or(z.literal("")).transform((v) => (v ? v : undefined)),
   occurredAt: z.coerce.date().optional(),
+  academicYearId: z.coerce.number().int().positive().optional(),
 });
 
 export async function GET(req: Request) {
@@ -28,17 +30,26 @@ export async function GET(req: Request) {
     currency: url.searchParams.get("currency") ?? undefined,
     page: url.searchParams.get("page") ?? undefined,
     take: url.searchParams.get("take") ?? undefined,
+    academicYearId: url.searchParams.get("academicYearId") ?? undefined,
   });
 
   const q = parsedQuery.success ? parsedQuery.data.q : undefined;
   const currency = parsedQuery.success ? parsedQuery.data.currency : undefined;
   const page = parsedQuery.success && parsedQuery.data.page ? parsedQuery.data.page : 1;
   const take = parsedQuery.success && parsedQuery.data.take ? parsedQuery.data.take : 10;
+  const queryYearId = parsedQuery.success ? parsedQuery.data.academicYearId : undefined;
 
   const wallet = await prisma.wallet.findFirst({ orderBy: { id: "asc" }, select: { id: true } });
   if (!wallet) return NextResponse.json({ error: "Wallet not found" }, { status: 404 });
 
+  const filterYearId =
+    queryYearId ??
+    (await prisma.academicYear.findFirst({ where: { isCurrent: true }, select: { id: true } }))?.id;
+
   const where: Prisma.ExpenseWhereInput = { walletId: wallet.id };
+  if (filterYearId) {
+    where.academicYearId = filterYearId;
+  }
   if (q && q.trim()) {
     where.OR = [{ description: { contains: q, mode: "insensitive" } }];
   }
@@ -72,6 +83,30 @@ export async function POST(req: Request) {
 
   const { currency, amount, description, occurredAt } = parsed.data;
 
+  const academicYearId =
+    parsed.data.academicYearId ??
+    (
+      await prisma.academicYear.findFirst({
+        where: { isCurrent: true },
+        select: { id: true },
+      })
+    )?.id;
+
+  if (!academicYearId) {
+    return NextResponse.json(
+      { error: "Aucune année scolaire : indiquez academicYearId ou définissez une année en cours." },
+      { status: 400 },
+    );
+  }
+
+  const yearOk = await prisma.academicYear.findUnique({
+    where: { id: academicYearId },
+    select: { id: true },
+  });
+  if (!yearOk) {
+    return NextResponse.json({ error: "Année scolaire introuvable" }, { status: 400 });
+  }
+
   try {
     await prisma.$transaction(async (tx) => {
       // Ensure enough balance
@@ -99,6 +134,7 @@ export async function POST(req: Request) {
           amount,
           description,
           occurredAt: occurredAt ?? new Date(),
+          academicYearId,
         },
         select: { id: true },
       });
@@ -111,6 +147,7 @@ export async function POST(req: Request) {
           amount,
           note: description ? `Expense: ${description}` : undefined,
           expenseId: createdExpense.id,
+          academicYearId,
         },
       });
     });

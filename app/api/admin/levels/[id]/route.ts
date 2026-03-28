@@ -8,7 +8,10 @@ const idSchema = z.object({ id: z.coerce.number().int().positive() });
 const levelSchema = z.object({
   codeLevel: z.string().min(1),
   name: z.string().min(1),
-  nextLevel: z.string().optional().or(z.literal("")).transform((v) => (v ? v : null)),
+  nextLevel: z
+    .union([z.string(), z.null()])
+    .optional()
+    .transform((v) => (v && String(v).length > 0 ? String(v) : null)),
   optionId: z.coerce.number().int().positive(),
 });
 

@@ -2,10 +2,25 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireRoles, canReadFinance, canWriteFinance } from "@/lib/auth";
 import DepositForm from "./DepositForm";
+import AdminPageHeader from "../components/AdminPageHeader";
+import {
+  adminCard,
+  adminPage,
+  adminSecondaryButton,
+  adminStatFees,
+  adminStatWalletCDF,
+} from "../components/admin-ui";
 
 export default async function AdminWalletPage() {
   const user = await requireRoles((role) => canReadFinance(role));
   const canWrite = canWriteFinance(user.role);
+
+  const academicYears = await prisma.academicYear.findMany({
+    orderBy: [{ startDate: "desc" }, { id: "desc" }],
+    select: { id: true, name: true, isCurrent: true },
+  });
+  const defaultAcademicYearId =
+    academicYears.find((y) => y.isCurrent)?.id ?? academicYears[0]?.id ?? null;
 
   const wallet = await prisma.wallet.findFirst({
     orderBy: { id: "asc" },
@@ -13,43 +28,43 @@ export default async function AdminWalletPage() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold text-black dark:text-white">Portefeuille</h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-300">Gérer les soldes USD/CDF et les dépenses.</p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href="/admin/wallet/expenses"
-            className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
-          >
+    <div className={adminPage}>
+      <AdminPageHeader
+        kicker="Trésorerie"
+        title="Portefeuille"
+        subtitle="Gérer les soldes USD/CDF et les dépenses."
+        actions={
+          <Link href="/admin/wallet/expenses" className={adminSecondaryButton}>
             Dépenses
           </Link>
-        </div>
-      </div>
+        }
+        backLabel="Retour à l’admin"
+      />
 
       {wallet ? (
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-500 text-white p-5 shadow">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className={adminStatFees}>
             <div className="text-sm font-medium opacity-95">Balance USD</div>
-            <div className="mt-2 text-2xl font-semibold">{wallet.balanceUSD.toString()} USD</div>
+            <div className="mt-2 text-2xl font-bold">{wallet.balanceUSD.toString()} USD</div>
           </div>
-          <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white p-5 shadow">
+          <div className={adminStatWalletCDF}>
             <div className="text-sm font-medium opacity-95">Balance CDF</div>
-            <div className="mt-2 text-2xl font-semibold">{wallet.balanceCDF.toString()} CDF</div>
+            <div className="mt-2 text-2xl font-bold">{wallet.balanceCDF.toString()} CDF</div>
           </div>
         </div>
       ) : (
-        <div className="mt-6 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white/60 dark:bg-black/40">
+        <div className={`${adminCard} mt-6`}>
           Portefeuille introuvable. Lancez le seed ou créez-en un via l’administrateur système.
         </div>
       )}
 
       <div className="mt-6">
-        <DepositForm canWrite={canWrite} />
+        <DepositForm
+          canWrite={canWrite}
+          academicYears={academicYears.map(({ id, name }) => ({ id, name }))}
+          defaultAcademicYearId={defaultAcademicYearId}
+        />
       </div>
     </div>
   );
 }
-

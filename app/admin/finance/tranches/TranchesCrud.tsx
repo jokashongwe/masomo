@@ -2,12 +2,133 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  adminCard,
+  adminCardGrid,
+  adminDangerButton,
+  adminErrorBox,
+  adminGhostButton,
+  adminInput,
+  adminNestedCard,
+  adminPrimaryButton,
+  adminPrimaryButtonBlock,
+  adminSecondaryButton,
+  adminSectionTitle,
+  adminTable,
+  adminTableWrap,
+  adminTh,
+  adminTr,
+} from "../../components/admin-ui";
 
 type BillingModule = { id: number; name: string; startDay: number; startMonth: number; endDay: number; endMonth: number };
-type ModuleTranche = { id: number; codeTranche: string; moduleId: number };
+type ModuleTranche = {
+  id: number;
+  codeTranche: string;
+  moduleId: number;
+  startDay: number;
+  startMonth: number;
+  endDay: number;
+  endMonth: number;
+};
+
+type TrancheFormState = {
+  codeTranche: string;
+  moduleId: number;
+  startDay: number;
+  startMonth: number;
+  endDay: number;
+  endMonth: number;
+};
 
 function fmtDM(day: number, month: number) {
   return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
+}
+
+function datesFromModule(m: BillingModule | undefined) {
+  if (!m) return { startDay: 1, startMonth: 1, endDay: 1, endMonth: 1 };
+  return {
+    startDay: m.startDay,
+    startMonth: m.startMonth,
+    endDay: m.endDay,
+    endMonth: m.endMonth,
+  };
+}
+
+function ModuleAndPeriodFields({
+  modules,
+  values,
+  setValues,
+  moduleLabel,
+}: {
+  modules: BillingModule[];
+  values: Pick<TrancheFormState, "moduleId" | "startDay" | "startMonth" | "endDay" | "endMonth">;
+  setValues: React.Dispatch<React.SetStateAction<TrancheFormState>>;
+  moduleLabel: (moduleId: number) => string;
+}) {
+  return (
+    <>
+      <select
+        required
+        className={adminInput}
+        value={values.moduleId}
+        onChange={(e) => {
+          const id = Number(e.target.value);
+          const m = modules.find((x) => x.id === id);
+          setValues((prev) => ({ ...prev, moduleId: id, ...datesFromModule(m) }));
+        }}
+      >
+        {modules.map((m) => (
+          <option key={m.id} value={m.id}>
+            {moduleLabel(m.id)}
+          </option>
+        ))}
+      </select>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <div className="text-xs text-zinc-600 dark:text-zinc-300">Début (JJ/MM)</div>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              min={1}
+              max={31}
+              className={adminInput}
+              value={values.startDay}
+              onChange={(e) => setValues((p) => ({ ...p, startDay: Number(e.target.value) }))}
+            />
+            <input
+              type="number"
+              min={1}
+              max={12}
+              className={adminInput}
+              value={values.startMonth}
+              onChange={(e) => setValues((p) => ({ ...p, startMonth: Number(e.target.value) }))}
+            />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <div className="text-xs text-zinc-600 dark:text-zinc-300">Fin (JJ/MM)</div>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              min={1}
+              max={31}
+              className={adminInput}
+              value={values.endDay}
+              onChange={(e) => setValues((p) => ({ ...p, endDay: Number(e.target.value) }))}
+            />
+            <input
+              type="number"
+              min={1}
+              max={12}
+              className={adminInput}
+              value={values.endMonth}
+              onChange={(e) => setValues((p) => ({ ...p, endMonth: Number(e.target.value) }))}
+            />
+          </div>
+        </div>
+      </div>
+    </>
+  );
 }
 
 export default function TranchesCrud({
@@ -21,17 +142,23 @@ export default function TranchesCrud({
   const [modules] = useState(initialModules);
   const [tranches] = useState(initialTranches);
 
-  const [create, setCreate] = useState({
+  const firstMod = initialModules[0];
+  const [create, setCreate] = useState<TrancheFormState>({
     codeTranche: "",
-    moduleId: initialModules[0]?.id ?? 0,
+    moduleId: firstMod?.id ?? 0,
+    ...datesFromModule(firstMod),
   });
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const editing = useMemo(() => tranches.find((t) => t.id === editingId) ?? null, [tranches, editingId]);
 
-  const [update, setUpdate] = useState({
+  const [update, setUpdate] = useState<TrancheFormState>({
     codeTranche: "",
-    moduleId: initialModules[0]?.id ?? 0,
+    moduleId: firstMod?.id ?? 0,
+    startDay: 1,
+    startMonth: 1,
+    endDay: 1,
+    endMonth: 1,
   });
 
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +171,14 @@ export default function TranchesCrud({
   }
 
   function resetUpdateFromEditing(target: ModuleTranche) {
-    setUpdate({ codeTranche: target.codeTranche, moduleId: target.moduleId });
+    setUpdate({
+      codeTranche: target.codeTranche,
+      moduleId: target.moduleId,
+      startDay: target.startDay,
+      startMonth: target.startMonth,
+      endDay: target.endDay,
+      endMonth: target.endMonth,
+    });
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -62,7 +196,11 @@ export default function TranchesCrud({
         setError(data?.error?.message ?? data?.error ?? "Échec de création");
         return;
       }
-      setCreate({ codeTranche: "", moduleId: initialModules[0]?.id ?? 0 });
+      setCreate({
+        codeTranche: "",
+        moduleId: firstMod?.id ?? 0,
+        ...datesFromModule(firstMod),
+      });
       router.refresh();
     } finally {
       setSubmitting(false);
@@ -111,61 +249,59 @@ export default function TranchesCrud({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Créer une tranche</h2>
+    <div className={adminCardGrid}>
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Créer une tranche</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
             placeholder="Code tranche"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.codeTranche}
             onChange={(e) => setCreate((c) => ({ ...c, codeTranche: e.target.value }))}
           />
-          <select
-            required
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
-            value={create.moduleId}
-            onChange={(e) => setCreate((c) => ({ ...c, moduleId: Number(e.target.value) }))}
-          >
-            {modules.map((m) => (
-              <option key={m.id} value={m.id}>
-                {moduleLabel(m.id)}
-              </option>
-            ))}
-          </select>
+          <ModuleAndPeriodFields
+            modules={modules}
+            values={create}
+            setValues={setCreate}
+            moduleLabel={moduleLabel}
+          />
           <button
             disabled={submitting || modules.length === 0}
             type="submit"
-            className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+            className={adminPrimaryButtonBlock}
           >
             {submitting ? "Enregistrement..." : "Créer"}
           </button>
         </form>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Tranches existantes</h2>
-        <div className="mt-3 overflow-x-auto">
-          <table className="min-w-full text-sm">
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Tranches existantes</h2>
+        <div className={adminTableWrap}>
+          <table className={adminTable}>
             <thead>
-              <tr className="text-left text-zinc-700 dark:text-zinc-300">
-                <th className="py-2 pr-3">Code</th>
-                <th className="py-2 pr-3">Module</th>
-                <th className="py-2 pr-3">Actions</th>
+              <tr>
+                <th className={adminTh}>Code</th>
+                <th className={adminTh}>Période</th>
+                <th className={adminTh}>Module</th>
+                <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {tranches.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="py-6 text-zinc-600 dark:text-zinc-300">
+                  <td colSpan={4} className="py-6 text-zinc-600 dark:text-zinc-300">
                     Aucune tranche.
                   </td>
                 </tr>
               ) : (
                 tranches.map((t) => (
-                  <tr key={t.id} className="border-t border-zinc-200 dark:border-zinc-800">
+                  <tr key={t.id} className={adminTr}>
                     <td className="py-3 pr-3 font-medium">{t.codeTranche}</td>
+                    <td className="py-3 pr-3">
+                      {fmtDM(t.startDay, t.startMonth)} → {fmtDM(t.endDay, t.endMonth)}
+                    </td>
                     <td className="py-3 pr-3">{moduleLabel(t.moduleId)}</td>
                     <td className="py-3 pr-3">
                       <div className="flex gap-2">
@@ -175,7 +311,7 @@ export default function TranchesCrud({
                             setEditingId(t.id);
                             resetUpdateFromEditing(t);
                           }}
-                          className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40"
+                          className={adminGhostButton}
                         >
                           Modifier
                         </button>
@@ -183,7 +319,7 @@ export default function TranchesCrud({
                           type="button"
                           disabled={submitting}
                           onClick={() => handleDelete(t.id)}
-                          className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                          className={adminDangerButton}
                         >
                           Supprimer
                         </button>
@@ -197,34 +333,28 @@ export default function TranchesCrud({
         </div>
 
         {editing ? (
-          <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
-            <h3 className="font-semibold text-black dark:text-white">Modifier : {editing.codeTranche}</h3>
+          <div className={adminNestedCard}>
+            <h3 className={`font-semibold ${adminSectionTitle}`}>Modifier : {editing.codeTranche}</h3>
             <form onSubmit={handleUpdate} className="mt-3 space-y-3">
               <input
                 required
                 placeholder="Code tranche"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.codeTranche}
                 onChange={(e) => setUpdate((u) => ({ ...u, codeTranche: e.target.value }))}
               />
-              <select
-                required
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
-                value={update.moduleId}
-                onChange={(e) => setUpdate((u) => ({ ...u, moduleId: Number(e.target.value) }))}
-              >
-                {modules.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {moduleLabel(m.id)}
-                  </option>
-                ))}
-              </select>
+              <ModuleAndPeriodFields
+                modules={modules}
+                values={update}
+                setValues={setUpdate}
+                moduleLabel={moduleLabel}
+              />
 
               <div className="flex items-center justify-between gap-3">
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+                  className={adminPrimaryButton}
                 >
                   {submitting ? "Enregistrement..." : "Enregistrer"}
                 </button>
@@ -232,7 +362,7 @@ export default function TranchesCrud({
                   type="button"
                   disabled={submitting}
                   onClick={() => setEditingId(null)}
-                  className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
+                  className={adminSecondaryButton}
                 >
                   Annuler
                 </button>
@@ -241,9 +371,8 @@ export default function TranchesCrud({
           </div>
         ) : null}
 
-        {error ? <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{error}</div> : null}
+        {error ? <div className={adminErrorBox}>{error}</div> : null}
       </div>
     </div>
   );
 }
-

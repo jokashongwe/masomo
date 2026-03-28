@@ -144,6 +144,8 @@ model AcademicYear {
 
   students Student[]
   feePayments FeePayment[]
+  expenses Expense[]
+  walletTransactions WalletTransaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -262,6 +264,12 @@ model ModuleTranche {
 
   codeTranche String
 
+  // Day/Month only (no year), comme BillingModule
+  startDay   Int
+  startMonth Int
+  endDay     Int
+  endMonth   Int
+
   moduleId Int
   module   BillingModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
@@ -361,12 +369,16 @@ model WalletTransaction {
   feePaymentId Int? @unique
   feePayment FeePayment? @relation(fields: [feePaymentId], references: [id], onDelete: SetNull)
 
+  academicYearId Int
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+
   note String?
 
   createdAt DateTime @default(now())
 
   @@index([walletId])
   @@index([type])
+  @@index([academicYearId])
 }
 
 model Expense {
@@ -381,12 +393,16 @@ model Expense {
   description String?
   occurredAt DateTime @default(now())
 
+  academicYearId Int
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+
   transaction WalletTransaction?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([walletId])
+  @@index([academicYearId])
 }
 
 model FeePayment {

@@ -8,6 +8,10 @@ const idSchema = z.object({ id: z.coerce.number().int().positive() });
 const trancheSchema = z.object({
   codeTranche: z.string().min(1),
   moduleId: z.coerce.number().int().positive(),
+  startDay: z.coerce.number().int().min(1).max(31),
+  startMonth: z.coerce.number().int().min(1).max(12),
+  endDay: z.coerce.number().int().min(1).max(31),
+  endMonth: z.coerce.number().int().min(1).max(12),
 });
 
 export async function PUT(req: Request, context: { params: Promise<{ id: string }> }) {
@@ -29,6 +33,10 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
       data: {
         codeTranche: parsed.data.codeTranche,
         moduleId: parsed.data.moduleId,
+        startDay: parsed.data.startDay,
+        startMonth: parsed.data.startMonth,
+        endDay: parsed.data.endDay,
+        endMonth: parsed.data.endMonth,
       },
     });
     return NextResponse.json({ tranche: updated });

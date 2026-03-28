@@ -2,6 +2,23 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  adminCard,
+  adminCardGrid,
+  adminDangerButton,
+  adminErrorBox,
+  adminGhostButton,
+  adminInput,
+  adminNestedCard,
+  adminPrimaryButton,
+  adminPrimaryButtonBlock,
+  adminSecondaryButton,
+  adminSectionTitle,
+  adminTable,
+  adminTableWrap,
+  adminTh,
+  adminTr,
+} from "../components/admin-ui";
 
 type School = {
   id: number;
@@ -145,19 +162,19 @@ export default function SchoolCrud({ initialSchools }: { initialSchools: School[
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Créer une école</h2>
+    <div className={adminCardGrid}>
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Créer une école</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
             placeholder="Nom"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.name}
             onChange={(e) => setCreate((c) => ({ ...c, name: e.target.value }))}
           />
           <div className="space-y-1">
-            <div className="text-sm font-medium text-black dark:text-white">Logo (upload)</div>
+            <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">Logo (upload)</div>
             <input
               type="file"
               accept="image/*"
@@ -168,49 +185,49 @@ export default function SchoolCrud({ initialSchools }: { initialSchools: School[
           <input
             required
             placeholder="Adresse"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.address}
             onChange={(e) => setCreate((c) => ({ ...c, address: e.target.value }))}
           />
           <input
             required
             placeholder="Ville"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.city}
             onChange={(e) => setCreate((c) => ({ ...c, city: e.target.value }))}
           />
           <input
             placeholder="Contacts"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.contacts ?? ""}
             onChange={(e) => setCreate((c) => ({ ...c, contacts: e.target.value || null }))}
           />
           <input
             placeholder="Email"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.email ?? ""}
             onChange={(e) => setCreate((c) => ({ ...c, email: e.target.value || null }))}
           />
           <button
             disabled={submitting}
             type="submit"
-            className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+            className={adminPrimaryButtonBlock}
           >
             {submitting ? "Enregistrement..." : "Créer"}
           </button>
         </form>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Écoles existantes</h2>
-        <div className="mt-3 overflow-x-auto">
-          <table className="min-w-full text-sm">
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Écoles existantes</h2>
+        <div className={adminTableWrap}>
+          <table className={adminTable}>
             <thead>
-              <tr className="text-left text-zinc-700 dark:text-zinc-300">
-                <th className="py-2 pr-3">Nom</th>
-                <th className="py-2 pr-3">Ville</th>
-                <th className="py-2 pr-3">Email</th>
-                <th className="py-2 pr-3">Actions</th>
+              <tr>
+                <th className={adminTh}>Nom</th>
+                <th className={adminTh}>Ville</th>
+                <th className={adminTh}>Email</th>
+                <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -222,7 +239,7 @@ export default function SchoolCrud({ initialSchools }: { initialSchools: School[
                 </tr>
               ) : (
                 schools.map((s) => (
-                  <tr key={s.id} className="border-t border-zinc-200 dark:border-zinc-800">
+                  <tr key={s.id} className={adminTr}>
                     <td className="py-3 pr-3 font-medium">{s.name}</td>
                     <td className="py-3 pr-3">{s.city}</td>
                     <td className="py-3 pr-3">{s.email ?? "-"}</td>
@@ -234,7 +251,7 @@ export default function SchoolCrud({ initialSchools }: { initialSchools: School[
                             setEditingId(s.id);
                             resetUpdateFromEditing(s);
                           }}
-                          className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40"
+                          className={adminGhostButton}
                         >
                           Modifier
                         </button>
@@ -242,7 +259,7 @@ export default function SchoolCrud({ initialSchools }: { initialSchools: School[
                           type="button"
                           disabled={submitting}
                           onClick={() => handleDelete(s.id)}
-                          className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                          className={adminDangerButton}
                         >
                           Supprimer
                         </button>
@@ -256,18 +273,18 @@ export default function SchoolCrud({ initialSchools }: { initialSchools: School[
         </div>
 
         {editing ? (
-          <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
-            <h3 className="font-semibold text-black dark:text-white">Modifier : {editing.name}</h3>
+          <div className={adminNestedCard}>
+            <h3 className={`font-semibold ${adminSectionTitle}`}>Modifier : {editing.name}</h3>
             <form onSubmit={handleUpdate} className="mt-3 space-y-3">
               <input
                 required
                 placeholder="Nom"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.name}
                 onChange={(e) => setUpdate((u) => ({ ...u, name: e.target.value }))}
               />
               <div className="space-y-1">
-                <div className="text-sm font-medium text-black dark:text-white">Logo (upload)</div>
+                <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">Logo (upload)</div>
                 <div className="text-xs text-zinc-600 dark:text-zinc-300">
                   Logo actuel : {update.logo ? update.logo : "Aucun"}
                 </div>
@@ -281,26 +298,26 @@ export default function SchoolCrud({ initialSchools }: { initialSchools: School[
               <input
                 required
                 placeholder="Adresse"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.address}
                 onChange={(e) => setUpdate((u) => ({ ...u, address: e.target.value }))}
               />
               <input
                 required
                 placeholder="Ville"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.city}
                 onChange={(e) => setUpdate((u) => ({ ...u, city: e.target.value }))}
               />
               <input
                 placeholder="Contacts"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.contacts ?? ""}
                 onChange={(e) => setUpdate((u) => ({ ...u, contacts: e.target.value || null }))}
               />
               <input
                 placeholder="Email"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.email ?? ""}
                 onChange={(e) => setUpdate((u) => ({ ...u, email: e.target.value || null }))}
               />
@@ -309,7 +326,7 @@ export default function SchoolCrud({ initialSchools }: { initialSchools: School[
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+                  className={adminPrimaryButton}
                 >
                   {submitting ? "Enregistrement..." : "Enregistrer"}
                 </button>
@@ -317,7 +334,7 @@ export default function SchoolCrud({ initialSchools }: { initialSchools: School[
                   type="button"
                   disabled={submitting}
                   onClick={() => setEditingId(null)}
-                  className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
+                  className={adminSecondaryButton}
                 >
                   Annuler
                 </button>
@@ -326,7 +343,7 @@ export default function SchoolCrud({ initialSchools }: { initialSchools: School[
           </div>
         ) : null}
 
-        {error ? <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{error}</div> : null}
+        {error ? <div className={adminErrorBox}>{error}</div> : null}
       </div>
     </div>
   );

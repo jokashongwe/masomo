@@ -2,6 +2,25 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  adminCard,
+  adminCardGrid,
+  adminDangerButton,
+  adminErrorBox,
+  adminGhostButton,
+  adminInput,
+  adminInputCompact,
+  adminNestedCard,
+  adminPrimaryButton,
+  adminPrimaryButtonBlock,
+  adminSecondaryButton,
+  adminSectionTitle,
+  adminSoftCard,
+  adminTable,
+  adminTableWrap,
+  adminTh,
+  adminTr,
+} from "../../components/admin-ui";
 
 type Currency = "USD" | "CDF";
 type FeeChargeType = "TOTAL" | "BY_MODULE";
@@ -21,7 +40,16 @@ type Fee = {
 
 type LevelOption = { id: number; label: string };
 type BillingModule = { id: number; name: string; startDay: number; startMonth: number; endDay: number; endMonth: number };
-type ModuleTranche = { id: number; codeTranche: string; moduleId: number; module: BillingModule };
+type ModuleTranche = {
+  id: number;
+  codeTranche: string;
+  moduleId: number;
+  startDay: number;
+  startMonth: number;
+  endDay: number;
+  endMonth: number;
+  module: BillingModule;
+};
 
 function fmtDM(day: number, month: number) {
   return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
@@ -243,32 +271,32 @@ export default function FeesCrud({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Créer un frais</h2>
+    <div className={adminCardGrid}>
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Créer un frais</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
             placeholder="Code du frais (unique)"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.code}
             onChange={(e) => setCreate((c) => ({ ...c, code: e.target.value }))}
           />
           <input
             required
             placeholder="Nom du frais"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.name}
             onChange={(e) => setCreate((c) => ({ ...c, name: e.target.value }))}
           />
           <input
             placeholder="Description (optionnel)"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.description}
             onChange={(e) => setCreate((c) => ({ ...c, description: e.target.value }))}
           />
           <select
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.chargeType}
             onChange={(e) => setCreate((c) => ({ ...c, chargeType: e.target.value as FeeChargeType }))}
           >
@@ -276,8 +304,8 @@ export default function FeesCrud({
             <option value="BY_MODULE">Par module</option>
           </select>
 
-          <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3">
-            <div className="text-sm font-medium text-black dark:text-white">Attacher aux niveaux</div>
+          <div className={adminSoftCard}>
+            <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">Attacher aux niveaux</div>
             <div className="mt-2 max-h-48 overflow-auto space-y-2">
               {levelOptions.length === 0 ? (
                 <div className="text-sm text-zinc-600 dark:text-zinc-300">Aucun niveau trouvé.</div>
@@ -299,24 +327,24 @@ export default function FeesCrud({
           <button
             disabled={submitting}
             type="submit"
-            className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+            className={adminPrimaryButtonBlock}
           >
             {submitting ? "Enregistrement..." : "Créer"}
           </button>
         </form>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Frais existants</h2>
-        <div className="mt-3 overflow-x-auto">
-          <table className="min-w-full text-sm">
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Frais existants</h2>
+        <div className={adminTableWrap}>
+          <table className={adminTable}>
             <thead>
-              <tr className="text-left text-zinc-700 dark:text-zinc-300">
-                <th className="py-2 pr-3">Code</th>
-                <th className="py-2 pr-3">Nom</th>
-                <th className="py-2 pr-3">Type</th>
-                <th className="py-2 pr-3">Niveaux</th>
-                <th className="py-2 pr-3">Actions</th>
+              <tr>
+                <th className={adminTh}>Code</th>
+                <th className={adminTh}>Nom</th>
+                <th className={adminTh}>Type</th>
+                <th className={adminTh}>Niveaux</th>
+                <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -328,7 +356,7 @@ export default function FeesCrud({
                 </tr>
               ) : (
                 fees.map((f) => (
-                  <tr key={f.id} className="border-t border-zinc-200 dark:border-zinc-800">
+                  <tr key={f.id} className={adminTr}>
                     <td className="py-3 pr-3 font-medium">{f.code}</td>
                     <td className="py-3 pr-3">{f.name}</td>
                     <td className="py-3 pr-3">{f.chargeType}</td>
@@ -341,7 +369,7 @@ export default function FeesCrud({
                             setEditingId(f.id);
                             resetUpdateFromEditing(f);
                           }}
-                          className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40"
+                          className={adminGhostButton}
                         >
                           Modifier
                         </button>
@@ -349,7 +377,7 @@ export default function FeesCrud({
                           type="button"
                           disabled={submitting}
                           onClick={() => handleDelete(f.id)}
-                          className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                          className={adminDangerButton}
                         >
                           Supprimer
                         </button>
@@ -363,31 +391,31 @@ export default function FeesCrud({
         </div>
 
         {editing ? (
-          <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
-            <h3 className="font-semibold text-black dark:text-white">Modifier le frais : {editing.code}</h3>
+          <div className={adminNestedCard}>
+            <h3 className={`font-semibold ${adminSectionTitle}`}>Modifier le frais : {editing.code}</h3>
             <form onSubmit={handleUpdate} className="mt-3 space-y-3">
               <input
                 required
                 placeholder="Code du frais"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.code}
                 onChange={(e) => setUpdate((u) => ({ ...u, code: e.target.value }))}
               />
               <input
                 required
                 placeholder="Nom du frais"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.name}
                 onChange={(e) => setUpdate((u) => ({ ...u, name: e.target.value }))}
               />
               <input
                 placeholder="Description (optionnel)"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.description}
                 onChange={(e) => setUpdate((u) => ({ ...u, description: e.target.value }))}
               />
               <select
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.chargeType}
                 onChange={(e) => setUpdate((u) => ({ ...u, chargeType: e.target.value as FeeChargeType }))}
               >
@@ -395,8 +423,8 @@ export default function FeesCrud({
                 <option value="BY_MODULE">Par module</option>
               </select>
 
-              <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3">
-                <div className="text-sm font-medium text-black dark:text-white">Attacher aux niveaux</div>
+              <div className={adminSoftCard}>
+                <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">Attacher aux niveaux</div>
                 <div className="mt-2 max-h-48 overflow-auto space-y-2">
                   {levelOptions.map((l) => (
                     <label key={l.id} className="flex items-start gap-2 text-sm text-black dark:text-white">
@@ -415,7 +443,7 @@ export default function FeesCrud({
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+                  className={adminPrimaryButton}
                 >
                   {submitting ? "Enregistrement..." : "Enregistrer"}
                 </button>
@@ -423,14 +451,14 @@ export default function FeesCrud({
                   type="button"
                   disabled={submitting}
                   onClick={() => setEditingId(null)}
-                  className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
+                  className={adminSecondaryButton}
                 >
                   Fermer
                 </button>
               </div>
             </form>
 
-            <div className="mt-5 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
+            <div className={`mt-5 ${adminSoftCard}`}>
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
                   <div className="font-semibold text-black dark:text-white">Montants</div>
@@ -444,7 +472,7 @@ export default function FeesCrud({
                   type="button"
                   disabled={submitting}
                   onClick={handleSaveAmounts}
-                  className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+                  className={adminPrimaryButton}
                 >
                   {submitting ? "Enregistrement..." : "Enregistrer les montants"}
                 </button>
@@ -458,7 +486,7 @@ export default function FeesCrud({
                       type="number"
                       min={0}
                       step="0.01"
-                      className="mt-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                      className={`mt-1 ${adminInput}`}
                       value={totalUSD}
                       onChange={(e) => setTotalUSD(e.target.value)}
                     />
@@ -469,7 +497,7 @@ export default function FeesCrud({
                       type="number"
                       min={0}
                       step="0.01"
-                      className="mt-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                      className={`mt-1 ${adminInput}`}
                       value={totalCDF}
                       onChange={(e) => setTotalCDF(e.target.value)}
                     />
@@ -482,15 +510,15 @@ export default function FeesCrud({
                     <div className="mt-2 overflow-x-auto">
                       <table className="min-w-full text-sm">
                         <thead>
-                          <tr className="text-left text-zinc-700 dark:text-zinc-300">
-                            <th className="py-2 pr-3">Module</th>
-                            <th className="py-2 pr-3">USD</th>
-                            <th className="py-2 pr-3">CDF</th>
+                          <tr>
+                            <th className={adminTh}>Module</th>
+                            <th className={adminTh}>USD</th>
+                            <th className={adminTh}>CDF</th>
                           </tr>
                         </thead>
                         <tbody>
                           {modules.map((m) => (
-                            <tr key={m.id} className="border-t border-zinc-200 dark:border-zinc-800">
+                            <tr key={m.id} className={adminTr}>
                               <td className="py-3 pr-3">
                                 {m.name} ({fmtDM(m.startDay, m.startMonth)} → {fmtDM(m.endDay, m.endMonth)})
                               </td>
@@ -499,7 +527,7 @@ export default function FeesCrud({
                                   type="number"
                                   min={0}
                                   step="0.01"
-                                  className="w-32 rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-2 py-1 text-black dark:text-white"
+                                  className={adminInputCompact}
                                   value={moduleAmounts[`${m.id}:USD`] ?? ""}
                                   onChange={(e) =>
                                     setModuleAmounts((prev) => ({ ...prev, [`${m.id}:USD`]: e.target.value }))
@@ -511,7 +539,7 @@ export default function FeesCrud({
                                   type="number"
                                   min={0}
                                   step="0.01"
-                                  className="w-32 rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-2 py-1 text-black dark:text-white"
+                                  className={adminInputCompact}
                                   value={moduleAmounts[`${m.id}:CDF`] ?? ""}
                                   onChange={(e) =>
                                     setModuleAmounts((prev) => ({ ...prev, [`${m.id}:CDF`]: e.target.value }))
@@ -530,17 +558,22 @@ export default function FeesCrud({
                     <div className="mt-2 overflow-x-auto">
                       <table className="min-w-full text-sm">
                         <thead>
-                          <tr className="text-left text-zinc-700 dark:text-zinc-300">
-                            <th className="py-2 pr-3">Tranche</th>
-                            <th className="py-2 pr-3">Module</th>
-                            <th className="py-2 pr-3">USD</th>
-                            <th className="py-2 pr-3">CDF</th>
+                          <tr>
+                            <th className={adminTh}>Tranche</th>
+                            <th className={adminTh}>Module</th>
+                            <th className={adminTh}>USD</th>
+                            <th className={adminTh}>CDF</th>
                           </tr>
                         </thead>
                         <tbody>
                           {tranches.map((t) => (
-                            <tr key={t.id} className="border-t border-zinc-200 dark:border-zinc-800">
-                              <td className="py-3 pr-3 font-medium">{t.codeTranche}</td>
+                            <tr key={t.id} className={adminTr}>
+                              <td className="py-3 pr-3 font-medium">
+                                {t.codeTranche}{" "}
+                                <span className="block text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                                  {fmtDM(t.startDay, t.startMonth)} → {fmtDM(t.endDay, t.endMonth)}
+                                </span>
+                              </td>
                               <td className="py-3 pr-3">
                                 {t.module.name} ({fmtDM(t.module.startDay, t.module.startMonth)} →{" "}
                                 {fmtDM(t.module.endDay, t.module.endMonth)})
@@ -550,7 +583,7 @@ export default function FeesCrud({
                                   type="number"
                                   min={0}
                                   step="0.01"
-                                  className="w-32 rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-2 py-1 text-black dark:text-white"
+                                  className={adminInputCompact}
                                   value={trancheAmounts[`${t.id}:USD`] ?? ""}
                                   onChange={(e) =>
                                     setTrancheAmounts((prev) => ({ ...prev, [`${t.id}:USD`]: e.target.value }))
@@ -562,7 +595,7 @@ export default function FeesCrud({
                                   type="number"
                                   min={0}
                                   step="0.01"
-                                  className="w-32 rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-2 py-1 text-black dark:text-white"
+                                  className={adminInputCompact}
                                   value={trancheAmounts[`${t.id}:CDF`] ?? ""}
                                   onChange={(e) =>
                                     setTrancheAmounts((prev) => ({ ...prev, [`${t.id}:CDF`]: e.target.value }))
@@ -581,7 +614,7 @@ export default function FeesCrud({
           </div>
         ) : null}
 
-        {error ? <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{error}</div> : null}
+        {error ? <div className={adminErrorBox}>{error}</div> : null}
       </div>
     </div>
   );

@@ -129,7 +129,7 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-6 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-black/40 p-6">
+    <form onSubmit={onSubmit} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-black/40 p-6">
       <div className="space-y-6">
         <div>
           <label className="block text-sm font-medium text-black dark:text-white">Classe</label>
@@ -278,4 +278,3 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
     </form>
   );
 }
-

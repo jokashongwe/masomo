@@ -1,38 +1,33 @@
 import Link from "next/link";
 import { requireRoles, canReadFinance } from "@/lib/auth";
+import AdminPageHeader from "../components/AdminPageHeader";
+import { adminHubCard, adminHubCardDesc, adminHubCardTitle, adminPage } from "../components/admin-ui";
 
 export default async function AdminFinanceHomePage() {
   await requireRoles((role) => canReadFinance(role));
-  return (
-    <div className="max-w-5xl mx-auto px-4 py-10">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-black dark:text-white">Finances</h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-300">Gérer les frais, les modules de facturation et les tranches.</p>
-        </div>
-        <Link
-          href="/admin"
-          className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
-        >
-          Retour à l’admin
-        </Link>
-      </div>
+  const links = [
+    { href: "/admin/finance/modules", title: "Modules", desc: "Périodes et modules de facturation." },
+    { href: "/admin/finance/tranches", title: "Tranches", desc: "Tranches rattachées aux modules." },
+    { href: "/admin/finance/fees", title: "Frais", desc: "Barèmes par niveau, USD et CDF." },
+    { href: "/admin/finance/payments", title: "Paiements", desc: "Saisie et suivi des paiements." },
+  ];
 
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Link className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white/60 dark:bg-black/40" href="/admin/finance/modules">
-          Modules
-        </Link>
-        <Link className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white/60 dark:bg-black/40" href="/admin/finance/tranches">
-          Tranches
-        </Link>
-        <Link className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white/60 dark:bg-black/40" href="/admin/finance/fees">
-          Frais
-        </Link>
-        <Link className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white/60 dark:bg-black/40" href="/admin/finance/payments">
-          Paiements
-        </Link>
+  return (
+    <div className={adminPage}>
+      <AdminPageHeader
+        kicker="Finances"
+        title="Finances"
+        subtitle="Gérer les frais, les modules de facturation, les tranches et les paiements."
+        backLabel="Retour à l’admin"
+      />
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {links.map((item) => (
+          <Link key={item.href} href={item.href} className={adminHubCard}>
+            <span className={adminHubCardTitle}>{item.title}</span>
+            <span className={adminHubCardDesc}>{item.desc}</span>
+          </Link>
+        ))}
       </div>
     </div>
   );
 }
-

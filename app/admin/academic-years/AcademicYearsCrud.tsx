@@ -2,6 +2,20 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  adminCard,
+  adminCardGrid,
+  adminDangerButton,
+  adminErrorBox,
+  adminGhostButton,
+  adminInput,
+  adminNestedCard,
+  adminPrimaryButton,
+  adminPrimaryButtonBlock,
+  adminSecondaryButton,
+  adminSectionTitle,
+  adminSoftCard,
+} from "../components/admin-ui";
 
 type AcademicYear = {
   id: number;
@@ -124,14 +138,14 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Créer</h2>
+    <div className={adminCardGrid}>
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Créer</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
             placeholder="Nom (unique)"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.name}
             onChange={(e) => setCreate((c) => ({ ...c, name: e.target.value }))}
           />
@@ -139,14 +153,14 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
             <input
               required
               type="date"
-              className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+              className={adminInput}
               value={create.startDate}
               onChange={(e) => setCreate((c) => ({ ...c, startDate: e.target.value }))}
             />
             <input
               required
               type="date"
-              className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+              className={adminInput}
               value={create.endDate}
               onChange={(e) => setCreate((c) => ({ ...c, endDate: e.target.value }))}
             />
@@ -162,21 +176,21 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
           <button
             disabled={submitting}
             type="submit"
-            className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+            className={adminPrimaryButtonBlock}
           >
             {submitting ? "Enregistrement..." : "Créer l’année"}
           </button>
         </form>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Années existantes</h2>
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Années existantes</h2>
         <div className="mt-3 space-y-3">
           {years.length === 0 ? (
             <div className="text-sm text-zinc-600 dark:text-zinc-300">Aucune année.</div>
           ) : (
             years.map((y) => (
-              <div key={y.id} className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3">
+              <div key={y.id} className={adminSoftCard}>
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div>
                     <div className="font-medium text-black dark:text-white">{y.name}</div>
@@ -198,7 +212,7 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
                         setEditingId(y.id);
                         resetUpdateFromEditing(y);
                       }}
-                      className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40"
+                      className={adminGhostButton}
                     >
                       Modifier
                     </button>
@@ -206,7 +220,7 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
                       type="button"
                       disabled={y.isCurrent || submitting}
                       onClick={() => handleDelete(y.id)}
-                      className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      className={adminDangerButton}
                     >
                       Supprimer
                     </button>
@@ -218,12 +232,12 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
         </div>
 
         {editing ? (
-          <form onSubmit={handleUpdate} className="mt-4 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-white/60 dark:bg-black/40 space-y-3">
-            <h3 className="font-semibold text-black dark:text-white">Modifier : {editing.name}</h3>
+          <form onSubmit={handleUpdate} className={`${adminNestedCard} mt-4 space-y-3`}>
+            <h3 className={`font-semibold ${adminSectionTitle}`}>Modifier : {editing.name}</h3>
             <input
               required
               placeholder="Nom"
-              className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+              className={adminInput}
               value={update.name}
               onChange={(e) => setUpdate((u) => ({ ...u, name: e.target.value }))}
             />
@@ -231,14 +245,14 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
               <input
                 required
                 type="date"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.startDate}
                 onChange={(e) => setUpdate((u) => ({ ...u, startDate: e.target.value }))}
               />
               <input
                 required
                 type="date"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.endDate}
                 onChange={(e) => setUpdate((u) => ({ ...u, endDate: e.target.value }))}
               />
@@ -255,7 +269,7 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+                className={adminPrimaryButton}
               >
                 {submitting ? "Enregistrement..." : "Enregistrer"}
               </button>
@@ -263,7 +277,7 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
                 type="button"
                 disabled={submitting}
                 onClick={() => setEditingId(null)}
-                className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
+                className={adminSecondaryButton}
               >
                 Annuler
               </button>
@@ -271,7 +285,7 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
           </form>
         ) : null}
 
-        {error ? <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 text-sm">{error}</div> : null}
+        {error ? <div className={adminErrorBox}>{error}</div> : null}
       </div>
     </div>
   );

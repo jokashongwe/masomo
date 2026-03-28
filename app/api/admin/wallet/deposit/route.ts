@@ -7,6 +7,7 @@ const depositSchema = z.object({
   currency: z.enum(["USD", "CDF"]),
   amount: z.coerce.number().positive(),
   note: z.string().optional().or(z.literal("")).transform((v) => (v ? v : undefined)),
+  academicYearId: z.coerce.number().int().positive().optional(),
 });
 
 export async function POST(req: Request) {
@@ -24,6 +25,30 @@ export async function POST(req: Request) {
 
   const { currency, amount } = parsed.data;
   const note = parsed.data.note;
+
+  const academicYearId =
+    parsed.data.academicYearId ??
+    (
+      await prisma.academicYear.findFirst({
+        where: { isCurrent: true },
+        select: { id: true },
+      })
+    )?.id;
+
+  if (!academicYearId) {
+    return NextResponse.json(
+      { error: "Aucune année scolaire : indiquez academicYearId ou définissez une année en cours." },
+      { status: 400 },
+    );
+  }
+
+  const yearOk = await prisma.academicYear.findUnique({
+    where: { id: academicYearId },
+    select: { id: true },
+  });
+  if (!yearOk) {
+    return NextResponse.json({ error: "Année scolaire introuvable" }, { status: 400 });
+  }
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -43,6 +68,7 @@ export async function POST(req: Request) {
           currency,
           amount,
           note,
+          academicYearId,
         },
       });
     });

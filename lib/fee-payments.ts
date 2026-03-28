@@ -224,6 +224,7 @@ export async function createFeePayment(input: CreateFeePaymentInput) {
         amount: input.amount,
         note: input.note ? `Paiement frais: ${input.note}` : "Paiement de frais",
         feePaymentId: created.id,
+        academicYearId: student.academicYearId,
       },
     });
 

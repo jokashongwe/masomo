@@ -71,53 +71,63 @@ async function main() {
     wallet = await prisma.wallet.create({ data: {} });
   }
 
-  // Seed a deposit + an example expense so the dashboard has non-zero data.
-  await prisma.$transaction(async (tx) => {
-    const alreadySeeded = await tx.walletTransaction.findFirst({
-      where: { walletId: wallet!.id, type: "DEPOSIT" },
-      select: { id: true },
-    });
-    if (alreadySeeded) return;
-
-    const depositAmount = 500;
-    await tx.wallet.update({
-      where: { id: wallet!.id },
-      data: { balanceUSD: { increment: depositAmount } },
-    });
-
-    await tx.walletTransaction.create({
-      data: {
-        walletId: wallet!.id,
-        type: "DEPOSIT",
-        currency: currencyUSD,
-        amount: depositAmount,
-        note: "Seed deposit",
-      },
-    });
-
-    // Example expense (USD)
-    const createdExpense = await tx.expense.create({
-      data: {
-        walletId: wallet!.id,
-        currency: currencyUSD,
-        amount: 25,
-        description: "Seed expense",
-        occurredAt: new Date(),
-      },
-      select: { id: true },
-    });
-
-    await tx.walletTransaction.create({
-      data: {
-        walletId: wallet!.id,
-        type: "EXPENSE",
-        currency: currencyUSD,
-        amount: 25,
-        note: "Expense: Seed expense",
-        expenseId: createdExpense.id,
-      },
-    });
+  const currentAcademicYear = await prisma.academicYear.findFirst({
+    where: { isCurrent: true },
+    select: { id: true },
   });
+
+  // Seed a deposit + an example expense so the dashboard has non-zero data.
+  if (currentAcademicYear) {
+    await prisma.$transaction(async (tx) => {
+      const alreadySeeded = await tx.walletTransaction.findFirst({
+        where: { walletId: wallet!.id, type: "DEPOSIT" },
+        select: { id: true },
+      });
+      if (alreadySeeded) return;
+
+      const depositAmount = 500;
+      await tx.wallet.update({
+        where: { id: wallet!.id },
+        data: { balanceUSD: { increment: depositAmount } },
+      });
+
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet!.id,
+          type: "DEPOSIT",
+          currency: currencyUSD,
+          amount: depositAmount,
+          note: "Seed deposit",
+          academicYearId: currentAcademicYear.id,
+        },
+      });
+
+      // Example expense (USD)
+      const createdExpense = await tx.expense.create({
+        data: {
+          walletId: wallet!.id,
+          currency: currencyUSD,
+          amount: 25,
+          description: "Seed expense",
+          occurredAt: new Date(),
+          academicYearId: currentAcademicYear.id,
+        },
+        select: { id: true },
+      });
+
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet!.id,
+          type: "EXPENSE",
+          currency: currencyUSD,
+          amount: 25,
+          note: "Expense: Seed expense",
+          expenseId: createdExpense.id,
+          academicYearId: currentAcademicYear.id,
+        },
+      });
+    });
+  }
 
   // School -> Section -> Option -> Levels -> Classes
   const school = await prisma.school.findFirst({ where: { name: schoolName } });
@@ -204,6 +214,10 @@ async function main() {
       m.tranches.map((codeTranche) => ({
         codeTranche,
         moduleId: moduleIdByName.get(m.name)!,
+        startDay: m.startDay,
+        startMonth: m.startMonth,
+        endDay: m.endDay,
+        endMonth: m.endMonth,
       })),
     ),
     skipDuplicates: true,

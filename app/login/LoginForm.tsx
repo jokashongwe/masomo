@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  adminErrorBox,
+  adminInput,
+  adminLabel,
+  adminPrimaryButtonBlock,
+} from "../admin/components/admin-ui";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -35,32 +41,41 @@ export default function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-6 space-y-3">
-      <input
-        required
-        type="email"
-        placeholder="Email"
-        className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      <input
-        required
-        type="password"
-        placeholder="Mot de passe"
-        className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      {error ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 text-sm">{error}</div> : null}
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
-      >
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div>
+        <label htmlFor="login-email" className={`block ${adminLabel}`}>
+          Adresse e-mail
+        </label>
+        <input
+          id="login-email"
+          required
+          type="email"
+          autoComplete="email"
+          placeholder="vous@exemple.com"
+          className={`mt-2 ${adminInput}`}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      </div>
+      <div>
+        <label htmlFor="login-password" className={`block ${adminLabel}`}>
+          Mot de passe
+        </label>
+        <input
+          id="login-password"
+          required
+          type="password"
+          autoComplete="current-password"
+          placeholder="••••••••"
+          className={`mt-2 ${adminInput}`}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </div>
+      {error ? <div className={adminErrorBox}>{error}</div> : null}
+      <button type="submit" disabled={submitting} className={adminPrimaryButtonBlock}>
         {submitting ? "Connexion..." : "Se connecter"}
       </button>
     </form>
   );
 }
-

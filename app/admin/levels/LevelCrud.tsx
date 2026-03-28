@@ -2,9 +2,48 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  adminCard,
+  adminCardGrid,
+  adminDangerButton,
+  adminErrorBox,
+  adminGhostButton,
+  adminInput,
+  adminNestedCard,
+  adminPrimaryButton,
+  adminPrimaryButtonBlock,
+  adminSecondaryButton,
+  adminSectionTitle,
+  adminTable,
+  adminTableWrap,
+  adminTh,
+  adminTr,
+} from "../components/admin-ui";
 
 type Option = { id: number; codeOption: string; nameOption: string; section?: { codeSection: string; nameSection: string; school?: { name: string } | null } | null };
-type Level = { id: number; codeLevel: string; name: string; nextLevel: string | null; optionId: number };
+type Level = {
+  id: number;
+  codeLevel: string;
+  name: string;
+  nextLevel: string | null;
+  optionId: number;
+  option: { nameOption: string };
+};
+
+/** Valeur du select : id du niveau suivant, ou "" pour aucun. */
+function nextLevelToSelectValue(nextLevel: string | null, selfOptionId: number, allLevels: Level[]): string {
+  if (!nextLevel) return "";
+  if (/^\d+$/.test(nextLevel)) {
+    const byId = allLevels.find((l) => String(l.id) === nextLevel);
+    if (byId) return String(byId.id);
+  }
+  const legacy = allLevels.find((l) => l.optionId === selfOptionId && l.codeLevel === nextLevel);
+  return legacy ? String(legacy.id) : "";
+}
+
+function levelNextDropdownLabel(l: Level) {
+  return `${l.name} - ${l.option.nameOption}`;
+}
 
 export default function LevelCrud({
   initialOptions,
@@ -49,7 +88,7 @@ export default function LevelCrud({
     setUpdate({
       codeLevel: target.codeLevel,
       name: target.name,
-      nextLevel: target.nextLevel ?? "",
+      nextLevel: nextLevelToSelectValue(target.nextLevel, target.optionId, levels),
       optionId: target.optionId,
     });
   }
@@ -65,7 +104,7 @@ export default function LevelCrud({
         body: JSON.stringify({
           codeLevel: create.codeLevel,
           name: create.name,
-          nextLevel: create.nextLevel || "",
+          nextLevel: create.nextLevel || null,
           optionId: create.optionId,
         }),
       });
@@ -98,7 +137,7 @@ export default function LevelCrud({
         body: JSON.stringify({
           codeLevel: update.codeLevel,
           name: update.name,
-          nextLevel: update.nextLevel || "",
+          nextLevel: update.nextLevel || null,
           optionId: update.optionId,
         }),
       });
@@ -133,33 +172,42 @@ export default function LevelCrud({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Créer un niveau</h2>
+    <div className={adminCardGrid}>
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Créer un niveau</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
             placeholder="Code niveau"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.codeLevel}
             onChange={(e) => setCreate((c) => ({ ...c, codeLevel: e.target.value }))}
           />
           <input
             required
             placeholder="Nom"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.name}
             onChange={(e) => setCreate((c) => ({ ...c, name: e.target.value }))}
           />
-          <input
-            placeholder="Niveau suivant (optionnel)"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
-            value={create.nextLevel}
-            onChange={(e) => setCreate((c) => ({ ...c, nextLevel: e.target.value }))}
-          />
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-200">Niveau suivant (optionnel)</label>
+            <select
+              className={adminInput}
+              value={create.nextLevel}
+              onChange={(e) => setCreate((c) => ({ ...c, nextLevel: e.target.value }))}
+            >
+              <option value="">— Aucun —</option>
+              {levels.map((l) => (
+                <option key={l.id} value={String(l.id)}>
+                  {levelNextDropdownLabel(l)}
+                </option>
+              ))}
+            </select>
+          </div>
           <select
             required
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.optionId}
             onChange={(e) => setCreate((c) => ({ ...c, optionId: Number(e.target.value) }))}
           >
@@ -172,23 +220,23 @@ export default function LevelCrud({
           <button
             disabled={submitting || options.length === 0}
             type="submit"
-            className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+            className={adminPrimaryButtonBlock}
           >
             {submitting ? "Enregistrement..." : "Créer"}
           </button>
         </form>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Niveaux existants</h2>
-        <div className="mt-3 overflow-x-auto">
-          <table className="min-w-full text-sm">
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Niveaux existants</h2>
+        <div className={adminTableWrap}>
+          <table className={adminTable}>
             <thead>
-              <tr className="text-left text-zinc-700 dark:text-zinc-300">
-                <th className="py-2 pr-3">Code</th>
-                <th className="py-2 pr-3">Nom</th>
-                <th className="py-2 pr-3">Option</th>
-                <th className="py-2 pr-3">Actions</th>
+              <tr>
+                <th className={adminTh}>Code</th>
+                <th className={adminTh}>Nom</th>
+                <th className={adminTh}>Option</th>
+                <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -200,7 +248,7 @@ export default function LevelCrud({
                 </tr>
               ) : (
                 levels.map((l) => (
-                  <tr key={l.id} className="border-t border-zinc-200 dark:border-zinc-800">
+                  <tr key={l.id} className={adminTr}>
                     <td className="py-3 pr-3 font-medium">{l.codeLevel}</td>
                     <td className="py-3 pr-3">{l.name}</td>
                     <td className="py-3 pr-3">{optionLabel(l.optionId)}</td>
@@ -212,7 +260,7 @@ export default function LevelCrud({
                             setEditingId(l.id);
                             resetUpdateFromEditing(l);
                           }}
-                          className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40"
+                          className={adminGhostButton}
                         >
                           Modifier
                         </button>
@@ -220,7 +268,7 @@ export default function LevelCrud({
                           type="button"
                           disabled={submitting}
                           onClick={() => handleDelete(l.id)}
-                          className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                          className={adminDangerButton}
                         >
                           Supprimer
                         </button>
@@ -234,32 +282,43 @@ export default function LevelCrud({
         </div>
 
         {editing ? (
-          <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
-            <h3 className="font-semibold text-black dark:text-white">Modifier : {editing.codeLevel}</h3>
+          <div className={adminNestedCard}>
+            <h3 className={`font-semibold ${adminSectionTitle}`}>Modifier : {editing.codeLevel}</h3>
             <form onSubmit={handleUpdate} className="mt-3 space-y-3">
               <input
                 required
                 placeholder="Code niveau"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.codeLevel}
                 onChange={(e) => setUpdate((u) => ({ ...u, codeLevel: e.target.value }))}
               />
               <input
                 required
                 placeholder="Nom"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.name}
                 onChange={(e) => setUpdate((u) => ({ ...u, name: e.target.value }))}
               />
-              <input
-                placeholder="Niveau suivant (optionnel)"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
-                value={update.nextLevel}
-                onChange={(e) => setUpdate((u) => ({ ...u, nextLevel: e.target.value }))}
-              />
+              <div>
+                <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-200">Niveau suivant (optionnel)</label>
+                <select
+                  className={adminInput}
+                  value={update.nextLevel}
+                  onChange={(e) => setUpdate((u) => ({ ...u, nextLevel: e.target.value }))}
+                >
+                  <option value="">— Aucun —</option>
+                  {levels
+                    .filter((l) => l.id !== editingId)
+                    .map((l) => (
+                      <option key={l.id} value={String(l.id)}>
+                        {levelNextDropdownLabel(l)}
+                      </option>
+                    ))}
+                </select>
+              </div>
               <select
                 required
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.optionId}
                 onChange={(e) => setUpdate((u) => ({ ...u, optionId: Number(e.target.value) }))}
               >
@@ -274,7 +333,7 @@ export default function LevelCrud({
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+                  className={adminPrimaryButton}
                 >
                   {submitting ? "Enregistrement..." : "Enregistrer"}
                 </button>
@@ -282,7 +341,7 @@ export default function LevelCrud({
                   type="button"
                   disabled={submitting}
                   onClick={() => setEditingId(null)}
-                  className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
+                  className={adminSecondaryButton}
                 >
                   Annuler
                 </button>
@@ -291,7 +350,7 @@ export default function LevelCrud({
           </div>
         ) : null}
 
-        {error ? <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{error}</div> : null}
+        {error ? <div className={adminErrorBox}>{error}</div> : null}
       </div>
     </div>
   );

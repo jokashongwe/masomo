@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireRoles, canReadFinance } from "@/lib/auth";
 import ReportsClient from "./ReportsClient";
+import { adminCard, adminPage } from "../components/admin-ui";
 
 export default async function AdminReportsPage() {
   await requireRoles((role) => canReadFinance(role));
@@ -12,8 +13,8 @@ export default async function AdminReportsPage() {
 
   if (!currentYear) {
     return (
-      <div className="max-w-5xl mx-auto px-4 py-10">
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 bg-white/60 dark:bg-black/40">
+      <div className={adminPage}>
+        <div className={adminCard}>
           Aucune année scolaire en cours. Veuillez la configurer via l’administrateur système.
         </div>
       </div>
@@ -25,4 +26,3 @@ export default async function AdminReportsPage() {
 
   return <ReportsClient initialStart={initialStart} initialEnd={initialEnd} />;
 }
-

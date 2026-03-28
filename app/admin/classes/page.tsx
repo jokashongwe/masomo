@@ -1,36 +1,99 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import ClassCrud from "./ClassCrud";
 import { requireRoles, canManageSchool } from "@/lib/auth";
+import AdminPageHeader from "../components/AdminPageHeader";
+import { adminPage } from "../components/admin-ui";
 
-export default async function AdminClassesPage() {
+function parseIntSafe(value: string | string[] | undefined, fallback: number) {
+  const v = Array.isArray(value) ? value[0] : value;
+  if (!v) return fallback;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.floor(n);
+}
+
+export default async function AdminClassesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined> | undefined>;
+}) {
   await requireRoles((role) => canManageSchool(role));
-  const [levels, classes] = await Promise.all([
+  const sp = (await searchParams) ?? {};
+
+  const qRaw = sp.q;
+  const q = Array.isArray(qRaw) ? qRaw[0] : qRaw;
+
+  const levelIdRaw = sp.levelId;
+  const levelIdStr = Array.isArray(levelIdRaw) ? levelIdRaw[0] : levelIdRaw;
+  const levelIdFilter =
+    levelIdStr && levelIdStr.length > 0 ? Number(levelIdStr) : undefined;
+  const validLevelFilter =
+    levelIdFilter !== undefined && Number.isFinite(levelIdFilter) ? levelIdFilter : undefined;
+
+  const page = parseIntSafe(sp.page, 1);
+  const take = parseIntSafe(sp.take, 10);
+
+  const where: Prisma.SchoolClassWhereInput = {};
+  if (validLevelFilter !== undefined) {
+    where.levelId = validLevelFilter;
+  }
+  if (q && q.trim().length > 0) {
+    const t = q.trim();
+    where.OR = [
+      { codeClass: { contains: t, mode: "insensitive" } },
+      { level: { name: { contains: t, mode: "insensitive" } } },
+      { level: { codeLevel: { contains: t, mode: "insensitive" } } },
+      { level: { option: { nameOption: { contains: t, mode: "insensitive" } } } },
+      { level: { option: { codeOption: { contains: t, mode: "insensitive" } } } },
+      { level: { option: { section: { nameSection: { contains: t, mode: "insensitive" } } } } },
+      { level: { option: { section: { codeSection: { contains: t, mode: "insensitive" } } } } },
+      { level: { option: { section: { school: { name: { contains: t, mode: "insensitive" } } } } } },
+    ];
+  }
+
+  const [levels, total, pagedClasses] = await Promise.all([
     prisma.level.findMany({
       orderBy: { id: "asc" },
       include: { option: { include: { section: { include: { school: true } } } } },
     }),
+    prisma.schoolClass.count({ where }),
     prisma.schoolClass.findMany({
+      where,
       orderBy: { id: "asc" },
-      include: { level: { include: { option: { include: { section: { include: { school: true } } } } } } },
+      skip: (page - 1) * take,
+      take,
+      select: { id: true, codeClass: true, levelId: true },
     }),
   ]);
 
-  return (
-    <div className="max-w-5xl mx-auto px-4 py-10">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-black dark:text-white">Classes</h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-300">Assigner des codes de classe aux niveaux.</p>
-        </div>
-        <a href="/admin" className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40">
-          Retour
-        </a>
-      </div>
+  const pageCount = Math.max(1, Math.ceil(total / take));
 
+  const levelOptions = levels.map((l) => ({
+    id: l.id,
+    label: `${l.codeLevel} - ${l.name} (${l.option.section.codeSection}) - ${l.option.section.school.name}`,
+  }));
+
+  return (
+    <div className={adminPage}>
+      <AdminPageHeader
+        kicker="Structure"
+        title="Classes"
+        subtitle="Assigner des codes de classe aux niveaux. Liste paginée avec recherche et filtre par niveau."
+      />
       <div className="mt-6">
-        <ClassCrud initialLevels={levels} initialClasses={classes} />
+        <ClassCrud
+          initialLevels={levels}
+          pagedClasses={pagedClasses}
+          levelOptions={levelOptions}
+          listTotal={total}
+          listPage={page}
+          listPageCount={pageCount}
+          listQ={q ?? ""}
+          listLevelIdStr={validLevelFilter !== undefined ? String(validLevelFilter) : ""}
+          listTake={take}
+        />
       </div>
     </div>
   );
 }
-

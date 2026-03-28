@@ -2,6 +2,23 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  adminCard,
+  adminCardGrid,
+  adminDangerButton,
+  adminErrorBox,
+  adminGhostButton,
+  adminInput,
+  adminNestedCard,
+  adminPrimaryButton,
+  adminPrimaryButtonBlock,
+  adminSecondaryButton,
+  adminSectionTitle,
+  adminTable,
+  adminTableWrap,
+  adminTh,
+  adminTr,
+} from "../components/admin-ui";
 
 type School = { id: number; name: string };
 type Section = {
@@ -125,27 +142,27 @@ export default function SectionCrud({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Créer une section</h2>
+    <div className={adminCardGrid}>
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Créer une section</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
             placeholder="Code section"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.codeSection}
             onChange={(e) => setCreate((c) => ({ ...c, codeSection: e.target.value }))}
           />
           <input
             required
             placeholder="Nom de la section"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.nameSection}
             onChange={(e) => setCreate((c) => ({ ...c, nameSection: e.target.value }))}
           />
           <select
             required
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.schoolId}
             onChange={(e) => setCreate((c) => ({ ...c, schoolId: Number(e.target.value) }))}
           >
@@ -159,23 +176,23 @@ export default function SectionCrud({
           <button
             disabled={submitting || schools.length === 0}
             type="submit"
-            className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+            className={adminPrimaryButtonBlock}
           >
             {submitting ? "Enregistrement..." : "Créer"}
           </button>
         </form>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Sections existantes</h2>
-        <div className="mt-3 overflow-x-auto">
-          <table className="min-w-full text-sm">
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Sections existantes</h2>
+        <div className={adminTableWrap}>
+          <table className={adminTable}>
             <thead>
-              <tr className="text-left text-zinc-700 dark:text-zinc-300">
-                <th className="py-2 pr-3">Code</th>
-                <th className="py-2 pr-3">Nom</th>
-                <th className="py-2 pr-3">École</th>
-                <th className="py-2 pr-3">Actions</th>
+              <tr>
+                <th className={adminTh}>Code</th>
+                <th className={adminTh}>Nom</th>
+                <th className={adminTh}>École</th>
+                <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -189,7 +206,7 @@ export default function SectionCrud({
                 sections.map((s) => {
                   const schoolName = schools.find((x) => x.id === s.schoolId)?.name ?? s.school?.name ?? "-";
                   return (
-                    <tr key={s.id} className="border-t border-zinc-200 dark:border-zinc-800">
+                    <tr key={s.id} className={adminTr}>
                       <td className="py-3 pr-3 font-medium">{s.codeSection}</td>
                       <td className="py-3 pr-3">{s.nameSection}</td>
                       <td className="py-3 pr-3">{schoolName}</td>
@@ -201,7 +218,7 @@ export default function SectionCrud({
                               setEditingId(s.id);
                               resetUpdateFromEditing(s);
                             }}
-                            className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40"
+                            className={adminGhostButton}
                           >
                             Modifier
                           </button>
@@ -209,7 +226,7 @@ export default function SectionCrud({
                             type="button"
                             disabled={submitting}
                             onClick={() => handleDelete(s.id)}
-                            className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            className={adminDangerButton}
                           >
                             Supprimer
                           </button>
@@ -224,26 +241,26 @@ export default function SectionCrud({
         </div>
 
         {editing ? (
-          <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
-            <h3 className="font-semibold text-black dark:text-white">Modifier : {editing.codeSection}</h3>
+          <div className={adminNestedCard}>
+            <h3 className={`font-semibold ${adminSectionTitle}`}>Modifier : {editing.codeSection}</h3>
             <form onSubmit={handleUpdate} className="mt-3 space-y-3">
               <input
                 required
                 placeholder="Code section"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.codeSection}
                 onChange={(e) => setUpdate((u) => ({ ...u, codeSection: e.target.value }))}
               />
               <input
                 required
                 placeholder="Nom de la section"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.nameSection}
                 onChange={(e) => setUpdate((u) => ({ ...u, nameSection: e.target.value }))}
               />
               <select
                 required
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.schoolId}
                 onChange={(e) => setUpdate((u) => ({ ...u, schoolId: Number(e.target.value) }))}
               >
@@ -258,7 +275,7 @@ export default function SectionCrud({
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+                  className={adminPrimaryButton}
                 >
                   {submitting ? "Enregistrement..." : "Enregistrer"}
                 </button>
@@ -266,7 +283,7 @@ export default function SectionCrud({
                   type="button"
                   disabled={submitting}
                   onClick={() => setEditingId(null)}
-                  className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
+                  className={adminSecondaryButton}
                 >
                   Annuler
                 </button>
@@ -275,7 +292,7 @@ export default function SectionCrud({
           </div>
         ) : null}
 
-        {error ? <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{error}</div> : null}
+        {error ? <div className={adminErrorBox}>{error}</div> : null}
       </div>
     </div>
   );

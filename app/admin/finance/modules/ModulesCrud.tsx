@@ -2,8 +2,33 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  adminCard,
+  adminCardGrid,
+  adminDangerButton,
+  adminErrorBox,
+  adminGhostButton,
+  adminInput,
+  adminNestedCard,
+  adminPrimaryButton,
+  adminPrimaryButtonBlock,
+  adminSecondaryButton,
+  adminSectionTitle,
+  adminTable,
+  adminTableWrap,
+  adminTh,
+  adminTr,
+} from "../../components/admin-ui";
 
-type ModuleTranche = { id: number; codeTranche: string; moduleId: number };
+type ModuleTranche = {
+  id: number;
+  codeTranche: string;
+  moduleId: number;
+  startDay: number;
+  startMonth: number;
+  endDay: number;
+  endMonth: number;
+};
 type BillingModule = {
   id: number;
   name: string;
@@ -118,14 +143,14 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Créer un module</h2>
+    <div className={adminCardGrid}>
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Créer un module</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
             placeholder="Nom du module"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.name}
             onChange={(e) => setCreate((c) => ({ ...c, name: e.target.value }))}
           />
@@ -137,7 +162,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                   type="number"
                   min={1}
                   max={31}
-                  className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                  className={adminInput}
                   value={create.startDay}
                   onChange={(e) => setCreate((c) => ({ ...c, startDay: Number(e.target.value) }))}
                 />
@@ -145,7 +170,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                   type="number"
                   min={1}
                   max={12}
-                  className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                  className={adminInput}
                   value={create.startMonth}
                   onChange={(e) => setCreate((c) => ({ ...c, startMonth: Number(e.target.value) }))}
                 />
@@ -158,7 +183,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                   type="number"
                   min={1}
                   max={31}
-                  className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                  className={adminInput}
                   value={create.endDay}
                   onChange={(e) => setCreate((c) => ({ ...c, endDay: Number(e.target.value) }))}
                 />
@@ -166,7 +191,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                   type="number"
                   min={1}
                   max={12}
-                  className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                  className={adminInput}
                   value={create.endMonth}
                   onChange={(e) => setCreate((c) => ({ ...c, endMonth: Number(e.target.value) }))}
                 />
@@ -176,23 +201,23 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
           <button
             disabled={submitting}
             type="submit"
-            className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+            className={adminPrimaryButtonBlock}
           >
             {submitting ? "Enregistrement..." : "Créer"}
           </button>
         </form>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Modules existants</h2>
-        <div className="mt-3 overflow-x-auto">
-          <table className="min-w-full text-sm">
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Modules existants</h2>
+        <div className={adminTableWrap}>
+          <table className={adminTable}>
             <thead>
-              <tr className="text-left text-zinc-700 dark:text-zinc-300">
-                <th className="py-2 pr-3">Nom</th>
-                <th className="py-2 pr-3">Période</th>
-                <th className="py-2 pr-3">Tranches</th>
-                <th className="py-2 pr-3">Actions</th>
+              <tr>
+                <th className={adminTh}>Nom</th>
+                <th className={adminTh}>Période</th>
+                <th className={adminTh}>Tranches</th>
+                <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -204,13 +229,17 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                 </tr>
               ) : (
                 modules.map((m) => (
-                  <tr key={m.id} className="border-t border-zinc-200 dark:border-zinc-800">
+                  <tr key={m.id} className={adminTr}>
                     <td className="py-3 pr-3 font-medium">{m.name}</td>
                     <td className="py-3 pr-3">
                       {fmtDM(m.startDay, m.startMonth)} → {fmtDM(m.endDay, m.endMonth)}
                     </td>
                     <td className="py-3 pr-3">
-                      {m.tranches.length > 0 ? m.tranches.map((t) => t.codeTranche).join(", ") : "-"}
+                      {m.tranches.length > 0
+                        ? m.tranches
+                            .map((t) => `${t.codeTranche} (${fmtDM(t.startDay, t.startMonth)}→${fmtDM(t.endDay, t.endMonth)})`)
+                            .join(", ")
+                        : "-"}
                     </td>
                     <td className="py-3 pr-3">
                       <div className="flex gap-2">
@@ -220,7 +249,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                             setEditingId(m.id);
                             resetUpdateFromEditing(m);
                           }}
-                          className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40"
+                          className={adminGhostButton}
                         >
                           Modifier
                         </button>
@@ -228,7 +257,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                           type="button"
                           disabled={submitting}
                           onClick={() => handleDelete(m.id)}
-                          className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                          className={adminDangerButton}
                         >
                           Supprimer
                         </button>
@@ -242,13 +271,13 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
         </div>
 
         {editing ? (
-          <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
-            <h3 className="font-semibold text-black dark:text-white">Modifier : {editing.name}</h3>
+          <div className={adminNestedCard}>
+            <h3 className={`font-semibold ${adminSectionTitle}`}>Modifier : {editing.name}</h3>
             <form onSubmit={handleUpdate} className="mt-3 space-y-3">
               <input
                 required
                 placeholder="Nom du module"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.name}
                 onChange={(e) => setUpdate((u) => ({ ...u, name: e.target.value }))}
               />
@@ -260,7 +289,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                       type="number"
                       min={1}
                       max={31}
-                      className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                      className={adminInput}
                       value={update.startDay}
                       onChange={(e) => setUpdate((u) => ({ ...u, startDay: Number(e.target.value) }))}
                     />
@@ -268,7 +297,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                       type="number"
                       min={1}
                       max={12}
-                      className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                      className={adminInput}
                       value={update.startMonth}
                       onChange={(e) => setUpdate((u) => ({ ...u, startMonth: Number(e.target.value) }))}
                     />
@@ -281,7 +310,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                       type="number"
                       min={1}
                       max={31}
-                      className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                      className={adminInput}
                       value={update.endDay}
                       onChange={(e) => setUpdate((u) => ({ ...u, endDay: Number(e.target.value) }))}
                     />
@@ -289,7 +318,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                       type="number"
                       min={1}
                       max={12}
-                      className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                      className={adminInput}
                       value={update.endMonth}
                       onChange={(e) => setUpdate((u) => ({ ...u, endMonth: Number(e.target.value) }))}
                     />
@@ -301,7 +330,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+                  className={adminPrimaryButton}
                 >
                   {submitting ? "Enregistrement..." : "Enregistrer"}
                 </button>
@@ -309,7 +338,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
                   type="button"
                   disabled={submitting}
                   onClick={() => setEditingId(null)}
-                  className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
+                  className={adminSecondaryButton}
                 >
                   Annuler
                 </button>
@@ -318,7 +347,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
           </div>
         ) : null}
 
-        {error ? <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{error}</div> : null}
+        {error ? <div className={adminErrorBox}>{error}</div> : null}
       </div>
     </div>
   );

@@ -1,7 +1,26 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  adminCard,
+  adminCardGrid,
+  adminDangerButton,
+  adminErrorBox,
+  adminGhostButton,
+  adminInput,
+  adminLabel,
+  adminNestedCard,
+  adminPrimaryButton,
+  adminPrimaryButtonBlock,
+  adminSecondaryButton,
+  adminSectionTitle,
+  adminTable,
+  adminTableWrap,
+  adminTh,
+  adminTr,
+} from "../components/admin-ui";
 
 type Level = {
   id: number;
@@ -14,16 +33,31 @@ type Level = {
 
 type SchoolClass = { id: number; codeClass: string; levelId: number };
 
+type LevelOption = { id: number; label: string };
+
 export default function ClassCrud({
   initialLevels,
-  initialClasses,
+  pagedClasses,
+  levelOptions,
+  listTotal,
+  listPage,
+  listPageCount,
+  listQ,
+  listLevelIdStr,
+  listTake,
 }: {
   initialLevels: Level[];
-  initialClasses: SchoolClass[];
+  pagedClasses: SchoolClass[];
+  levelOptions: LevelOption[];
+  listTotal: number;
+  listPage: number;
+  listPageCount: number;
+  listQ: string;
+  listLevelIdStr: string;
+  listTake: number;
 }) {
   const router = useRouter();
   const [levels] = useState(initialLevels);
-  const [classes] = useState(initialClasses);
 
   const [create, setCreate] = useState({
     codeClass: "",
@@ -31,7 +65,10 @@ export default function ClassCrud({
   });
 
   const [editingId, setEditingId] = useState<number | null>(null);
-  const editing = useMemo(() => classes.find((c) => c.id === editingId) ?? null, [classes, editingId]);
+  const editing = useMemo(
+    () => pagedClasses.find((c) => c.id === editingId) ?? null,
+    [pagedClasses, editingId],
+  );
 
   const [update, setUpdate] = useState({
     codeClass: "",
@@ -40,6 +77,21 @@ export default function ClassCrud({
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (editingId !== null && !pagedClasses.some((c) => c.id === editingId)) {
+      setEditingId(null);
+    }
+  }, [pagedClasses, editingId]);
+
+  function buildListQuery(nextPage: number) {
+    const params = new URLSearchParams();
+    if (listQ) params.set("q", listQ);
+    if (listLevelIdStr) params.set("levelId", listLevelIdStr);
+    params.set("page", String(nextPage));
+    params.set("take", String(listTake));
+    return `/admin/classes?${params.toString()}`;
+  }
 
   function levelLabel(levelId: number) {
     const l = levels.find((x) => x.id === levelId);
@@ -125,6 +177,7 @@ export default function ClassCrud({
         setError(data?.error ?? "Échec de suppression");
         return;
       }
+      setEditingId(null);
       router.refresh();
     } finally {
       setSubmitting(false);
@@ -132,20 +185,20 @@ export default function ClassCrud({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Créer une classe</h2>
+    <div className={adminCardGrid}>
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Créer une classe</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
             placeholder="Code classe"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.codeClass}
             onChange={(e) => setCreate((c) => ({ ...c, codeClass: e.target.value }))}
           />
           <select
             required
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.levelId}
             onChange={(e) => setCreate((c) => ({ ...c, levelId: Number(e.target.value) }))}
           >
@@ -158,34 +211,75 @@ export default function ClassCrud({
           <button
             disabled={submitting || levels.length === 0}
             type="submit"
-            className="w-full rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+            className={adminPrimaryButtonBlock}
           >
             {submitting ? "Enregistrement..." : "Créer"}
           </button>
         </form>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <h2 className="text-lg font-semibold text-black dark:text-white">Classes existantes</h2>
-        <div className="mt-3 overflow-x-auto">
-          <table className="min-w-full text-sm">
+      <div className={adminCard}>
+        <h2 className={adminSectionTitle}>Classes existantes</h2>
+
+        <form method="GET" action="/admin/classes" className="mt-4 grid grid-cols-1 items-end gap-3 md:grid-cols-4">
+          <input type="hidden" name="page" value="1" />
+          <div className="md:col-span-2">
+            <label className={`block ${adminLabel}`}>Recherche</label>
+            <input
+              name="q"
+              defaultValue={listQ}
+              className={`mt-2 ${adminInput}`}
+              placeholder="Code classe, niveau, option, section, école…"
+            />
+          </div>
+          <div>
+            <label className={`block ${adminLabel}`}>Niveau</label>
+            <select name="levelId" defaultValue={listLevelIdStr} className={`mt-2 ${adminInput}`}>
+              <option value="">Tous les niveaux</option>
+              {levelOptions.map((lo) => (
+                <option key={lo.id} value={lo.id}>
+                  {lo.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={`block ${adminLabel}`}>Par page</label>
+            <select name="take" defaultValue={String(listTake)} className={`mt-2 ${adminInput}`}>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+          <div className="md:col-span-4">
+            <button type="submit" className={adminPrimaryButton}>
+              Filtrer
+            </button>
+            <Link href="/admin/classes" className={`${adminGhostButton} ml-3 text-sm`}>
+              Réinitialiser
+            </Link>
+          </div>
+        </form>
+
+        <div className={adminTableWrap}>
+          <table className={adminTable}>
             <thead>
-              <tr className="text-left text-zinc-700 dark:text-zinc-300">
-                <th className="py-2 pr-3">Code</th>
-                <th className="py-2 pr-3">Niveau</th>
-                <th className="py-2 pr-3">Actions</th>
+              <tr>
+                <th className={adminTh}>Code</th>
+                <th className={adminTh}>Niveau</th>
+                <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {classes.length === 0 ? (
+              {pagedClasses.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="py-6 text-zinc-600 dark:text-zinc-300">
-                    Aucune classe.
+                    Aucune classe ne correspond aux critères.
                   </td>
                 </tr>
               ) : (
-                classes.map((c) => (
-                  <tr key={c.id} className="border-t border-zinc-200 dark:border-zinc-800">
+                pagedClasses.map((c) => (
+                  <tr key={c.id} className={adminTr}>
                     <td className="py-3 pr-3 font-medium">{c.codeClass}</td>
                     <td className="py-3 pr-3">{levelLabel(c.levelId)}</td>
                     <td className="py-3 pr-3">
@@ -196,7 +290,7 @@ export default function ClassCrud({
                             setEditingId(c.id);
                             resetUpdateFromEditing(c);
                           }}
-                          className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40"
+                          className={adminGhostButton}
                         >
                           Modifier
                         </button>
@@ -204,7 +298,7 @@ export default function ClassCrud({
                           type="button"
                           disabled={submitting}
                           onClick={() => handleDelete(c.id)}
-                          className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                          className={adminDangerButton}
                         >
                           Supprimer
                         </button>
@@ -217,20 +311,38 @@ export default function ClassCrud({
           </table>
         </div>
 
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="text-sm text-zinc-600 dark:text-zinc-300">
+            Page {listPage} sur {listPageCount} ({listTotal} au total).
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {listPage > 1 ? (
+              <Link href={buildListQuery(listPage - 1)} className={adminGhostButton}>
+                Précédent
+              </Link>
+            ) : null}
+            {listPage < listPageCount ? (
+              <Link href={buildListQuery(listPage + 1)} className={adminGhostButton}>
+                Suivant
+              </Link>
+            ) : null}
+          </div>
+        </div>
+
         {editing ? (
-          <div className="mt-4 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
-            <h3 className="font-semibold text-black dark:text-white">Modifier : {editing.codeClass}</h3>
+          <div className={adminNestedCard}>
+            <h3 className={`font-semibold ${adminSectionTitle}`}>Modifier : {editing.codeClass}</h3>
             <form onSubmit={handleUpdate} className="mt-3 space-y-3">
               <input
                 required
                 placeholder="Code classe"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.codeClass}
                 onChange={(e) => setUpdate((u) => ({ ...u, codeClass: e.target.value }))}
               />
               <select
                 required
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={adminInput}
                 value={update.levelId}
                 onChange={(e) => setUpdate((u) => ({ ...u, levelId: Number(e.target.value) }))}
               >
@@ -242,18 +354,14 @@ export default function ClassCrud({
               </select>
 
               <div className="flex items-center justify-between gap-3">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
-                >
+                <button type="submit" disabled={submitting} className={adminPrimaryButton}>
                   {submitting ? "Enregistrement..." : "Enregistrer"}
                 </button>
                 <button
                   type="button"
                   disabled={submitting}
                   onClick={() => setEditingId(null)}
-                  className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2 text-sm hover:bg-white/60 dark:hover:bg-black/40"
+                  className={adminSecondaryButton}
                 >
                   Annuler
                 </button>
@@ -262,9 +370,8 @@ export default function ClassCrud({
           </div>
         ) : null}
 
-        {error ? <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{error}</div> : null}
+        {error ? <div className={adminErrorBox}>{error}</div> : null}
       </div>
     </div>
   );
 }
-

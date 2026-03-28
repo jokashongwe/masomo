@@ -1,6 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import {
+  adminBackLink,
+  adminCard,
+  adminErrorBox,
+  adminGhostButton,
+  adminHeaderRow,
+  adminInput,
+  adminKicker,
+  adminPage,
+  adminPrimaryButton,
+  adminSegmentActive,
+  adminSegmentInactive,
+  adminStatExpenses,
+  adminStatFees,
+  adminSubtitle,
+  adminTable,
+  adminTh,
+  adminTitle,
+  adminTr,
+} from "../components/admin-ui";
 
 type DailyRow = {
   day: string; // YYYY-MM-DD
@@ -31,6 +52,41 @@ type MonthlyReportResponse = {
   totals: { feesUSD: number; feesCDF: number; expensesUSD: number; expensesCDF: number };
 };
 
+type DailyByFeeRow = {
+  day: string;
+  feeId: number | null;
+  feeCode: string;
+  feeName: string;
+  feesUSD: number;
+  feesCDF: number;
+  expensesUSD: number;
+  expensesCDF: number;
+};
+
+type MonthlyByFeeRow = {
+  month: string;
+  feeId: number | null;
+  feeCode: string;
+  feeName: string;
+  feesUSD: number;
+  feesCDF: number;
+  expensesUSD: number;
+  expensesCDF: number;
+};
+
+type DailyByFeeReportResponse = {
+  items: DailyByFeeRow[];
+  total: number;
+  page: number;
+  pageCount: number;
+  totals: { feesUSD: number; feesCDF: number; expensesUSD: number; expensesCDF: number };
+};
+
+type MonthlyByFeeReportResponse = {
+  items: MonthlyByFeeRow[];
+  totals: { feesUSD: number; feesCDF: number; expensesUSD: number; expensesCDF: number };
+};
+
 function formatCurrency(n: number, currency: "USD" | "CDF") {
   try {
     return new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + ` ${currency}`;
@@ -46,6 +102,7 @@ function formatMonthFR(monthKey: string) {
 }
 
 export default function ReportsClient({ initialStart, initialEnd }: { initialStart: string; initialEnd: string }) {
+  const [reportView, setReportView] = useState<"global" | "byFee">("global");
   const [mode, setMode] = useState<"daily" | "monthly">("daily");
 
   const [draftStart, setDraftStart] = useState(initialStart);
@@ -62,6 +119,8 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
 
   const [daily, setDaily] = useState<DailyReportResponse | null>(null);
   const [monthly, setMonthly] = useState<MonthlyReportResponse | null>(null);
+  const [dailyByFee, setDailyByFee] = useState<DailyByFeeReportResponse | null>(null);
+  const [monthlyByFee, setMonthlyByFee] = useState<MonthlyByFeeReportResponse | null>(null);
 
   const isDateRangeValid = useMemo(() => {
     if (!draftStart || !draftEnd) return false;
@@ -104,12 +163,50 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
     }
   }
 
+  async function fetchDailyByFee() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/reports/daily-by-fee?start=${encodeURIComponent(paramsStart)}&end=${encodeURIComponent(paramsEnd)}&page=${dailyPage}&take=${dailyTake}`,
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error ?? "Erreur lors du chargement du rapport");
+      setDailyByFee(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur inconnue");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchMonthlyByFee() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/reports/monthly-by-fee?start=${encodeURIComponent(paramsStart)}&end=${encodeURIComponent(paramsEnd)}`,
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error ?? "Erreur lors du chargement du rapport");
+      setMonthlyByFee(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur inconnue");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    // Initial load + reloads when parameters change.
-    if (mode === "daily") fetchDaily();
-    else fetchMonthly();
+    if (reportView === "global") {
+      if (mode === "daily") fetchDaily();
+      else fetchMonthly();
+    } else {
+      if (mode === "daily") fetchDailyByFee();
+      else fetchMonthlyByFee();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, paramsStart, paramsEnd, dailyPage, dailyTake]);
+  }, [reportView, mode, paramsStart, paramsEnd, dailyPage, dailyTake]);
 
   function applyRange() {
     if (!isDateRangeValid) return;
@@ -119,26 +216,46 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+    <div className={adminPage}>
+      <header className={adminHeaderRow}>
         <div>
-          <h1 className="text-2xl font-semibold text-black dark:text-white">Rapports</h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-300">
-            Paiements de frais (estimés à partir des frais configurés et des élèves inscrits) et dépenses (réelles).
+          <p className={adminKicker}>Finances</p>
+          <h1 className={`mt-1 ${adminTitle}`}>Rapports</h1>
+          <p className={adminSubtitle}>
+            {reportView === "global"
+              ? "Encaissements réels (paiements de frais saisis, selon la date de paiement) et dépenses réelles (sorties du portefeuille, selon la date de la dépense). Seules les dates avec au moins une opération sont listées."
+              : "Détail par type de frais (code / libellé) et ligne « Dépenses portefeuille » pour les sorties du portefeuille. Une ligne par date ou par mois et par frais."}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setReportView("global");
+              setDailyPage(1);
+            }}
+            className={reportView === "global" ? adminSegmentActive : adminSegmentInactive}
+          >
+            Vue globale
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setReportView("byFee");
+              setDailyPage(1);
+            }}
+            className={reportView === "byFee" ? adminSegmentActive : adminSegmentInactive}
+          >
+            Par frais
+          </button>
           <button
             type="button"
             onClick={() => {
               setMode("daily");
               setDailyPage(1);
             }}
-            className={
-              "rounded-lg px-4 py-2 text-sm border " +
-              (mode === "daily" ? "bg-zinc-900 text-white border-zinc-900" : "bg-white/60 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-100")
-            }
+            className={mode === "daily" ? adminSegmentActive : adminSegmentInactive}
           >
             Journaliers
           </button>
@@ -148,35 +265,35 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
               setMode("monthly");
               setDailyPage(1);
             }}
-            className={
-              "rounded-lg px-4 py-2 text-sm border " +
-              (mode === "monthly" ? "bg-zinc-900 text-white border-zinc-900" : "bg-white/60 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-100")
-            }
+            className={mode === "monthly" ? adminSegmentActive : adminSegmentInactive}
           >
             Mensuels
           </button>
+          <Link href="/admin" className={adminBackLink}>
+            Retour à l’admin
+          </Link>
         </div>
-      </div>
+      </header>
 
-      <div className="mt-6 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
+      <div className={`${adminCard} mt-6`}>
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
             <div>
-              <label className="block text-sm font-medium text-black dark:text-white">Début</label>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">Début</label>
               <input
                 type="date"
                 value={draftStart}
                 onChange={(e) => setDraftStart(e.target.value)}
-                className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={`mt-2 ${adminInput}`}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-black dark:text-white">Fin</label>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">Fin</label>
               <input
                 type="date"
                 value={draftEnd}
                 onChange={(e) => setDraftEnd(e.target.value)}
-                className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                className={`mt-2 ${adminInput}`}
               />
             </div>
           </div>
@@ -184,14 +301,14 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
           {mode === "daily" ? (
             <div className="flex items-end gap-3">
               <div>
-                <label className="block text-sm font-medium text-black dark:text-white">Lignes</label>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">Lignes</label>
                 <select
                   value={dailyTake}
                   onChange={(e) => {
                     setDailyTake(Number(e.target.value));
                     setDailyPage(1);
                   }}
-                  className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                  className={`mt-2 ${adminInput}`}
                 >
                   <option value={10}>10</option>
                   <option value={20}>20</option>
@@ -202,7 +319,7 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
                 type="button"
                 onClick={applyRange}
                 disabled={!isDateRangeValid}
-                className="mt-0 rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+                className={adminPrimaryButton}
               >
                 Mettre à jour
               </button>
@@ -212,7 +329,7 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
               type="button"
               onClick={applyRange}
               disabled={!isDateRangeValid}
-              className="rounded-lg bg-zinc-900 text-white px-4 py-2 hover:bg-zinc-800 disabled:opacity-50"
+              className={adminPrimaryButton}
             >
               Mettre à jour
             </button>
@@ -220,39 +337,39 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
         </div>
       </div>
 
-      {error ? <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{error}</div> : null}
+      {error ? <div className={`${adminErrorBox} mt-4`}>{error}</div> : null}
       {loading && !error ? <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-300">Chargement...</div> : null}
 
-      {mode === "daily" && daily ? (
+      {reportView === "global" && mode === "daily" && daily ? (
         <>
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-500 text-white p-5 shadow">
+            <div className={adminStatFees}>
               <div className="text-sm font-medium opacity-95">Frais (USD) - total</div>
               <div className="mt-2 text-2xl font-semibold">{formatCurrency(daily.totals.feesUSD, "USD")}</div>
             </div>
-            <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-500 text-white p-5 shadow">
+            <div className={adminStatFees}>
               <div className="text-sm font-medium opacity-95">Frais (CDF) - total</div>
               <div className="mt-2 text-2xl font-semibold">{formatCurrency(daily.totals.feesCDF, "CDF")}</div>
             </div>
-            <div className="rounded-2xl bg-gradient-to-r from-rose-600 to-pink-500 text-white p-5 shadow">
+            <div className={adminStatExpenses}>
               <div className="text-sm font-medium opacity-95">Dépenses (USD) - total</div>
               <div className="mt-2 text-2xl font-semibold">{formatCurrency(daily.totals.expensesUSD, "USD")}</div>
             </div>
-            <div className="rounded-2xl bg-gradient-to-r from-rose-600 to-pink-500 text-white p-5 shadow">
+            <div className={adminStatExpenses}>
               <div className="text-sm font-medium opacity-95">Dépenses (CDF) - total</div>
               <div className="mt-2 text-2xl font-semibold">{formatCurrency(daily.totals.expensesCDF, "CDF")}</div>
             </div>
           </div>
 
-          <div className="mt-6 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4 overflow-x-auto">
-            <table className="min-w-full text-sm">
+          <div className={`${adminCard} mt-6 overflow-x-auto`}>
+            <table className={adminTable}>
               <thead>
-                <tr className="text-left text-zinc-700 dark:text-zinc-300">
-                  <th className="py-2 pr-3">Date</th>
-                  <th className="py-2 pr-3">Frais USD</th>
-                  <th className="py-2 pr-3">Frais CDF</th>
-                  <th className="py-2 pr-3">Dépenses USD</th>
-                  <th className="py-2 pr-3">Dépenses CDF</th>
+                <tr>
+                  <th className={adminTh}>Date</th>
+                  <th className={adminTh}>Frais USD</th>
+                  <th className={adminTh}>Frais CDF</th>
+                  <th className={adminTh}>Dépenses USD</th>
+                  <th className={adminTh}>Dépenses CDF</th>
                 </tr>
               </thead>
               <tbody>
@@ -264,7 +381,7 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
                   </tr>
                 ) : (
                   daily.items.map((r) => (
-                    <tr key={r.day} className="border-t border-zinc-200 dark:border-zinc-800">
+                    <tr key={r.day} className={adminTr}>
                       <td className="py-3 pr-3">{r.day}</td>
                       <td className="py-3 pr-3">{formatCurrency(r.feesUSD, "USD")}</td>
                       <td className="py-3 pr-3">{formatCurrency(r.feesCDF, "CDF")}</td>
@@ -286,7 +403,7 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
                 <button
                   type="button"
                   onClick={() => setDailyPage((p) => Math.max(1, p - 1))}
-                  className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-sm hover:bg-white/60 dark:hover:bg-black/40"
+                  className={adminGhostButton}
                 >
                   Précédent
                 </button>
@@ -295,7 +412,7 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
                 <button
                   type="button"
                   onClick={() => setDailyPage((p) => p + 1)}
-                  className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-sm hover:bg-white/60 dark:hover:bg-black/40"
+                  className={adminGhostButton}
                 >
                   Suivant
                 </button>
@@ -305,36 +422,36 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
         </>
       ) : null}
 
-      {mode === "monthly" && monthly ? (
+      {reportView === "global" && mode === "monthly" && monthly ? (
         <>
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-500 text-white p-5 shadow">
+            <div className={adminStatFees}>
               <div className="text-sm font-medium opacity-95">Frais (USD) - total</div>
               <div className="mt-2 text-2xl font-semibold">{formatCurrency(monthly.totals.feesUSD, "USD")}</div>
             </div>
-            <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-500 text-white p-5 shadow">
+            <div className={adminStatFees}>
               <div className="text-sm font-medium opacity-95">Frais (CDF) - total</div>
               <div className="mt-2 text-2xl font-semibold">{formatCurrency(monthly.totals.feesCDF, "CDF")}</div>
             </div>
-            <div className="rounded-2xl bg-gradient-to-r from-rose-600 to-pink-500 text-white p-5 shadow">
+            <div className={adminStatExpenses}>
               <div className="text-sm font-medium opacity-95">Dépenses (USD) - total</div>
               <div className="mt-2 text-2xl font-semibold">{formatCurrency(monthly.totals.expensesUSD, "USD")}</div>
             </div>
-            <div className="rounded-2xl bg-gradient-to-r from-rose-600 to-pink-500 text-white p-5 shadow">
+            <div className={adminStatExpenses}>
               <div className="text-sm font-medium opacity-95">Dépenses (CDF) - total</div>
               <div className="mt-2 text-2xl font-semibold">{formatCurrency(monthly.totals.expensesCDF, "CDF")}</div>
             </div>
           </div>
 
-          <div className="mt-6 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4 overflow-x-auto">
-            <table className="min-w-full text-sm">
+          <div className={`${adminCard} mt-6 overflow-x-auto`}>
+            <table className={adminTable}>
               <thead>
-                <tr className="text-left text-zinc-700 dark:text-zinc-300">
-                  <th className="py-2 pr-3">Mois</th>
-                  <th className="py-2 pr-3">Frais USD</th>
-                  <th className="py-2 pr-3">Frais CDF</th>
-                  <th className="py-2 pr-3">Dépenses USD</th>
-                  <th className="py-2 pr-3">Dépenses CDF</th>
+                <tr>
+                  <th className={adminTh}>Mois</th>
+                  <th className={adminTh}>Frais USD</th>
+                  <th className={adminTh}>Frais CDF</th>
+                  <th className={adminTh}>Dépenses USD</th>
+                  <th className={adminTh}>Dépenses CDF</th>
                 </tr>
               </thead>
               <tbody>
@@ -346,8 +463,154 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
                   </tr>
                 ) : (
                   monthly.items.map((r) => (
-                    <tr key={r.month} className="border-t border-zinc-200 dark:border-zinc-800">
+                    <tr key={r.month} className={adminTr}>
                       <td className="py-3 pr-3">{formatMonthFR(r.month)}</td>
+                      <td className="py-3 pr-3">{formatCurrency(r.feesUSD, "USD")}</td>
+                      <td className="py-3 pr-3">{formatCurrency(r.feesCDF, "CDF")}</td>
+                      <td className="py-3 pr-3">{formatCurrency(r.expensesUSD, "USD")}</td>
+                      <td className="py-3 pr-3">{formatCurrency(r.expensesCDF, "CDF")}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : null}
+
+      {reportView === "byFee" && mode === "daily" && dailyByFee ? (
+        <>
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className={adminStatFees}>
+              <div className="text-sm font-medium opacity-95">Frais (USD) - total</div>
+              <div className="mt-2 text-2xl font-semibold">{formatCurrency(dailyByFee.totals.feesUSD, "USD")}</div>
+            </div>
+            <div className={adminStatFees}>
+              <div className="text-sm font-medium opacity-95">Frais (CDF) - total</div>
+              <div className="mt-2 text-2xl font-semibold">{formatCurrency(dailyByFee.totals.feesCDF, "CDF")}</div>
+            </div>
+            <div className={adminStatExpenses}>
+              <div className="text-sm font-medium opacity-95">Dépenses (USD) - total</div>
+              <div className="mt-2 text-2xl font-semibold">{formatCurrency(dailyByFee.totals.expensesUSD, "USD")}</div>
+            </div>
+            <div className={adminStatExpenses}>
+              <div className="text-sm font-medium opacity-95">Dépenses (CDF) - total</div>
+              <div className="mt-2 text-2xl font-semibold">{formatCurrency(dailyByFee.totals.expensesCDF, "CDF")}</div>
+            </div>
+          </div>
+
+          <div className={`${adminCard} mt-6 overflow-x-auto`}>
+            <table className={adminTable}>
+              <thead>
+                <tr>
+                  <th className={adminTh}>Date</th>
+                  <th className={adminTh}>Code</th>
+                  <th className={adminTh}>Frais / libellé</th>
+                  <th className={adminTh}>Encaissements USD</th>
+                  <th className={adminTh}>Encaissements CDF</th>
+                  <th className={adminTh}>Dépenses USD</th>
+                  <th className={adminTh}>Dépenses CDF</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dailyByFee.items.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-zinc-600 dark:text-zinc-300">
+                      Aucune donnée sur cette période.
+                    </td>
+                  </tr>
+                ) : (
+                  dailyByFee.items.map((r) => (
+                    <tr key={`${r.day}-${r.feeId ?? "wallet"}`} className={adminTr}>
+                      <td className="py-3 pr-3 whitespace-nowrap">{r.day}</td>
+                      <td className="py-3 pr-3 font-mono text-sm">{r.feeCode}</td>
+                      <td className="py-3 pr-3">{r.feeName}</td>
+                      <td className="py-3 pr-3">{formatCurrency(r.feesUSD, "USD")}</td>
+                      <td className="py-3 pr-3">{formatCurrency(r.feesCDF, "CDF")}</td>
+                      <td className="py-3 pr-3">{formatCurrency(r.expensesUSD, "USD")}</td>
+                      <td className="py-3 pr-3">{formatCurrency(r.expensesCDF, "CDF")}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-6 flex items-center justify-between gap-3 flex-wrap">
+            <div className="text-sm text-zinc-600 dark:text-zinc-300">
+              Page {dailyByFee.page} sur {dailyByFee.pageCount} ({dailyByFee.total} lignes)
+            </div>
+            <div className="flex items-center gap-2">
+              {dailyByFee.page > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setDailyPage((p) => Math.max(1, p - 1))}
+                  className={adminGhostButton}
+                >
+                  Précédent
+                </button>
+              ) : null}
+              {dailyByFee.page < dailyByFee.pageCount ? (
+                <button
+                  type="button"
+                  onClick={() => setDailyPage((p) => p + 1)}
+                  className={adminGhostButton}
+                >
+                  Suivant
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {reportView === "byFee" && mode === "monthly" && monthlyByFee ? (
+        <>
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className={adminStatFees}>
+              <div className="text-sm font-medium opacity-95">Frais (USD) - total</div>
+              <div className="mt-2 text-2xl font-semibold">{formatCurrency(monthlyByFee.totals.feesUSD, "USD")}</div>
+            </div>
+            <div className={adminStatFees}>
+              <div className="text-sm font-medium opacity-95">Frais (CDF) - total</div>
+              <div className="mt-2 text-2xl font-semibold">{formatCurrency(monthlyByFee.totals.feesCDF, "CDF")}</div>
+            </div>
+            <div className={adminStatExpenses}>
+              <div className="text-sm font-medium opacity-95">Dépenses (USD) - total</div>
+              <div className="mt-2 text-2xl font-semibold">{formatCurrency(monthlyByFee.totals.expensesUSD, "USD")}</div>
+            </div>
+            <div className={adminStatExpenses}>
+              <div className="text-sm font-medium opacity-95">Dépenses (CDF) - total</div>
+              <div className="mt-2 text-2xl font-semibold">{formatCurrency(monthlyByFee.totals.expensesCDF, "CDF")}</div>
+            </div>
+          </div>
+
+          <div className={`${adminCard} mt-6 overflow-x-auto`}>
+            <table className={adminTable}>
+              <thead>
+                <tr>
+                  <th className={adminTh}>Mois</th>
+                  <th className={adminTh}>Code</th>
+                  <th className={adminTh}>Frais / libellé</th>
+                  <th className={adminTh}>Encaissements USD</th>
+                  <th className={adminTh}>Encaissements CDF</th>
+                  <th className={adminTh}>Dépenses USD</th>
+                  <th className={adminTh}>Dépenses CDF</th>
+                </tr>
+              </thead>
+              <tbody>
+                {monthlyByFee.items.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-zinc-600 dark:text-zinc-300">
+                      Aucune donnée sur cette période.
+                    </td>
+                  </tr>
+                ) : (
+                  monthlyByFee.items.map((r) => (
+                    <tr key={`${r.month}-${r.feeId ?? "wallet"}`} className={adminTr}>
+                      <td className="py-3 pr-3 whitespace-nowrap">{formatMonthFR(r.month)}</td>
+                      <td className="py-3 pr-3 font-mono text-sm">{r.feeCode}</td>
+                      <td className="py-3 pr-3">{r.feeName}</td>
                       <td className="py-3 pr-3">{formatCurrency(r.feesUSD, "USD")}</td>
                       <td className="py-3 pr-3">{formatCurrency(r.feesCDF, "CDF")}</td>
                       <td className="py-3 pr-3">{formatCurrency(r.expensesUSD, "USD")}</td>

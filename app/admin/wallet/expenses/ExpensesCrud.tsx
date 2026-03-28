@@ -2,6 +2,19 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  adminCard,
+  adminDangerButton,
+  adminErrorBox,
+  adminGhostButton,
+  adminInput,
+  adminLabel,
+  adminPrimaryButtonBlock,
+  adminSectionTitle,
+  adminTable,
+  adminTh,
+  adminTr,
+} from "../../components/admin-ui";
 
 type Currency = "USD" | "CDF";
 
@@ -11,10 +24,14 @@ type ExpenseRow = {
   amount: string;
   description: string | null;
   occurredAt: string;
+  academicYearId: number;
+  academicYearName: string;
 };
 
 export default function ExpensesCrud({
   canWrite,
+  academicYears,
+  selectedAcademicYearId,
   initialExpenses,
   total,
   page,
@@ -24,6 +41,8 @@ export default function ExpensesCrud({
   take,
 }: {
   canWrite: boolean;
+  academicYears: { id: number; name: string }[];
+  selectedAcademicYearId: number | null;
   initialExpenses: ExpenseRow[];
   total: number;
   page: number;
@@ -55,6 +74,7 @@ export default function ExpensesCrud({
     amount: "",
     description: "",
     occurredAt: "",
+    academicYearId: 0,
   });
 
   function toLocalDateTimeInput(iso: string) {
@@ -69,13 +89,38 @@ export default function ExpensesCrud({
       amount: row.amount,
       description: row.description ?? "",
       occurredAt: toLocalDateTimeInput(row.occurredAt),
+      academicYearId: row.academicYearId,
     });
+  }
+
+  function searchParamsForPage(nextPage: number) {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (currency) params.set("currency", currency);
+    params.set("page", String(nextPage));
+    params.set("take", String(take));
+    if (selectedAcademicYearId != null) params.set("academicYearId", String(selectedAcademicYearId));
+    return params.toString();
+  }
+
+  function hrefForYear(yearId: number) {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (currency) params.set("currency", currency);
+    params.set("page", "1");
+    params.set("take", String(take));
+    params.set("academicYearId", String(yearId));
+    return `/admin/wallet/expenses?${params.toString()}`;
   }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!canWrite) return;
+    if (selectedAcademicYearId == null) {
+      setError("Sélectionnez une année scolaire.");
+      return;
+    }
     const amount = Number(create.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
       setError("Le montant doit être > 0");
@@ -92,6 +137,7 @@ export default function ExpensesCrud({
           amount,
           description: create.description || undefined,
           occurredAt: create.occurredAt ? new Date(create.occurredAt) : undefined,
+          academicYearId: selectedAcademicYearId,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -126,6 +172,7 @@ export default function ExpensesCrud({
           amount,
           description: update.description || undefined,
           occurredAt: update.occurredAt ? new Date(update.occurredAt) : undefined,
+          academicYearId: update.academicYearId,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -159,21 +206,31 @@ export default function ExpensesCrud({
     }
   }
 
-  const pageLinks = (nextPage: number) => {
-    const params = new URLSearchParams();
-    if (q) params.set("q", q);
-    if (currency) params.set("currency", currency);
-    params.set("page", String(nextPage));
-    params.set("take", String(take));
-    return `?${params.toString()}`;
-  };
-
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className={adminCard}>
+        <label className={`block ${adminLabel}`}>Année scolaire (filtre)</label>
+        <select
+          className={`mt-2 ${adminInput} max-w-md`}
+          value={selectedAcademicYearId ?? ""}
+          onChange={(e) => {
+            const id = Number(e.target.value);
+            if (!Number.isFinite(id) || id <= 0) return;
+            router.push(hrefForYear(id));
+          }}
+        >
+          {academicYears.map((y) => (
+            <option key={y.id} value={y.id}>
+              {y.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className={adminCard}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-xl font-semibold text-black dark:text-white">Dépenses</div>
+            <div className={`text-xl ${adminSectionTitle}`}>Dépenses</div>
             <div className="text-sm text-zinc-600 dark:text-zinc-300">Gérer les dépenses (USD/CDF) et suivre les sorties.</div>
           </div>
           <div className="text-sm text-zinc-600 dark:text-zinc-300">
@@ -182,13 +239,13 @@ export default function ExpensesCrud({
         </div>
       </div>
 
-      <form onSubmit={handleCreate} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
-        <div className="text-lg font-semibold text-black dark:text-white">Ajouter une dépense</div>
+      <form onSubmit={handleCreate} className={adminCard}>
+        <div className={adminSectionTitle}>Ajouter une dépense</div>
         {!canWrite ? <div className="text-sm text-zinc-600 dark:text-zinc-300 mt-1">Lecture seule</div> : null}
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-3">
           <select
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.currency}
             onChange={(e) => setCreate((c) => ({ ...c, currency: e.target.value as Currency }))}
             disabled={!canWrite || submitting}
@@ -203,7 +260,7 @@ export default function ExpensesCrud({
             min="0"
             step="0.01"
             placeholder="Montant"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.amount}
             onChange={(e) => setCreate((c) => ({ ...c, amount: e.target.value }))}
             disabled={!canWrite || submitting}
@@ -212,7 +269,7 @@ export default function ExpensesCrud({
 
           <input
             type="date"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.occurredAt}
             onChange={(e) => setCreate((c) => ({ ...c, occurredAt: e.target.value }))}
             disabled={!canWrite || submitting}
@@ -220,28 +277,28 @@ export default function ExpensesCrud({
 
           <input
             placeholder="Description"
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+            className={adminInput}
             value={create.description}
             onChange={(e) => setCreate((c) => ({ ...c, description: e.target.value }))}
             disabled={!canWrite || submitting}
           />
         </div>
 
-        {error ? <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 text-sm">{error}</div> : null}
+        {error ? <div className={`${adminErrorBox} mt-3`}>{error}</div> : null}
 
         <button
           type="submit"
-          disabled={!canWrite || submitting}
-          className="mt-4 w-full rounded-lg bg-zinc-900 text-white px-4 py-3 hover:bg-zinc-800 disabled:opacity-50"
+          disabled={!canWrite || submitting || selectedAcademicYearId == null}
+          className={`${adminPrimaryButtonBlock} mt-4`}
         >
           {submitting ? "Enregistrement..." : "Enregistrer la dépense"}
         </button>
       </form>
 
       {editing ? (
-        <form onSubmit={handleUpdate} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4">
+        <form onSubmit={handleUpdate} className={adminCard}>
           <div className="flex items-center justify-between gap-3">
-            <div className="text-lg font-semibold text-black dark:text-white">Modifier la dépense #{editing.id}</div>
+            <div className={adminSectionTitle}>Modifier la dépense #{editing.id}</div>
             <button
               type="button"
               disabled={submitting}
@@ -252,9 +309,25 @@ export default function ExpensesCrud({
             </button>
           </div>
 
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <select
-              className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+              className={adminInput}
+              value={update.academicYearId}
+              onChange={(e) =>
+                setUpdate((u) => ({ ...u, academicYearId: Number(e.target.value) }))
+              }
+              disabled={!canWrite || submitting}
+              required
+            >
+              {academicYears.map((y) => (
+                <option key={y.id} value={y.id}>
+                  {y.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className={adminInput}
               value={update.currency}
               onChange={(e) => setUpdate((u) => ({ ...u, currency: e.target.value as Currency }))}
               disabled={!canWrite || submitting}
@@ -269,7 +342,7 @@ export default function ExpensesCrud({
               min="0"
               step="0.01"
               placeholder="Montant"
-              className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+              className={adminInput}
               value={update.amount}
               onChange={(e) => setUpdate((u) => ({ ...u, amount: e.target.value }))}
               disabled={!canWrite || submitting}
@@ -278,7 +351,7 @@ export default function ExpensesCrud({
 
             <input
               type="date"
-              className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+              className={adminInput}
               value={update.occurredAt}
               onChange={(e) => setUpdate((u) => ({ ...u, occurredAt: e.target.value }))}
               disabled={!canWrite || submitting}
@@ -286,7 +359,7 @@ export default function ExpensesCrud({
 
             <input
               placeholder="Description"
-              className="w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+              className={adminInput}
               value={update.description}
               onChange={(e) => setUpdate((u) => ({ ...u, description: e.target.value }))}
               disabled={!canWrite || submitting}
@@ -296,34 +369,36 @@ export default function ExpensesCrud({
           <button
             type="submit"
             disabled={!canWrite || submitting}
-            className="mt-4 w-full rounded-lg bg-zinc-900 text-white px-4 py-3 hover:bg-zinc-800 disabled:opacity-50"
+            className={`${adminPrimaryButtonBlock} mt-4`}
           >
             {submitting ? "Enregistrement..." : "Enregistrer"}
           </button>
         </form>
       ) : null}
 
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-black/40 p-4 overflow-x-auto">
-        <table className="min-w-full text-sm">
+      <div className={`${adminCard} overflow-x-auto`}>
+        <table className={adminTable}>
           <thead>
-            <tr className="text-left text-zinc-700 dark:text-zinc-300">
-              <th className="py-2 pr-3">Date</th>
-              <th className="py-2 pr-3">Description</th>
-              <th className="py-2 pr-3">Devise</th>
-              <th className="py-2 pr-3">Montant</th>
-              <th className="py-2 pr-3">Actions</th>
+            <tr>
+              <th className={adminTh}>Année</th>
+              <th className={adminTh}>Date</th>
+              <th className={adminTh}>Description</th>
+              <th className={adminTh}>Devise</th>
+              <th className={adminTh}>Montant</th>
+              <th className={adminTh}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {expenses.length === 0 ? (
               <tr>
-                <td colSpan={5} className="py-8 text-zinc-600 dark:text-zinc-300">
+                <td colSpan={6} className="py-8 text-zinc-600 dark:text-zinc-300">
                   Aucune dépense trouvée.
                 </td>
               </tr>
             ) : (
               expenses.map((e) => (
-                <tr key={e.id} className="border-t border-zinc-200 dark:border-zinc-800">
+                <tr key={e.id} className={adminTr}>
+                  <td className="py-3 pr-3 whitespace-nowrap">{e.academicYearName}</td>
                   <td className="py-3 pr-3">{e.occurredAt.slice(0, 10)}</td>
                   <td className="py-3 pr-3">{e.description ?? "-"}</td>
                   <td className="py-3 pr-3">{e.currency}</td>
@@ -337,7 +412,7 @@ export default function ExpensesCrud({
                           setEditingId(e.id);
                           resetUpdateFromEditing(e);
                         }}
-                        className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-xs hover:bg-white/60 dark:hover:bg-black/40 disabled:opacity-50"
+                        className={`${adminGhostButton} disabled:opacity-50`}
                       >
                         Modifier
                       </button>
@@ -345,7 +420,7 @@ export default function ExpensesCrud({
                         type="button"
                         disabled={!canWrite || submitting}
                         onClick={() => handleDelete(e.id)}
-                        className="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        className={`${adminDangerButton} disabled:opacity-50`}
                       >
                         Supprimer
                       </button>
@@ -365,16 +440,16 @@ export default function ExpensesCrud({
         <div className="flex items-center gap-2">
           {page > 1 ? (
             <a
-              href={pageLinks(page - 1)}
-              className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-sm hover:bg-white/60 dark:hover:bg-black/40"
+              href={`?${searchParamsForPage(page - 1)}`}
+              className={adminGhostButton}
             >
               Précédent
             </a>
           ) : null}
           {page < pageCount ? (
             <a
-              href={pageLinks(page + 1)}
-              className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-sm hover:bg-white/60 dark:hover:bg-black/40"
+              href={`?${searchParamsForPage(page + 1)}`}
+              className={adminGhostButton}
             >
               Suivant
             </a>
