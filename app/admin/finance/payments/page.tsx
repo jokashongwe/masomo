@@ -7,7 +7,7 @@ import { adminPage } from "../../components/admin-ui";
 export default async function AdminFinancePaymentsPage() {
   await requireRoles((role) => canReadFinance(role));
 
-  const [students, fees, modules, tranches] = await Promise.all([
+  const [students, fees, modules, tranches, school] = await Promise.all([
     prisma.student.findMany({
       orderBy: [{ firstName: "asc" }, { name: "asc" }],
       select: {
@@ -40,6 +40,7 @@ export default async function AdminFinancePaymentsPage() {
         module: { select: { name: true } },
       },
     }),
+    prisma.school.findFirst({ orderBy: { id: "asc" }, select: { name: true } }),
   ]);
 
   return (
@@ -47,11 +48,12 @@ export default async function AdminFinancePaymentsPage() {
       <AdminPageHeader
         kicker="Finances"
         title="Paiements de frais"
-        subtitle="Bordereau banque, paiement direct (non-tranche), et import Excel."
+        subtitle="Bordereau banque, bordereau par tranche, paiement direct et import Excel."
         backHref="/admin/finance"
       />
       <div className="mt-6">
         <PaymentsClient
+          schoolName={school?.name ?? "Établissement"}
           students={students.map((s) => ({
             id: s.id,
             label: `${s.firstName} ${s.name} ${s.postnom} - ${s.schoolClass.codeClass}`,

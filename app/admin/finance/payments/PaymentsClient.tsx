@@ -14,6 +14,7 @@ import {
   adminTh,
   adminTr,
 } from "../../components/admin-ui";
+import { printFeePaymentReceipt } from "./payment-receipt-print";
 
 type StudentOpt = { id: number; label: string };
 type FeeOpt = { id: number; code: string; name: string; chargeType: "TOTAL" | "BY_MODULE" };
@@ -37,8 +38,17 @@ type PaymentListItem = {
   currency: "USD" | "CDF";
   amount: string;
   paidAt: string;
+  note: string | null;
   student: { id: number; name: string; postnom: string; firstName: string };
   fee: { id: number; code: string; name: string; chargeType: "TOTAL" | "BY_MODULE" };
+  allocations?: {
+    amount: string | number;
+    currency?: string;
+    trancheId: number | null;
+    moduleId: number | null;
+    tranche: { codeTranche: string } | null;
+    module: { name: string } | null;
+  }[];
 };
 
 function fmtDM(d: number, m: number) {
@@ -46,18 +56,20 @@ function fmtDM(d: number, m: number) {
 }
 
 export default function PaymentsClient({
+  schoolName,
   students,
   fees,
   modules,
   tranches,
 }: {
+  schoolName: string;
   students: StudentOpt[];
   fees: FeeOpt[];
   modules: ModuleOpt[];
   tranches: TrancheOpt[];
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<"BANK" | "DIRECT" | "IMPORT">("BANK");
+  const [tab, setTab] = useState<"BANK" | "BANK_TRANCHE" | "DIRECT" | "IMPORT">("BANK");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -99,6 +111,13 @@ export default function PaymentsClient({
 
   async function createPayment(source: "BANK_SLIP" | "MANUAL", mode: "AUTO" | "MODULE" | "TRANCHE" | "TOTAL_DIRECT") {
     setError(null);
+    if (source === "BANK_SLIP" && mode === "TRANCHE") {
+      const ref = bankSlipReference.trim();
+      if (!ref) {
+        setError("Indiquez la référence du bordereau payé à la banque.");
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       const payload: Record<string, unknown> = {
@@ -109,7 +128,7 @@ export default function PaymentsClient({
         source,
         allocationMode: mode,
         note: note || undefined,
-        bankSlipReference: bankSlipReference || undefined,
+        bankSlipReference: bankSlipReference.trim() || undefined,
       };
       if (paidAt) payload.paidAt = new Date(paidAt);
       if (mode === "MODULE") payload.moduleId = moduleId;
@@ -121,7 +140,18 @@ export default function PaymentsClient({
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error ?? "Échec création paiement");
+      if (!res.ok) {
+        const err = data?.error;
+        let msg = "Échec création paiement";
+        if (typeof err === "string") msg = err;
+        else if (err && typeof err === "object") {
+          const fe = err as { fieldErrors?: Record<string, string[]>; formErrors?: string[] };
+          const fromFields = fe.fieldErrors ? Object.values(fe.fieldErrors).flat()[0] : undefined;
+          if (fromFields) msg = fromFields;
+          else if (fe.formErrors?.[0]) msg = fe.formErrors[0];
+        }
+        throw new Error(msg);
+      }
 
       setAmount("");
       setNote("");
@@ -162,6 +192,13 @@ export default function PaymentsClient({
         <button type="button" onClick={() => setTab("BANK")} className={tab === "BANK" ? adminSegmentActive : adminSegmentInactive}>
           Bordereau banque
         </button>
+        <button
+          type="button"
+          onClick={() => setTab("BANK_TRANCHE")}
+          className={tab === "BANK_TRANCHE" ? adminSegmentActive : adminSegmentInactive}
+        >
+          Bordereau par tranche
+        </button>
         <button type="button" onClick={() => setTab("DIRECT")} className={tab === "DIRECT" ? adminSegmentActive : adminSegmentInactive}>
           Paiement direct (non-tranche)
         </button>
@@ -170,7 +207,104 @@ export default function PaymentsClient({
         </button>
       </div>
 
-      {tab !== "IMPORT" ? (
+      {tab === "BANK_TRANCHE" ? (
+        <div className={`${adminCard} space-y-4`}>
+          <div>
+            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">Paiement à la banque pour une tranche précise</p>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+              Enregistrez le montant versé en banque pour une tranche donnée (frais de type module/tranches). La référence du
+              bordereau est obligatoire.
+            </p>
+          </div>
+
+          {selectedFee?.chargeType !== "BY_MODULE" ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
+              Choisissez un frais « par module / tranches » (BY_MODULE). Les frais forfaitaires ne sont pas ventilés par tranche.
+            </div>
+          ) : null}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <select className={adminInput} value={studentId} onChange={(e) => setStudentId(Number(e.target.value))}>
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            <select className={adminInput} value={feeId} onChange={(e) => setFeeId(Number(e.target.value))}>
+              {fees.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.code} - {f.name} ({f.chargeType})
+                </option>
+              ))}
+            </select>
+            <select className={adminInput} value={currency} onChange={(e) => setCurrency(e.target.value as "USD" | "CDF")}>
+              <option value="USD">USD</option>
+              <option value="CDF">CDF</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Tranche payée à la banque</label>
+              <select
+                className={adminInput}
+                value={trancheId}
+                onChange={(e) => setTrancheId(Number(e.target.value))}
+                disabled={selectedFee?.chargeType !== "BY_MODULE"}
+              >
+                {tranches.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.codeTranche} — {t.moduleName} ({fmtDM(t.startDay, t.startMonth)}→{fmtDM(t.endDay, t.endMonth)})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Date du paiement</label>
+              <input className={adminInput} type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Montant</label>
+              <input
+                className={adminInput}
+                placeholder="Montant"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                type="number"
+                min="0"
+                step="0.01"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Référence du bordereau bancaire <span className="text-red-600 dark:text-red-400">*</span>
+              </label>
+              <input
+                className={adminInput}
+                placeholder="ex. N° bordereau, réf. versement"
+                value={bankSlipReference}
+                onChange={(e) => setBankSlipReference(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <input className={adminInput} placeholder="Note (optionnel)" value={note} onChange={(e) => setNote(e.target.value)} />
+
+          <button
+            type="button"
+            disabled={submitting || selectedFee?.chargeType !== "BY_MODULE"}
+            onClick={() => createPayment("BANK_SLIP", "TRANCHE")}
+            className={adminPrimaryButton}
+          >
+            {submitting ? "Enregistrement..." : "Enregistrer bordereau + tranche + reçu"}
+          </button>
+        </div>
+      ) : tab !== "IMPORT" ? (
         <div className={`${adminCard} space-y-3`}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <select className={adminInput} value={studentId} onChange={(e) => setStudentId(Number(e.target.value))}>
@@ -205,7 +339,7 @@ export default function PaymentsClient({
               <select className={adminInput} value={allocationMode} onChange={(e) => setAllocationMode(e.target.value as "AUTO" | "MODULE" | "TRANCHE")}>
                 <option value="AUTO">Répartition auto sur modules/tranches impayés</option>
                 <option value="MODULE">Payer un module</option>
-                <option value="TRANCHE">Payer une tranche</option>
+                <option value="TRANCHE">Payer une tranche (réf. bordereau obligatoire)</option>
               </select>
 
               <select className={adminInput} value={moduleId} onChange={(e) => setModuleId(Number(e.target.value))} disabled={allocationMode !== "MODULE"}>
@@ -273,28 +407,81 @@ export default function PaymentsClient({
                 <th className={adminTh}>Date</th>
                 <th className={adminTh}>Élève</th>
                 <th className={adminTh}>Frais</th>
+                <th className={adminTh}>Tranche / module</th>
                 <th className={adminTh}>Source</th>
                 <th className={adminTh}>Montant</th>
+                <th className={adminTh}>Impression</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-6 text-zinc-600 dark:text-zinc-300">
+                  <td colSpan={8} className="py-6 text-zinc-600 dark:text-zinc-300">
                     {listLoading ? "Chargement..." : "Aucun paiement chargé"}
                   </td>
                 </tr>
               ) : (
-                items.map((p) => (
-                  <tr key={p.id} className={adminTr}>
-                    <td className="py-3 pr-3 font-medium">{p.receiptNumber}</td>
-                    <td className="py-3 pr-3">{p.paidAt.slice(0, 10)}</td>
-                    <td className="py-3 pr-3">{p.student.firstName} {p.student.name} {p.student.postnom}</td>
-                    <td className="py-3 pr-3">{p.fee.code} - {p.fee.name}</td>
-                    <td className="py-3 pr-3">{p.source}</td>
-                    <td className="py-3 pr-3">{p.amount} {p.currency}</td>
-                  </tr>
-                ))
+                items.map((p) => {
+                  const allocLabel =
+                    p.allocations && p.allocations.length > 0
+                      ? p.allocations
+                          .map((a) => {
+                            if (a.tranche) return a.tranche.codeTranche;
+                            if (a.module) return a.module.name;
+                            return "Total";
+                          })
+                          .join(", ")
+                      : "—";
+                  const paidAtStr =
+                    typeof p.paidAt === "string" ? p.paidAt : new Date(p.paidAt as unknown as string).toISOString();
+                  return (
+                    <tr key={p.id} className={adminTr}>
+                      <td className="py-3 pr-3 font-medium">{p.receiptNumber}</td>
+                      <td className="py-3 pr-3">{paidAtStr.slice(0, 10)}</td>
+                      <td className="py-3 pr-3">
+                        {p.student.firstName} {p.student.name} {p.student.postnom}
+                      </td>
+                      <td className="py-3 pr-3">
+                        {p.fee.code} - {p.fee.name}
+                      </td>
+                      <td className="py-3 pr-3 text-sm">{allocLabel}</td>
+                      <td className="py-3 pr-3">{p.source}</td>
+                      <td className="py-3 pr-3">
+                        {p.amount} {p.currency}
+                      </td>
+                      <td className="py-3 pr-3 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            printFeePaymentReceipt(
+                              {
+                                receiptNumber: p.receiptNumber,
+                                source: p.source,
+                                bankSlipReference: p.bankSlipReference,
+                                currency: p.currency,
+                                amount: p.amount,
+                                paidAt: paidAtStr,
+                                note: p.note ?? null,
+                                student: p.student,
+                                fee: { code: p.fee.code, name: p.fee.name },
+                                allocations: p.allocations?.map((a) => ({
+                                  amount: a.amount,
+                                  currency: a.currency ?? p.currency,
+                                  tranche: a.tranche,
+                                  module: a.module,
+                                })),
+                              },
+                              schoolName,
+                            )
+                          }
+                          className={adminGhostButton}
+                        >
+                          Imprimer reçu
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

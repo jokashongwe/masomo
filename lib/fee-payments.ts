@@ -209,7 +209,7 @@ export async function createFeePayment(input: CreateFeePaymentInput) {
       },
       select: { id: true, receiptNumber: true },
     });
-
+    /*
     if (input.currency === "USD") {
       await tx.wallet.update({ where: { id: wallet.id }, data: { balanceUSD: { increment: input.amount } } });
     } else {
@@ -227,6 +227,7 @@ export async function createFeePayment(input: CreateFeePaymentInput) {
         academicYearId: student.academicYearId,
       },
     });
+    */
 
     return created;
   });

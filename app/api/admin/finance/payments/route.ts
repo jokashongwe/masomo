@@ -5,19 +5,47 @@ import { requireFinanceReadApi, requireFinanceWriteApi } from "@/lib/rbac";
 import { createFeePayment } from "@/lib/fee-payments";
 import type { Prisma } from "@/generated/prisma/client";
 
-const createSchema = z.object({
-  studentId: z.coerce.number().int().positive(),
-  feeId: z.coerce.number().int().positive(),
-  currency: z.enum(["USD", "CDF"]),
-  amount: z.coerce.number().positive(),
-  paidAt: z.coerce.date().optional(),
-  source: z.enum(["BANK_SLIP", "MANUAL", "IMPORT"]).default("MANUAL"),
-  bankSlipReference: z.string().optional().or(z.literal("")).transform((v) => (v ? v : undefined)),
-  note: z.string().optional().or(z.literal("")).transform((v) => (v ? v : undefined)),
-  allocationMode: z.enum(["AUTO", "MODULE", "TRANCHE", "TOTAL_DIRECT"]).default("AUTO"),
-  moduleId: z.coerce.number().int().positive().optional(),
-  trancheId: z.coerce.number().int().positive().optional(),
-});
+const createSchema = z
+  .object({
+    studentId: z.coerce.number().int().positive(),
+    feeId: z.coerce.number().int().positive(),
+    currency: z.enum(["USD", "CDF"]),
+    amount: z.coerce.number().positive(),
+    paidAt: z.coerce.date().optional(),
+    source: z.enum(["BANK_SLIP", "MANUAL", "IMPORT"]).default("MANUAL"),
+    bankSlipReference: z.string().optional().or(z.literal("")).transform((v) => (v ? v : undefined)),
+    note: z.string().optional().or(z.literal("")).transform((v) => (v ? v : undefined)),
+    allocationMode: z.enum(["AUTO", "MODULE", "TRANCHE", "TOTAL_DIRECT"]).default("AUTO"),
+    moduleId: z.coerce.number().int().positive().optional(),
+    trancheId: z.coerce.number().int().positive().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.allocationMode === "TRANCHE" && (data.trancheId == null || data.trancheId <= 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Sélectionnez une tranche.",
+        path: ["trancheId"],
+      });
+    }
+    if (data.allocationMode === "MODULE" && (data.moduleId == null || data.moduleId <= 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Sélectionnez un module.",
+        path: ["moduleId"],
+      });
+    }
+    if (data.source === "BANK_SLIP" && data.allocationMode === "TRANCHE") {
+      const ref = data.bankSlipReference?.trim();
+      if (!ref) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "La référence du bordereau bancaire est obligatoire pour enregistrer un paiement par tranche.",
+          path: ["bankSlipReference"],
+        });
+      }
+    }
+  });
 
 const listQuerySchema = z.object({
   studentId: z.coerce.number().int().positive().optional(),
