@@ -83,7 +83,7 @@ export const adminSegmentActive =
 export const adminSegmentInactive =
   "rounded-full border border-sky-200 cursor-pointer bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:border-[#2D9CDB]/50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200";
 
-/** Totaux rapports / portefeuille */
+/** Totaux rapports / Budget */
 export const adminStatFees =
   "rounded-3xl bg-gradient-to-br from-[#2D9CDB]  to-sky-600 p-5 text-white shadow-lg shadow-sky-300/25";
 

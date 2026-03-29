@@ -137,9 +137,14 @@ export default async function AdminStudentsPage({
         title="Élèves"
         subtitle="Rechercher et filtrer les élèves. La pagination est côté serveur."
         actions={
-          <Link href="/admin/enroll" className={adminPrimaryButton}>
-            Inscrire
-          </Link>
+          <>
+            <Link href="/admin/students/import" className={adminGhostButton}>
+              Import Excel
+            </Link>
+            <Link href="/admin/enroll" className={adminPrimaryButton}>
+              Inscrire
+            </Link>
+          </>
         }
         backLabel="Retour à l’admin"
       />

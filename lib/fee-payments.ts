@@ -3,7 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import type { Currency, FeePaymentSource, Prisma } from "@/generated/prisma/client";
 
-type AllocationMode = "AUTO" | "MODULE" | "TRANCHE" | "TOTAL_DIRECT";
+type AllocationMode = "AUTO" | "MODULE" | "TRANCHE" | "TOTAL_DIRECT" | "TRANSHES_MULTI";
 
 export type CreateFeePaymentInput = {
   studentId: number;
@@ -17,6 +17,8 @@ export type CreateFeePaymentInput = {
   allocationMode: AllocationMode;
   moduleId?: number;
   trancheId?: number;
+  /** Plusieurs tranches avec montant chacune (total ou partiel par tranche). */
+  tranchePayments?: { trancheId: number; amount: number }[];
 };
 
 function makeReceiptNumber() {
@@ -101,6 +103,105 @@ function allocateAmount(lines: DueLine[], alreadyPaid: Map<string, number>, amou
   return { allocations, remaining };
 }
 
+function mergeTranchePayments(lines: { trancheId: number; amount: number }[]) {
+  const m = new Map<number, number>();
+  for (const l of lines) {
+    if (l.amount <= 0 || !Number.isFinite(l.amount)) continue;
+    m.set(l.trancheId, (m.get(l.trancheId) ?? 0) + l.amount);
+  }
+  return Array.from(m.entries()).map(([trancheId, amount]) => ({ trancheId, amount }));
+}
+
+export type TrancheOutstandingRow = {
+  trancheId: number;
+  moduleId: number | null;
+  codeTranche: string;
+  moduleName: string;
+  due: number;
+  paid: number;
+  outstanding: number;
+};
+
+/** Reste à payer par tranche pour un élève / frais / devise (frais BY_MODULE avec montants tranche). */
+export async function getTrancheOutstandingsForStudent(input: {
+  studentId: number;
+  feeId: number;
+  currency: Currency;
+}): Promise<TrancheOutstandingRow[]> {
+  const [student, fee] = await Promise.all([
+    prisma.student.findUnique({
+      where: { id: input.studentId },
+      select: { id: true, academicYearId: true, schoolClass: { select: { levelId: true } } },
+    }),
+    prisma.fee.findUnique({
+      where: { id: input.feeId },
+      include: { feeLevels: true },
+    }),
+  ]);
+
+  if (!student || !fee) return [];
+  if (fee.chargeType !== "BY_MODULE") return [];
+
+  const levelAllowed = fee.feeLevels.some((fl) => fl.levelId === student.schoolClass.levelId);
+  if (!levelAllowed) return [];
+
+  return prisma.$transaction(async (tx) => {
+    const dueLines = await buildDueLinesForByModule(tx, fee.id, input.currency);
+    const withTranche = dueLines.filter((l) => l.trancheId != null);
+    if (withTranche.length === 0) return [];
+
+    const paymentRows = await tx.feePayment.findMany({
+      where: {
+        studentId: student.id,
+        academicYearId: student.academicYearId,
+        feeId: fee.id,
+        currency: input.currency,
+      },
+      select: {
+        allocations: { select: { moduleId: true, trancheId: true, amount: true } },
+      },
+    });
+
+    const alreadyPaid = new Map<string, number>();
+    for (const p of paymentRows) {
+      for (const a of p.allocations) {
+        const key = a.trancheId ? `t:${a.trancheId}` : a.moduleId ? `m:${a.moduleId}` : "total";
+        alreadyPaid.set(key, (alreadyPaid.get(key) ?? 0) + Number(a.amount));
+      }
+    }
+
+    const trancheMeta = await tx.moduleTranche.findMany({
+      where: { id: { in: withTranche.map((l) => l.trancheId!) } },
+      select: {
+        id: true,
+        codeTranche: true,
+        moduleId: true,
+        module: { select: { name: true } },
+      },
+    });
+    const metaById = new Map(trancheMeta.map((t) => [t.id, t]));
+
+    const rows: TrancheOutstandingRow[] = [];
+    for (const l of withTranche) {
+      const tid = l.trancheId!;
+      const key = `t:${tid}`;
+      const paid = alreadyPaid.get(key) ?? 0;
+      const outstanding = Math.max(0, l.due - paid);
+      const meta = metaById.get(tid);
+      rows.push({
+        trancheId: tid,
+        moduleId: l.moduleId,
+        codeTranche: meta?.codeTranche ?? `T${tid}`,
+        moduleName: meta?.module.name ?? "",
+        due: l.due,
+        paid,
+        outstanding,
+      });
+    }
+    return rows.sort((a, b) => a.trancheId - b.trancheId);
+  });
+}
+
 export async function createFeePayment(input: CreateFeePaymentInput) {
   if (input.amount <= 0) throw new Error("Le montant doit être > 0");
 
@@ -164,26 +265,60 @@ export async function createFeePayment(input: CreateFeePaymentInput) {
       const dueLines = await buildDueLinesForByModule(tx, fee.id, input.currency);
       if (dueLines.length === 0) throw new Error("Aucun montant configuré pour ce frais/devise");
 
-      let targetLines = dueLines;
-      if (input.allocationMode === "TRANCHE") {
-        if (!input.trancheId) throw new Error("trancheId requis");
-        targetLines = dueLines.filter((l) => l.trancheId === input.trancheId);
-      } else if (input.allocationMode === "MODULE") {
-        if (!input.moduleId) throw new Error("moduleId requis");
-        targetLines = dueLines.filter((l) => l.moduleId === input.moduleId);
-      } else if (input.allocationMode === "TOTAL_DIRECT") {
-        throw new Error("TOTAL_DIRECT n'est pas valide pour un frais payable par module/tranche");
-      }
+      if (input.allocationMode === "TRANSHES_MULTI") {
+        const raw = input.tranchePayments ?? [];
+        const merged = mergeTranchePayments(raw);
+        if (merged.length === 0) {
+          throw new Error("Ajoutez au moins une ligne de tranche avec un montant > 0");
+        }
+        const sum = merged.reduce((s, x) => s + x.amount, 0);
+        if (Math.abs(sum - input.amount) > 0.00001) {
+          throw new Error("Le montant total doit égaler la somme des montants par tranche");
+        }
 
-      if (targetLines.length === 0) {
-        throw new Error("Aucune ligne payable trouvée pour cette sélection");
-      }
+        const simulatedPaid = new Map(alreadyPaid);
+        const combined: { moduleId: number | null; trancheId: number | null; amount: number }[] = [];
 
-      const { allocations, remaining } = allocateAmount(targetLines, alreadyPaid, input.amount);
-      if (remaining > 0.00001) {
-        throw new Error("Montant supérieur au reste à payer pour la sélection");
+        for (const { trancheId, amount } of merged) {
+          const targetLines = dueLines.filter((l) => l.trancheId === trancheId);
+          if (targetLines.length === 0) {
+            throw new Error(`Aucune ligne de frais pour la tranche ${trancheId}`);
+          }
+          const { allocations, remaining } = allocateAmount(targetLines, simulatedPaid, amount);
+          if (remaining > 0.00001) {
+            throw new Error(
+              `Montant supérieur au reste à payer pour la tranche (id ${trancheId})`,
+            );
+          }
+          for (const a of allocations) {
+            const key = a.trancheId ? `t:${a.trancheId}` : a.moduleId ? `m:${a.moduleId}` : "total";
+            simulatedPaid.set(key, (simulatedPaid.get(key) ?? 0) + a.amount);
+          }
+          combined.push(...allocations);
+        }
+        allocationsToCreate = combined;
+      } else {
+        let targetLines = dueLines;
+        if (input.allocationMode === "TRANCHE") {
+          if (!input.trancheId) throw new Error("trancheId requis");
+          targetLines = dueLines.filter((l) => l.trancheId === input.trancheId);
+        } else if (input.allocationMode === "MODULE") {
+          if (!input.moduleId) throw new Error("moduleId requis");
+          targetLines = dueLines.filter((l) => l.moduleId === input.moduleId);
+        } else if (input.allocationMode === "TOTAL_DIRECT") {
+          throw new Error("TOTAL_DIRECT n'est pas valide pour un frais payable par module/tranche");
+        }
+
+        if (targetLines.length === 0) {
+          throw new Error("Aucune ligne payable trouvée pour cette sélection");
+        }
+
+        const { allocations, remaining } = allocateAmount(targetLines, alreadyPaid, input.amount);
+        if (remaining > 0.00001) {
+          throw new Error("Montant supérieur au reste à payer pour la sélection");
+        }
+        allocationsToCreate = allocations;
       }
-      allocationsToCreate = allocations;
     }
 
     const created = await tx.feePayment.create({

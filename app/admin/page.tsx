@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
-import { requireUser, isSystemAdmin } from "@/lib/auth";
+import { requireUser, isSystemAdmin, canReadFinance, canManageSchool } from "@/lib/auth";
+import type { UserRole } from "@/generated/prisma/client";
 import { findCurrentBillingModuleForDate, getModulePaymentWindowUTC } from "@/lib/reports";
 import { IconFinance, IconPayments, IconPlus, IconReports, IconStudents, IconWallet } from "./components/AdminIcons";
 
@@ -28,31 +29,430 @@ function PageShell({ children }: { children: ReactNode }) {
   return <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">{children}</div>;
 }
 
-export default async function AdminHomePage() {
-  const user = await requireUser();
+function GenericRoleWelcome({ name }: { name: string }) {
+  return (
+    <PageShell>
+      <div className="overflow-hidden rounded-3xl border border-sky-100/80 bg-white p-8 shadow-lg shadow-sky-200/30 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-none">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white md:text-3xl">Bon retour {name} !</h1>
+            <p className="mt-2 max-w-xl text-zinc-600 dark:text-zinc-300">
+              Votre rôle donne accès à certaines sections. Utilisez la barre latérale pour naviguer dans l’administration.
+            </p>
+          </div>
+          <div className="relative hidden h-28 w-40 shrink-0 md:block">
+            <div className="absolute right-4 top-2 h-16 w-16 rounded-full bg-amber-300/90" />
+            <div className="absolute right-12 top-8 h-12 w-12 rounded-full bg-[#2D9CDB]/80" />
+            <div className="absolute right-0 top-10 h-10 w-10 rounded-full bg-orange-400/85" />
+          </div>
+        </div>
+      </div>
+    </PageShell>
+  );
+}
 
-  if (!isSystemAdmin(user.role)) {
+async function FinanceManagerHome({ name, role }: { name: string; role: UserRole }) {
+  const currentYear = await prisma.academicYear.findFirst({
+    where: { isCurrent: true },
+    select: { id: true, name: true, startDate: true, endDate: true },
+  });
+
+  if (!currentYear) {
     return (
       <PageShell>
-        <div className="overflow-hidden rounded-3xl border border-sky-100/80 bg-white p-8 shadow-lg shadow-sky-200/30 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-none">
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white md:text-3xl">
-                Bon retour {user.name} !
-              </h1>
-              <p className="mt-2 max-w-xl text-zinc-600 dark:text-zinc-300">
-                Votre rôle donne accès à certaines sections. Utilisez la barre latérale pour naviguer dans l’administration.
-              </p>
-            </div>
-            <div className="relative hidden h-28 w-40 shrink-0 md:block">
-              <div className="absolute right-4 top-2 h-16 w-16 rounded-full bg-amber-300/90" />
-              <div className="absolute right-12 top-8 h-12 w-12 rounded-full bg-[#2D9CDB]/80" />
-              <div className="absolute right-0 top-10 h-10 w-10 rounded-full bg-orange-400/85" />
-            </div>
-          </div>
+        <div className="rounded-3xl border border-amber-100 bg-amber-50/80 p-8 shadow-md dark:border-amber-900/40 dark:bg-amber-950/30">
+          <h1 className="text-xl font-bold text-zinc-900 dark:text-white">Bon retour {name} !</h1>
+          <p className="mt-2 text-zinc-700 dark:text-zinc-200">
+            Aucune année scolaire n’est en cours. Les statistiques financières seront disponibles une fois l’année définie.
+          </p>
+          <Link
+            href="/admin/academic-years"
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#2D9CDB] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-300/40 hover:bg-[#2590c9]"
+          >
+            Années scolaires
+          </Link>
         </div>
       </PageShell>
     );
+  }
+
+  const yearStart = currentYear.startDate;
+  const yearEndExclusive = new Date(currentYear.endDate.getTime() + 1);
+
+  const [modules, paymentsYearAgg, paymentsCount, wallet, depositCount, expenseCount] = await Promise.all([
+    prisma.billingModule.findMany({ orderBy: { id: "asc" } }),
+    prisma.feePayment.groupBy({
+      by: ["currency"],
+      _sum: { amount: true },
+      where: { academicYearId: currentYear.id },
+    }),
+    prisma.feePayment.count({ where: { academicYearId: currentYear.id } }),
+    prisma.wallet.findFirst({
+      orderBy: { id: "asc" },
+      select: { id: true, balanceUSD: true, balanceCDF: true },
+    }),
+    prisma.walletTransaction.count({
+      where: {
+        academicYearId: currentYear.id,
+        type: "DEPOSIT",
+      },
+    }),
+    prisma.expense.count({
+      where: { academicYearId: currentYear.id },
+    }),
+  ]);
+
+  const expenseAgg = wallet
+    ? await prisma.expense.groupBy({
+        by: ["currency"],
+        _sum: { amount: true },
+        where: {
+          walletId: wallet.id,
+          academicYearId: currentYear.id,
+          occurredAt: { gte: yearStart, lt: yearEndExclusive },
+        },
+      })
+    : [];
+
+  const currentModule = findCurrentBillingModuleForDate(new Date(), currentYear.startDate, modules);
+  const { usd: totalPerceivedUSD, cdf: totalPerceivedCDF } = sumsFromPaymentOrExpenseAgg(paymentsYearAgg);
+  const { usd: totalExpensesUSD, cdf: totalExpensesCDF } = sumsFromPaymentOrExpenseAgg(expenseAgg);
+
+  let moduleCurrentPerceivedUSD = 0;
+  let moduleCurrentPerceivedCDF = 0;
+  if (currentModule) {
+    const { gte, lt } = getModulePaymentWindowUTC(currentYear.startDate, currentModule);
+    const modulePaymentsAgg = await prisma.feePayment.groupBy({
+      by: ["currency"],
+      _sum: { amount: true },
+      where: {
+        academicYearId: currentYear.id,
+        paidAt: { gte, lt },
+      },
+    });
+    const m = sumsFromPaymentOrExpenseAgg(modulePaymentsAgg);
+    moduleCurrentPerceivedUSD = m.usd;
+    moduleCurrentPerceivedCDF = m.cdf;
+  }
+
+  const cardBase =
+    "relative overflow-hidden rounded-3xl border border-sky-100/70 bg-white p-6 shadow-lg shadow-sky-200/25 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-none";
+  const btnPrimary =
+    "inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#2D9CDB] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-300/35 hover:bg-[#2590c9]";
+
+  const roleLabel = role === "FINANCE_VIEWER" ? "Consultation finance" : "Finances";
+
+  return (
+    <PageShell>
+      <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-[#2D9CDB]">Tableau de bord — {roleLabel}</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white md:text-3xl">
+            Paiements & portefeuille — {currentYear.name}
+          </h1>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Bon retour {name}.</p>
+        </div>
+      </header>
+
+      <section
+        className={`${cardBase} mb-8 bg-gradient-to-br from-white via-sky-50/40 to-emerald-50/20 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900`}
+      >
+        <p className="text-zinc-600 dark:text-zinc-300">
+          Encaissements et dépenses sont calculés pour l’année scolaire en cours. Le portefeuille affiche les soldes actuels
+          (toutes opérations confondues).
+        </p>
+      </section>
+
+      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className={cardBase}>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-[#2D9CDB] dark:bg-sky-900/40 dark:text-sky-300">
+            <IconFinance className="h-6 w-6" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total encaissé (année)</p>
+          <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">{formatMoney(totalPerceivedUSD, "USD")}</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(totalPerceivedCDF, "CDF")}</p>
+          <p className="mt-2 text-xs text-zinc-500">{paymentsCount} paiement(s) enregistré(s)</p>
+        </div>
+
+        <div className={cardBase}>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <IconFinance className="h-6 w-6" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Encaissé (module en cours)</p>
+          <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
+            {currentModule ? formatMoney(moduleCurrentPerceivedUSD, "USD") : "—"}
+          </p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            {currentModule ? formatMoney(moduleCurrentPerceivedCDF, "CDF") : "Aucun module ne correspond à la date du jour"}
+          </p>
+          {currentModule ? (
+            <p className="mt-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">{currentModule.name}</p>
+          ) : null}
+        </div>
+
+        <div className={cardBase}>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+            <IconWallet className="h-6 w-6" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde portefeuille</p>
+          {wallet ? (
+            <>
+              <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
+                {formatMoney(Number(wallet.balanceUSD), "USD")}
+              </p>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                {formatMoney(Number(wallet.balanceCDF), "CDF")}
+              </p>
+              <p className="mt-2 text-xs text-zinc-500">{depositCount} dépôt(s) sur l’année</p>
+            </>
+          ) : (
+            <p className="mt-2 text-sm text-zinc-500">Portefeuille non configuré</p>
+          )}
+        </div>
+
+        <div className={cardBase}>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+            <IconWallet className="h-6 w-6" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total dépenses (année)</p>
+          <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">{formatMoney(totalExpensesUSD, "USD")}</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(totalExpensesCDF, "CDF")}</p>
+          <p className="mt-2 text-xs text-zinc-500">{expenseCount} dépense(s)</p>
+        </div>
+      </div>
+
+      <div className={`${cardBase}`}>
+        <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Raccourcis</h3>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex flex-col rounded-2xl border border-sky-100/80 bg-sky-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#2D9CDB]/15 text-[#2D9CDB]">
+              <IconPayments className="h-6 w-6" />
+            </div>
+            <p className="mt-2 text-center text-sm font-semibold text-zinc-900 dark:text-white">Paiements</p>
+            <Link href="/admin/finance/payments" className={`${btnPrimary} mt-3`}>
+              Ouvrir
+            </Link>
+          </div>
+          <div className="flex flex-col rounded-2xl border border-indigo-100/80 bg-indigo-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300">
+              <IconWallet className="h-6 w-6" />
+            </div>
+            <p className="mt-2 text-center text-sm font-semibold text-zinc-900 dark:text-white">Portefeuille</p>
+            <Link href="/admin/wallet" className={`${btnPrimary} mt-3`}>
+              Ouvrir
+            </Link>
+          </div>
+          <div className="flex flex-col rounded-2xl border border-rose-100/80 bg-rose-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/15 text-rose-700 dark:text-rose-300">
+              <IconWallet className="h-6 w-6" />
+            </div>
+            <p className="mt-2 text-center text-sm font-semibold text-zinc-900 dark:text-white">Dépenses</p>
+            <Link href="/admin/wallet/expenses" className={`${btnPrimary} mt-3`}>
+              Ouvrir
+            </Link>
+          </div>
+          <div className="flex flex-col rounded-2xl border border-amber-100/80 bg-amber-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300">
+              <IconReports className="h-6 w-6" />
+            </div>
+            <p className="mt-2 text-center text-sm font-semibold text-zinc-900 dark:text-white">Rapports</p>
+            <Link href="/admin/reports" className={`${btnPrimary} mt-3`}>
+              Ouvrir
+            </Link>
+          </div>
+        </div>
+      </div>
+    </PageShell>
+  );
+}
+
+async function SchoolManagerHome({ name }: { name: string }) {
+  const currentYear = await prisma.academicYear.findFirst({
+    where: { isCurrent: true },
+    select: { id: true, name: true },
+  });
+
+  if (!currentYear) {
+    return (
+      <PageShell>
+        <div className="rounded-3xl border border-amber-100 bg-amber-50/80 p-8 shadow-md dark:border-amber-900/40 dark:bg-amber-950/30">
+          <h1 className="text-xl font-bold text-zinc-900 dark:text-white">Bon retour {name} !</h1>
+          <p className="mt-2 text-zinc-700 dark:text-zinc-200">
+            Aucune année scolaire n’est en cours. Les statistiques élèves seront disponibles une fois l’année définie.
+          </p>
+          <Link
+            href="/admin/academic-years"
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#2D9CDB] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-300/40 hover:bg-[#2590c9]"
+          >
+            Années scolaires
+          </Link>
+        </div>
+      </PageShell>
+    );
+  }
+
+  const [sexCounts, studentTotal, byClass] = await Promise.all([
+    prisma.student.groupBy({
+      by: ["sex"],
+      where: { academicYearId: currentYear.id },
+      _count: { _all: true },
+    }),
+    prisma.student.count({ where: { academicYearId: currentYear.id } }),
+    prisma.student.groupBy({
+      by: ["classId"],
+      where: { academicYearId: currentYear.id },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const classIds = byClass.map((g) => g.classId);
+  const classRows = await prisma.schoolClass.findMany({
+    where: { id: { in: classIds } },
+    select: {
+      id: true,
+      codeClass: true,
+      level: { select: { codeLevel: true, option: { select: { section: { select: { codeSection: true } } } } } },
+    },
+  });
+  const classLabel = new Map(
+    classRows.map((c) => [
+      c.id,
+      `${c.codeClass} — ${c.level.codeLevel} (${c.level.option.section.codeSection})`,
+    ]),
+  );
+
+  const classRanking = byClass
+    .map((g) => ({
+      classId: g.classId,
+      count: g._count._all,
+      label: classLabel.get(g.classId) ?? `Classe #${g.classId}`,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const totalMale = sexCounts.find((x) => x.sex === "MALE")?._count._all ?? 0;
+  const totalFemale = sexCounts.find((x) => x.sex === "FEMALE")?._count._all ?? 0;
+  const totalOther = sexCounts.find((x) => x.sex === "OTHER")?._count._all ?? 0;
+
+  const cardBase =
+    "relative overflow-hidden rounded-3xl border border-sky-100/70 bg-white p-6 shadow-lg shadow-sky-200/25 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-none";
+  const btnPrimary =
+    "inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#2D9CDB] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-300/35 hover:bg-[#2590c9]";
+
+  return (
+    <PageShell>
+      <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-[#2D9CDB]">Tableau de bord — Scolarité</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white md:text-3xl">
+            Élèves — {currentYear.name}
+          </h1>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Bon retour {name}.</p>
+        </div>
+      </header>
+
+      <section
+        className={`${cardBase} mb-8 bg-gradient-to-br from-white via-violet-50/40 to-sky-50/30 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900`}
+      >
+        <p className="text-zinc-600 dark:text-zinc-300">
+          Effectifs et répartition pour l’année scolaire en cours. Les totaux par classe comptent uniquement les élèves
+          rattachés à cette année.
+        </p>
+      </section>
+
+      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={cardBase}>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
+            <IconStudents className="h-6 w-6" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Élèves inscrits</p>
+          <p className="mt-1 text-3xl font-bold text-zinc-900 dark:text-white">{studentTotal}</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Sur l’année en cours</p>
+        </div>
+        <div className={cardBase}>
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Garçons</p>
+          <p className="mt-1 text-3xl font-bold text-[#2D9CDB]">{totalMale}</p>
+        </div>
+        <div className={cardBase}>
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Filles</p>
+          <p className="mt-1 text-3xl font-bold text-pink-600 dark:text-pink-400">{totalFemale}</p>
+        </div>
+        <div className={cardBase}>
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Autre</p>
+          <p className="mt-1 text-3xl font-bold text-zinc-800 dark:text-zinc-200">{totalOther}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className={cardBase}>
+          <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Effectif par classe</h3>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Trié par nombre d’élèves (décroissant).</p>
+          <ul className="mt-4 max-h-72 space-y-2 overflow-auto text-sm">
+            {classRanking.length === 0 ? (
+              <li className="text-zinc-500">Aucun élève pour cette année.</li>
+            ) : (
+              classRanking.map((row) => (
+                <li
+                  key={row.classId}
+                  className="flex items-center justify-between rounded-xl bg-zinc-50 px-3 py-2 dark:bg-zinc-800/50"
+                >
+                  <span className="text-zinc-700 dark:text-zinc-200">{row.label}</span>
+                  <span className="font-semibold text-zinc-900 dark:text-white">{row.count}</span>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+
+        <div className={cardBase}>
+          <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Raccourcis</h3>
+          <div className="mt-6 grid gap-4">
+            <div className="flex flex-col rounded-2xl border border-violet-100/80 bg-violet-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-violet-500/15 text-violet-700 dark:text-violet-300">
+                <IconStudents className="h-6 w-6" />
+              </div>
+              <p className="mt-2 text-center text-sm font-semibold text-zinc-900 dark:text-white">Liste des élèves</p>
+              <Link href="/admin/students" className={`${btnPrimary} mt-3`}>
+                Ouvrir
+              </Link>
+            </div>
+            <div className="flex flex-col rounded-2xl border border-sky-100/80 bg-sky-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#2D9CDB]/15 text-[#2D9CDB]">
+                <IconPlus className="h-6 w-6" />
+              </div>
+              <p className="mt-2 text-center text-sm font-semibold text-zinc-900 dark:text-white">Inscription</p>
+              <Link href="/admin/enroll" className={`${btnPrimary} mt-3`}>
+                Inscrire un élève
+              </Link>
+            </div>
+            <div className="flex flex-col rounded-2xl border border-emerald-100/80 bg-emerald-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                <IconPlus className="h-6 w-6" />
+              </div>
+              <p className="mt-2 text-center text-sm font-semibold text-zinc-900 dark:text-white">Import Excel</p>
+              <Link href="/admin/students/import" className={`${btnPrimary} mt-3`}>
+                Importer des élèves
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </PageShell>
+  );
+}
+
+export default async function AdminHomePage() {
+  const user = await requireUser();
+
+  if (canReadFinance(user.role) && !isSystemAdmin(user.role)) {
+    return <FinanceManagerHome name={user.name} role={user.role} />;
+  }
+
+  if (canManageSchool(user.role) && !isSystemAdmin(user.role)) {
+    return <SchoolManagerHome name={user.name} />;
+  }
+
+  if (!isSystemAdmin(user.role)) {
+    return <GenericRoleWelcome name={user.name} />;
   }
 
   const currentYear = await prisma.academicYear.findFirst({
@@ -160,8 +560,7 @@ export default async function AdminHomePage() {
           <div className="max-w-xl">
             <h2 className="text-2xl font-bold text-zinc-900 dark:text-white md:text-3xl">Bon retour {user.name} !</h2>
             <p className="mt-2 text-zinc-600 dark:text-zinc-300">
-              Les montants d’encaissement proviennent des paiements de frais enregistrés pour l’année en cours. Les dépenses
-              totalisent les sorties du portefeuille sur la même période.
+              Découvrer notre portail permettant d'avoir une vue globale de votre établissement
             </p>
           </div>
           <div className="relative mx-auto h-32 w-44 shrink-0 lg:mx-0">

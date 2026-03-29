@@ -75,7 +75,7 @@ export default function DepositForm({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className={adminSectionTitle}>Dépôt</div>
-          <div className="text-sm text-zinc-600 dark:text-zinc-300">Ajouter de l’argent au portefeuille.</div>
+          <div className="text-sm text-zinc-600 dark:text-zinc-300">Ajouter de l’argent au Budget.</div>
         </div>
         {!canWrite ? <div className="text-sm text-zinc-600 dark:text-zinc-300">Lecture seule</div> : null}
       </div>

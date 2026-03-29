@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   adminCard,
+  adminDangerButton,
   adminErrorBox,
   adminGhostButton,
   adminInput,
@@ -55,6 +56,30 @@ function fmtDM(d: number, m: number) {
   return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
 }
 
+type TrancheOutstandingApi = {
+  trancheId: number;
+  codeTranche: string;
+  moduleName: string;
+  due: number;
+  paid: number;
+  outstanding: number;
+};
+
+type TrancheLineRow = { key: number; trancheId: number; amount: string };
+
+function formatPaymentApiError(data: unknown): string {
+  const err = data && typeof data === "object" && "error" in data ? (data as { error: unknown }).error : null;
+  let msg = "Échec création paiement";
+  if (typeof err === "string") msg = err;
+  else if (err && typeof err === "object") {
+    const fe = err as { fieldErrors?: Record<string, string[]>; formErrors?: string[] };
+    const fromFields = fe.fieldErrors ? Object.values(fe.fieldErrors).flat()[0] : undefined;
+    if (fromFields) msg = fromFields;
+    else if (fe.formErrors?.[0]) msg = fe.formErrors[0];
+  }
+  return msg;
+}
+
 export default function PaymentsClient({
   schoolName,
   students,
@@ -84,6 +109,12 @@ export default function PaymentsClient({
   const [moduleId, setModuleId] = useState<number>(modules[0]?.id ?? 0);
   const [trancheId, setTrancheId] = useState<number>(tranches[0]?.id ?? 0);
 
+  const trancheLineKeyRef = useRef(0);
+  const [trancheLines, setTrancheLines] = useState<TrancheLineRow[]>(() => [
+    { key: trancheLineKeyRef.current, trancheId: tranches[0]?.id ?? 0, amount: "" },
+  ]);
+  const [outstandingByTranche, setOutstandingByTranche] = useState<Map<number, TrancheOutstandingApi>>(new Map());
+
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<string | null>(null);
 
@@ -92,6 +123,124 @@ export default function PaymentsClient({
   const [listLoading, setListLoading] = useState(false);
 
   const selectedFee = useMemo(() => fees.find((f) => f.id === feeId) ?? null, [fees, feeId]);
+
+  useEffect(() => {
+    if (selectedFee?.chargeType !== "BY_MODULE" || !studentId || !feeId) {
+      setOutstandingByTranche(new Map());
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/finance/payments/outstanding?studentId=${studentId}&feeId=${feeId}&currency=${currency}`,
+        );
+        const data = await res.json().catch(() => null);
+        if (cancelled || !res.ok || !data?.tranches) {
+          if (!cancelled) setOutstandingByTranche(new Map());
+          return;
+        }
+        const m = new Map<number, TrancheOutstandingApi>();
+        for (const row of data.tranches as TrancheOutstandingApi[]) {
+          m.set(row.trancheId, row);
+        }
+        setOutstandingByTranche(m);
+      } catch {
+        if (!cancelled) setOutstandingByTranche(new Map());
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [studentId, feeId, currency, selectedFee?.chargeType]);
+
+  const bankTrancheTotal = useMemo(() => {
+    let s = 0;
+    for (const row of trancheLines) {
+      const n = Number(row.amount);
+      if (Number.isFinite(n) && n > 0) s += n;
+    }
+    return s;
+  }, [trancheLines]);
+
+  function addTrancheLine() {
+    trancheLineKeyRef.current += 1;
+    const k = trancheLineKeyRef.current;
+    setTrancheLines((prev) => [...prev, { key: k, trancheId: tranches[0]?.id ?? 0, amount: "" }]);
+  }
+
+  function removeTrancheLine(key: number) {
+    setTrancheLines((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.key !== key)));
+  }
+
+  function setResteDuForLine(key: number) {
+    setTrancheLines((prev) =>
+      prev.map((row) => {
+        if (row.key !== key) return row;
+        const o = outstandingByTranche.get(row.trancheId);
+        if (o == null || o.outstanding <= 0) return row;
+        return { ...row, amount: String(o.outstanding) };
+      }),
+    );
+  }
+
+  async function submitBankTranchesMulti() {
+    setError(null);
+    const ref = bankSlipReference.trim();
+    if (!ref) {
+      setError("Indiquez la référence du bordereau payé à la banque.");
+      return;
+    }
+    if (selectedFee?.chargeType !== "BY_MODULE") {
+      setError("Choisissez un frais par module / tranches.");
+      return;
+    }
+    const tranchePayments = trancheLines
+      .map((row) => ({ trancheId: row.trancheId, amount: Number(row.amount) }))
+      .filter((x) => Number.isFinite(x.amount) && x.amount > 0);
+    if (tranchePayments.length === 0) {
+      setError("Ajoutez au moins une ligne avec un montant supérieur à 0.");
+      return;
+    }
+    const total = tranchePayments.reduce((s, x) => s + x.amount, 0);
+    if (total <= 0) {
+      setError("Le total des montants doit être supérieur à 0.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/finance/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId,
+          feeId,
+          currency,
+          amount: total,
+          source: "BANK_SLIP",
+          allocationMode: "TRANSHES_MULTI",
+          tranchePayments,
+          bankSlipReference: ref,
+          note: note || undefined,
+          paidAt: paidAt ? new Date(paidAt) : undefined,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(formatPaymentApiError(data));
+
+      setNote("");
+      setBankSlipReference("");
+      trancheLineKeyRef.current += 1;
+      setTrancheLines([{ key: trancheLineKeyRef.current, trancheId: tranches[0]?.id ?? 0, amount: "" }]);
+      await loadList();
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   async function loadList() {
     setListLoading(true);
@@ -140,18 +289,7 @@ export default function PaymentsClient({
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        const err = data?.error;
-        let msg = "Échec création paiement";
-        if (typeof err === "string") msg = err;
-        else if (err && typeof err === "object") {
-          const fe = err as { fieldErrors?: Record<string, string[]>; formErrors?: string[] };
-          const fromFields = fe.fieldErrors ? Object.values(fe.fieldErrors).flat()[0] : undefined;
-          if (fromFields) msg = fromFields;
-          else if (fe.formErrors?.[0]) msg = fe.formErrors[0];
-        }
-        throw new Error(msg);
-      }
+      if (!res.ok) throw new Error(formatPaymentApiError(data));
 
       setAmount("");
       setNote("");
@@ -210,10 +348,10 @@ export default function PaymentsClient({
       {tab === "BANK_TRANCHE" ? (
         <div className={`${adminCard} space-y-4`}>
           <div>
-            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">Paiement à la banque pour une tranche précise</p>
+            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">Bordereau banque — une ou plusieurs tranches</p>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-              Enregistrez le montant versé en banque pour une tranche donnée (frais de type module/tranches). La référence du
-              bordereau est obligatoire.
+              Ajoutez une ligne par tranche. Pour chaque tranche, saisissez le montant versé en banque : totalité du reste dû ou
+              paiement partiel. Un seul bordereau peut couvrir plusieurs tranches. La référence du bordereau est obligatoire.
             </p>
           </div>
 
@@ -244,64 +382,123 @@ export default function PaymentsClient({
             </select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Tranche payée à la banque</label>
-              <select
-                className={adminInput}
-                value={trancheId}
-                onChange={(e) => setTrancheId(Number(e.target.value))}
-                disabled={selectedFee?.chargeType !== "BY_MODULE"}
-              >
-                {tranches.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.codeTranche} — {t.moduleName} ({fmtDM(t.startDay, t.startMonth)}→{fmtDM(t.endDay, t.endMonth)})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Date du paiement</label>
-              <input className={adminInput} type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} />
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Date du paiement</label>
+            <input className={`${adminInput} max-w-xs`} type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Montant</label>
-              <input
-                className={adminInput}
-                placeholder="Montant"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                type="number"
-                min="0"
-                step="0.01"
-              />
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">Lignes tranche / montant</span>
+              <button
+                type="button"
+                onClick={addTrancheLine}
+                disabled={selectedFee?.chargeType !== "BY_MODULE"}
+                className={adminGhostButton}
+              >
+                + Ajouter une tranche
+              </button>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-                Référence du bordereau bancaire <span className="text-red-600 dark:text-red-400">*</span>
-              </label>
-              <input
-                className={adminInput}
-                placeholder="ex. N° bordereau, réf. versement"
-                value={bankSlipReference}
-                onChange={(e) => setBankSlipReference(e.target.value)}
-                required
-              />
-            </div>
+
+            {trancheLines.map((row) => {
+              const o = outstandingByTranche.get(row.trancheId);
+              return (
+                <div
+                  key={row.key}
+                  className="flex flex-col gap-2 rounded-xl border border-sky-100/80 bg-zinc-50/80 p-3 dark:border-zinc-700 dark:bg-zinc-950/40 sm:flex-row sm:flex-wrap sm:items-end"
+                >
+                  <div className="min-w-0 flex-1 sm:min-w-[220px]">
+                    <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Tranche</label>
+                    <select
+                      className={adminInput}
+                      value={row.trancheId}
+                      onChange={(e) =>
+                        setTrancheLines((prev) =>
+                          prev.map((r) => (r.key === row.key ? { ...r, trancheId: Number(e.target.value) } : r)),
+                        )
+                      }
+                      disabled={selectedFee?.chargeType !== "BY_MODULE"}
+                    >
+                      {tranches.map((t) => {
+                        const ou = outstandingByTranche.get(t.id);
+                        const rest =
+                          ou != null
+                            ? ` — reste ${ou.outstanding.toFixed(2)} ${currency}`
+                            : "";
+                        return (
+                          <option key={t.id} value={t.id}>
+                            {t.codeTranche} — {t.moduleName} ({fmtDM(t.startDay, t.startMonth)}→{fmtDM(t.endDay, t.endMonth)})
+                            {rest}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                  <div className="w-full sm:w-36">
+                    <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Montant versé</label>
+                    <input
+                      className={adminInput}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={row.amount}
+                      onChange={(e) =>
+                        setTrancheLines((prev) =>
+                          prev.map((r) => (r.key === row.key ? { ...r, amount: e.target.value } : r)),
+                        )
+                      }
+                      disabled={selectedFee?.chargeType !== "BY_MODULE"}
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className={adminGhostButton}
+                      disabled={selectedFee?.chargeType !== "BY_MODULE" || !o || o.outstanding <= 0}
+                      onClick={() => setResteDuForLine(row.key)}
+                    >
+                      Tout le reste dû
+                    </button>
+                    <button
+                      type="button"
+                      className={adminDangerButton}
+                      disabled={trancheLines.length <= 1}
+                      onClick={() => removeTrancheLine(row.key)}
+                    >
+                      Retirer
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="text-sm text-zinc-700 dark:text-zinc-200">
+            <strong>Total bordereau :</strong> {bankTrancheTotal.toFixed(2)} {currency}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+              Référence du bordereau bancaire <span className="text-red-600 dark:text-red-400">*</span>
+            </label>
+            <input
+              className={adminInput}
+              placeholder="ex. N° bordereau, réf. versement"
+              value={bankSlipReference}
+              onChange={(e) => setBankSlipReference(e.target.value)}
+            />
           </div>
 
           <input className={adminInput} placeholder="Note (optionnel)" value={note} onChange={(e) => setNote(e.target.value)} />
 
           <button
             type="button"
-            disabled={submitting || selectedFee?.chargeType !== "BY_MODULE"}
-            onClick={() => createPayment("BANK_SLIP", "TRANCHE")}
+            disabled={submitting || selectedFee?.chargeType !== "BY_MODULE" || bankTrancheTotal <= 0}
+            onClick={submitBankTranchesMulti}
             className={adminPrimaryButton}
           >
-            {submitting ? "Enregistrement..." : "Enregistrer bordereau + tranche + reçu"}
+            {submitting ? "Enregistrement..." : "Enregistrer bordereau + reçu"}
           </button>
         </div>
       ) : tab !== "IMPORT" ? (

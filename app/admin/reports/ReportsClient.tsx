@@ -223,8 +223,8 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
           <h1 className={`mt-1 ${adminTitle}`}>Rapports</h1>
           <p className={adminSubtitle}>
             {reportView === "global"
-              ? "Encaissements réels (paiements de frais saisis, selon la date de paiement) et dépenses réelles (sorties du portefeuille, selon la date de la dépense). Seules les dates avec au moins une opération sont listées."
-              : "Détail par type de frais (code / libellé) et ligne « Dépenses portefeuille » pour les sorties du portefeuille. Une ligne par date ou par mois et par frais."}
+              ? "Encaissements réels (paiements de frais saisis, selon la date de paiement) et dépenses réelles (sorties du Budget, selon la date de la dépense). Seules les dates avec au moins une opération sont listées."
+              : "Détail par type de frais (code / libellé) et ligne « Dépenses Budget » pour les sorties du Budget. Une ligne par date ou par mois et par frais."}
           </p>
         </div>
 

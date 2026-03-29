@@ -15,9 +15,19 @@ const createSchema = z
     source: z.enum(["BANK_SLIP", "MANUAL", "IMPORT"]).default("MANUAL"),
     bankSlipReference: z.string().optional().or(z.literal("")).transform((v) => (v ? v : undefined)),
     note: z.string().optional().or(z.literal("")).transform((v) => (v ? v : undefined)),
-    allocationMode: z.enum(["AUTO", "MODULE", "TRANCHE", "TOTAL_DIRECT"]).default("AUTO"),
+    allocationMode: z
+      .enum(["AUTO", "MODULE", "TRANCHE", "TOTAL_DIRECT", "TRANSHES_MULTI"])
+      .default("AUTO"),
     moduleId: z.coerce.number().int().positive().optional(),
     trancheId: z.coerce.number().int().positive().optional(),
+    tranchePayments: z
+      .array(
+        z.object({
+          trancheId: z.coerce.number().int().positive(),
+          amount: z.coerce.number().positive(),
+        }),
+      )
+      .optional(),
   })
   .superRefine((data, ctx) => {
     if (data.allocationMode === "TRANCHE" && (data.trancheId == null || data.trancheId <= 0)) {
@@ -34,14 +44,35 @@ const createSchema = z
         path: ["moduleId"],
       });
     }
-    if (data.source === "BANK_SLIP" && data.allocationMode === "TRANCHE") {
+    const refRequired =
+      data.source === "BANK_SLIP" &&
+      (data.allocationMode === "TRANCHE" || data.allocationMode === "TRANSHES_MULTI");
+    if (refRequired) {
       const ref = data.bankSlipReference?.trim();
       if (!ref) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message:
-            "La référence du bordereau bancaire est obligatoire pour enregistrer un paiement par tranche.",
+            "La référence du bordereau bancaire est obligatoire pour ce type de paiement à la banque.",
           path: ["bankSlipReference"],
+        });
+      }
+    }
+    if (data.allocationMode === "TRANSHES_MULTI") {
+      const lines = data.tranchePayments ?? [];
+      if (lines.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Ajoutez au moins une ligne (tranche et montant).",
+          path: ["tranchePayments"],
+        });
+      }
+      const sum = lines.reduce((s, x) => s + x.amount, 0);
+      if (lines.length > 0 && Math.abs(sum - data.amount) > 0.00001) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Le montant total doit égaler la somme des montants indiqués pour chaque tranche.",
+          path: ["amount"],
         });
       }
     }
@@ -117,7 +148,20 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   try {
-    const created = await createFeePayment(parsed.data);
+    const payload = { ...parsed.data };
+    if (payload.allocationMode === "TRANSHES_MULTI" && payload.tranchePayments?.length) {
+      const merged = new Map<number, number>();
+      for (const l of payload.tranchePayments) {
+        merged.set(l.trancheId, (merged.get(l.trancheId) ?? 0) + l.amount);
+      }
+      payload.tranchePayments = Array.from(merged.entries()).map(([trancheId, amount]) => ({
+        trancheId,
+        amount,
+      }));
+      const sum = payload.tranchePayments.reduce((s, x) => s + x.amount, 0);
+      payload.amount = sum;
+    }
+    const created = await createFeePayment(payload);
     return NextResponse.json({ payment: created }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to create payment" }, { status: 409 });
