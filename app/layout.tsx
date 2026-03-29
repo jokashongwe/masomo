@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KelaApp",
+  title: "Masomo",
   description: "Application de gestion scolaire",
 };
 

@@ -32,7 +32,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     orderBy: { id: "asc" },
     select: { name: true },
   });
-  const brandName = school?.name ?? "KelaApp";
+  const brandName = school?.name ?? "Masomo";
 
   return (
     <div className="flex min-h-screen bg-[#eef6fb] dark:bg-zinc-950">
