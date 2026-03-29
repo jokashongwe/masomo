@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { canManageSchool, getCurrentUser } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 /** Ancienne URL publique : redirige vers l’admin pour les rôles autorisés. */
 export default async function EnrollLegacyRedirect() {
   const user = await getCurrentUser();

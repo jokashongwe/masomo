@@ -4,6 +4,8 @@ import LoginLayoutChrome from "./login/LoginLayoutChrome";
 import { canManageSchool, getCurrentUser } from "@/lib/auth";
 import { adminBackLink, adminNestedCard } from "./admin/components/admin-ui";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const user = await getCurrentUser();
 

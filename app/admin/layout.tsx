@@ -5,6 +5,8 @@ import { canManageSchool, canReadFinance, getCurrentUser, isSystemAdmin } from "
 import { prisma } from "@/lib/prisma";
 import AdminSidebar from "./components/AdminSidebar";
 
+export const dynamic = "force-dynamic";
+
 function roleLabelFr(role: UserRole): string {
   switch (role) {
     case "SYSTEM_ADMIN":
