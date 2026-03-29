@@ -21,7 +21,10 @@ export async function POST(req: Request) {
   const ok = await verifyPassword(parsed.data.password, user.passwordHash);
   if (!ok) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
 
-  await createSession(user.id);
+  const forwardedProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase();
+  const secureCookie = req.url.startsWith("https://") || forwardedProto === "https";
+
+  await createSession(user.id, { secure: secureCookie });
   return NextResponse.json({ ok: true });
 }
 

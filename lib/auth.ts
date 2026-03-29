@@ -27,7 +27,7 @@ export function createSessionToken() {
   return crypto.randomBytes(32).toString("hex");
 }
 
-export async function createSession(userId: number) {
+export async function createSession(userId: number, options?: { secure?: boolean }) {
   const token = createSessionToken();
   const tokenHash = sha256Hex(token);
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
@@ -39,7 +39,7 @@ export async function createSession(userId: number) {
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: options?.secure ?? process.env.NODE_ENV === "production",
     expires: expiresAt,
     path: "/",
   });
