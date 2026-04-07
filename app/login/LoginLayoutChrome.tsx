@@ -42,7 +42,7 @@ export default function LoginLayoutChrome({
         <div className="w-full max-w-md">
           <div className="text-center">
             <BrandMark />
-            <p className={adminKicker}>Masomo</p>
+            <p className={adminKicker}>Complexe Scolaire Vie Nouvelle</p>
             <h1 className={`mt-2 ${adminTitle}`}>{title}</h1>
             <p className={adminSubtitle}>{subtitle}</p>
           </div>
