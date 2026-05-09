@@ -25,6 +25,9 @@ type NavItem = { href: string; label: string; icon: ReactNode };
 
 function isActive(pathname: string, href: string) {
   if (href === "/admin") return pathname === "/admin";
+  if (href === "/admin/reports") {
+    return pathname === "/admin/reports" || pathname === "/admin/reports/";
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -163,6 +166,17 @@ export default function AdminSidebar({
     [showUsers],
   );
 
+  const reportsGroupItems: NavItem[] = useMemo(
+    () =>
+      showFinance
+        ? [
+            { href: "/admin/reports", label: "Synthèse", icon: <IconReports /> },
+            { href: "/admin/reports/paiements-frais", label: "Par classe", icon: <IconPayments /> },
+          ]
+        : [],
+    [showFinance],
+  );
+
   return (
     <aside className="relative flex w-[5.5rem] shrink-0 flex-col bg-[#2D9CDB] text-white shadow-xl shadow-sky-900/20 md:w-[6.25rem]">
       {/* Motif décoratif en tête */}
@@ -201,8 +215,8 @@ export default function AdminSidebar({
             <NavGroup label="Finances" items={financeGroupItems} pathname={pathname} />
           ) : null}
 
-          {showFinance ? (
-            <NavLink item={{ href: "/admin/reports", label: "Rapports", icon: <IconReports /> }} pathname={pathname} />
+          {reportsGroupItems.length > 0 ? (
+            <NavGroup label="Rapports" items={reportsGroupItems} pathname={pathname} />
           ) : null}
 
           {usersOnly.map((item) => (

@@ -40,6 +40,7 @@ model User {
   role UserRole
 
   sessions Session[]
+  expensesCreated Expense[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -396,6 +397,9 @@ model Expense {
   academicYearId Int
   academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
 
+  createdById Int?
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
   transaction WalletTransaction?
 
   createdAt DateTime @default(now())
@@ -403,6 +407,7 @@ model Expense {
 
   @@index([walletId])
   @@index([academicYearId])
+  @@index([createdById])
 }
 
 model FeePayment {

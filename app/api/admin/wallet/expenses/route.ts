@@ -135,6 +135,7 @@ export async function POST(req: Request) {
           description,
           occurredAt: occurredAt ?? new Date(),
           academicYearId,
+          createdById: auth.user.id,
         },
         select: { id: true },
       });

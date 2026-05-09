@@ -495,7 +495,7 @@ export default async function AdminHomePage() {
       _sum: { amount: true },
       where: { academicYearId: currentYear.id },
     }),
-    prisma.wallet.findFirst({ orderBy: { id: "asc" }, select: { id: true } }),
+    prisma.wallet.findFirst({ orderBy: { id: "asc" }, select: { id: true, balanceUSD: true, balanceCDF: true } }),
   ]);
 
   const expenseAgg = wallet
@@ -537,6 +537,55 @@ export default async function AdminHomePage() {
 
   const { usd: totalExpensesUSD, cdf: totalExpensesCDF } = sumsFromPaymentOrExpenseAgg(expenseAgg);
 
+  const expenseByUserRaw = await prisma.expense.groupBy({
+    by: ["createdById", "currency"],
+    _sum: { amount: true },
+    _count: { _all: true },
+    where: {
+      academicYearId: currentYear.id,
+      occurredAt: { gte: yearStart, lt: yearEndExclusive },
+    },
+  });
+
+  const userIds = Array.from(new Set(expenseByUserRaw.map((r) => r.createdById).filter((id): id is number => id != null)));
+  const users = userIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, name: true, email: true },
+      })
+    : [];
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
+  const expenseByUserMap = new Map<
+    string,
+    {
+      key: string;
+      label: string;
+      usd: number;
+      cdf: number;
+      count: number;
+    }
+  >();
+  for (const row of expenseByUserRaw) {
+    const key = row.createdById == null ? "unknown" : String(row.createdById);
+    const u = row.createdById == null ? null : userMap.get(row.createdById);
+    const cur = expenseByUserMap.get(key) ?? {
+      key,
+      label: u ? u.name : "Non attribué",
+      usd: 0,
+      cdf: 0,
+      count: 0,
+    };
+    const amt = row._sum.amount != null ? Number(row._sum.amount) : 0;
+    if (row.currency === "USD") cur.usd += amt;
+    if (row.currency === "CDF") cur.cdf += amt;
+    cur.count += row._count._all;
+    expenseByUserMap.set(key, cur);
+  }
+  const expenseByUser = Array.from(expenseByUserMap.values()).sort(
+    (a, b) => b.usd + b.cdf / 100000 - (a.usd + a.cdf / 100000),
+  );
+
   const btnPrimary =
     "inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#2D9CDB] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-300/35 hover:bg-[#2590c9]";
   const cardBase =
@@ -572,7 +621,7 @@ export default async function AdminHomePage() {
         </div>
       </section>
 
-      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-5">
         <div className={cardBase}>
           <Link
             href="/admin/finance/fees"
@@ -616,18 +665,26 @@ export default async function AdminHomePage() {
 
         <div className={cardBase}>
           <Link
-            href="/admin/students"
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-700 transition hover:bg-violet-200 dark:bg-violet-950/50 dark:text-violet-300"
-            title="Élèves"
+            href="/admin/wallet"
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 transition hover:bg-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300"
+            title="Budget"
           >
             <IconPlus className="h-5 w-5" />
           </Link>
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
-            <IconStudents className="h-6 w-6" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+            <IconWallet className="h-6 w-6" />
           </div>
-          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Élèves inscrits</p>
-          <p className="mt-1 text-3xl font-bold text-zinc-900 dark:text-white">{studentTotal}</p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Répartition par sexe sur l’année en cours</p>
+          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde Budget</p>
+          {wallet ? (
+            <>
+              <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
+                {formatMoney(Number(wallet.balanceUSD), "USD")}
+              </p>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(Number(wallet.balanceCDF), "CDF")}</p>
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Budget non configuré</p>
+          )}
         </div>
 
         <div className={cardBase}>
@@ -644,6 +701,22 @@ export default async function AdminHomePage() {
           <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total dépenses</p>
           <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">{formatMoney(totalExpensesUSD, "USD")}</p>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(totalExpensesCDF, "CDF")}</p>
+        </div>
+
+        <div className={cardBase}>
+          <Link
+            href="/admin/students"
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-700 transition hover:bg-violet-200 dark:bg-violet-950/50 dark:text-violet-300"
+            title="Élèves"
+          >
+            <IconPlus className="h-5 w-5" />
+          </Link>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
+            <IconStudents className="h-6 w-6" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Élèves inscrits</p>
+          <p className="mt-1 text-3xl font-bold text-zinc-900 dark:text-white">{studentTotal}</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Répartition par sexe sur l’année en cours</p>
         </div>
       </div>
 
@@ -666,7 +739,34 @@ export default async function AdminHomePage() {
           </div>
         </div>
 
-        <div className={`${cardBase} lg:col-span-2`}>
+        <div className={`${cardBase} lg:col-span-1`}>
+          <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Dépenses par utilisateur</h3>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Année en cours (Budget).</p>
+          <div className="mt-4 space-y-3 text-sm">
+            {expenseByUser.length === 0 ? (
+              <div className="rounded-2xl bg-zinc-50 px-4 py-3 text-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-300">
+                Aucune dépense enregistrée.
+              </div>
+            ) : (
+              expenseByUser.map((row) => (
+                <div
+                  key={row.key}
+                  className="rounded-2xl border border-sky-100/70 bg-white/70 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/40"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium text-zinc-800 dark:text-zinc-100">{row.label}</span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{row.count} opération(s)</span>
+                  </div>
+                  <div className="mt-1 text-zinc-700 dark:text-zinc-300">
+                    {formatMoney(row.usd, "USD")} • {formatMoney(row.cdf, "CDF")}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className={`${cardBase} lg:col-span-1`}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Activités fréquentes</h3>
