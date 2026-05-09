@@ -172,6 +172,7 @@ export default function AdminSidebar({
         ? [
             { href: "/admin/reports", label: "Synthèse", icon: <IconReports /> },
             { href: "/admin/reports/paiements-frais", label: "Par classe", icon: <IconPayments /> },
+            { href: "/admin/reports/ecole", label: "École", icon: <IconSchools /> },
           ]
         : [],
     [showFinance],

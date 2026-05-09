@@ -38,7 +38,8 @@ type DueLine = {
   due: number;
 };
 
-async function buildDueLinesForByModule(
+/** Utilisé pour les rapports (montants dus par module / tranche). */
+export async function buildDueLinesForByModule(
   tx: Prisma.TransactionClient,
   feeId: number,
   currency: Currency,
