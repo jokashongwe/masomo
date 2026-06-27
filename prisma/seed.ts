@@ -81,6 +81,14 @@ async function main() {
   await prisma.$disconnect();
   console.log("Seed completed successfully.");
 }
+main()
+  .catch((e) => {
+    console.error("Seed failed:", e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    process.exit(0);
+  });
 /*
   // Seed a deposit + an example expense so the dashboard has non-zero data.
   if (currentAcademicYear) {
