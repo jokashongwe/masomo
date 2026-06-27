@@ -13,6 +13,13 @@ enum StudentSex {
   OTHER
 }
 
+enum StudentStatus {
+  ENROLLED
+  LEFT
+  EXPELLED
+  GRADUATED
+}
+
 enum Currency {
   USD
   CDF
@@ -41,6 +48,7 @@ model User {
 
   sessions Session[]
   expensesCreated Expense[]
+  financeAccountWithdrawals FinanceAccountTransaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -147,6 +155,7 @@ model AcademicYear {
   feePayments FeePayment[]
   expenses Expense[]
   walletTransactions WalletTransaction[]
+  financeAccounts FinanceAccount[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -155,11 +164,14 @@ model AcademicYear {
 model Student {
   id Int @id @default(autoincrement())
 
+  matricule String?
+
   name     String
   postnom  String
   firstName String
   sex      StudentSex
   birthDate DateTime
+  status   StudentStatus @default(ENROLLED)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -174,6 +186,8 @@ model Student {
   feePayments FeePayment[]
 
   @@index([classId])
+  @@index([status])
+  @@unique([academicYearId, matricule])
 }
 
 model Tutor {
@@ -224,8 +238,14 @@ model Fee {
   feeLevels FeeLevel[]
   payments FeePayment[]
 
+  // Compte d'encaissement crédité lors des paiements de ce frais (optionnel).
+  accountId Int?
+  account FinanceAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([accountId])
 }
 
 model FeeLevel {
@@ -434,6 +454,7 @@ model FeePayment {
 
   allocations FeePaymentAllocation[]
   walletTransaction WalletTransaction?
+  accountTransaction FinanceAccountTransaction?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -463,5 +484,61 @@ model FeePaymentAllocation {
   @@index([paymentId])
   @@index([moduleId])
   @@index([trancheId])
+}
+
+// ----------------------------
+// Comptes d'encaissement (par année scolaire)
+// ----------------------------
+
+enum FinanceAccountTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+}
+
+model FinanceAccount {
+  id Int @id @default(autoincrement())
+
+  name String
+  description String?
+
+  academicYearId Int
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+
+  balanceUSD Decimal @db.Decimal(18, 2) @default(0)
+  balanceCDF Decimal @db.Decimal(18, 2) @default(0)
+
+  fees Fee[]
+  transactions FinanceAccountTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([academicYearId, name])
+  @@index([academicYearId])
+}
+
+model FinanceAccountTransaction {
+  id Int @id @default(autoincrement())
+
+  accountId Int
+  account FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  type FinanceAccountTransactionType
+  currency Currency
+  amount Decimal @db.Decimal(18, 2)
+
+  feePaymentId Int? @unique
+  feePayment FeePayment? @relation(fields: [feePaymentId], references: [id], onDelete: SetNull)
+
+  createdById Int?
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  note String?
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
+  @@index([type])
+  @@index([createdById])
 }
 

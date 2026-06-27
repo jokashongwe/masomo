@@ -26,8 +26,12 @@ export async function enrollStudentInCurrentYear(input: {
   classId: number;
   student: StudentEnrollInput;
   tutors: TutorEnrollInput[];
+  matricule?: string | null;
+  /** false pour l’import sans tuteur (N/A). Défaut : true. */
+  requireTutor?: boolean;
 }): Promise<{ studentId: number }> {
-  if (input.tutors.length === 0) {
+  const requireTutor = input.requireTutor !== false;
+  if (requireTutor && input.tutors.length === 0) {
     throw new Error("Au moins un tuteur est requis");
   }
   if (input.tutors.length > 10) {
@@ -50,35 +54,48 @@ export async function enrollStudentInCurrentYear(input: {
     throw new Error("Classe introuvable");
   }
 
+  const matricule = input.matricule?.trim() || null;
+  if (matricule) {
+    const dup = await prisma.student.findFirst({
+      where: { academicYearId: currentYear.id, matricule },
+      select: { id: true },
+    });
+    if (dup) throw new Error(`Matricule déjà inscrit pour cette année : ${matricule}`);
+  }
+
   const result = await prisma.$transaction(async (tx) => {
     const uniqueTutors = Array.from(
       new Map(input.tutors.map((t) => [t.contact.trim(), { ...t, contact: t.contact.trim() }])),
       ([, v]) => v,
     );
 
-    const upsertedTutors = await Promise.all(
-      uniqueTutors.map((t) =>
-        tx.tutor.upsert({
-          where: { contact: t.contact },
-          update: {
-            name: t.name,
-            postnom: t.postnom,
-            firstName: t.firstName,
-            address: t.address,
-          },
-          create: {
-            name: t.name,
-            postnom: t.postnom,
-            firstName: t.firstName,
-            address: t.address,
-            contact: t.contact,
-          },
-        }),
-      ),
-    );
+    const upsertedTutors =
+      uniqueTutors.length > 0
+        ? await Promise.all(
+            uniqueTutors.map((t) =>
+              tx.tutor.upsert({
+                where: { contact: t.contact },
+                update: {
+                  name: t.name,
+                  postnom: t.postnom,
+                  firstName: t.firstName,
+                  address: t.address,
+                },
+                create: {
+                  name: t.name,
+                  postnom: t.postnom,
+                  firstName: t.firstName,
+                  address: t.address,
+                  contact: t.contact,
+                },
+              }),
+            ),
+          )
+        : [];
 
     const createdStudent = await tx.student.create({
       data: {
+        matricule,
         name: input.student.name,
         postnom: input.student.postnom,
         firstName: input.student.firstName,
@@ -86,11 +103,14 @@ export async function enrollStudentInCurrentYear(input: {
         birthDate: input.student.birthDate,
         classId: input.classId,
         academicYearId: currentYear.id,
-        studentTutors: {
-          create: upsertedTutors.map((t) => ({
-            tutor: { connect: { id: t.id } },
-          })),
-        },
+        studentTutors:
+          upsertedTutors.length > 0
+            ? {
+                create: upsertedTutors.map((t) => ({
+                  tutor: { connect: { id: t.id } },
+                })),
+              }
+            : undefined,
       },
       select: { id: true },
     });

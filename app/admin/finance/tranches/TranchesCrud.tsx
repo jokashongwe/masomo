@@ -18,6 +18,10 @@ import {
   adminTableWrap,
   adminTh,
   adminTr,
+  adminThead,
+  adminTd,
+  adminTdStrong,
+  adminTableEmpty,
 } from "../../components/admin-ui";
 
 type BillingModule = { id: number; name: string; startDay: number; startMonth: number; endDay: number; endMonth: number };
@@ -280,7 +284,7 @@ export default function TranchesCrud({
         <h2 className={adminSectionTitle}>Tranches existantes</h2>
         <div className={adminTableWrap}>
           <table className={adminTable}>
-            <thead>
+            <thead className={adminThead}>
               <tr>
                 <th className={adminTh}>Code</th>
                 <th className={adminTh}>Période</th>
@@ -291,19 +295,19 @@ export default function TranchesCrud({
             <tbody>
               {tranches.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-6 text-zinc-600 dark:text-zinc-300">
+                  <td colSpan={4} className={adminTableEmpty}>
                     Aucune tranche.
                   </td>
                 </tr>
               ) : (
                 tranches.map((t) => (
                   <tr key={t.id} className={adminTr}>
-                    <td className="py-3 pr-3 font-medium">{t.codeTranche}</td>
-                    <td className="py-3 pr-3">
+                    <td className={adminTdStrong}>{t.codeTranche}</td>
+                    <td className={adminTd}>
                       {fmtDM(t.startDay, t.startMonth)} → {fmtDM(t.endDay, t.endMonth)}
                     </td>
-                    <td className="py-3 pr-3">{moduleLabel(t.moduleId)}</td>
-                    <td className="py-3 pr-3">
+                    <td className={adminTd}>{moduleLabel(t.moduleId)}</td>
+                    <td className={adminTd}>
                       <div className="flex gap-2">
                         <button
                           type="button"

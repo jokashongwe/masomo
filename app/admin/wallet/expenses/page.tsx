@@ -52,7 +52,7 @@ export default async function AdminWalletExpensesPage({
     return (
       <div className={adminPage}>
         <div className={adminCard}>
-          Budget introuvable. Lancez le seed ou créez-en un via l’administrateur système.
+          caution introuvable. Lancez le seed ou créez-en un via l’administrateur système.
         </div>
       </div>
     );
@@ -64,9 +64,9 @@ export default async function AdminWalletExpensesPage({
         <AdminPageHeader
           kicker="Trésorerie"
           title="Dépenses"
-          subtitle="Enregistrer et suivre les dépenses du Budget."
+          subtitle="Enregistrer et suivre les dépenses du caution."
           backHref="/admin/wallet"
-          backLabel="Budget"
+          backLabel="caution"
         />
         <div className={`${adminCard} mt-6`}>
           Aucune année scolaire n’est définie. Créez-en une dans « Années scolaires » pour enregistrer des dépenses.
@@ -115,9 +115,9 @@ export default async function AdminWalletExpensesPage({
       <AdminPageHeader
         kicker="Trésorerie"
         title="Dépenses"
-        subtitle="Enregistrer et suivre les dépenses du Budget."
+        subtitle="Enregistrer et suivre les dépenses du caution."
         backHref="/admin/wallet"
-        backLabel="Budget"
+        backLabel="caution"
       />
       <div className="mt-6">
         <ExpensesCrud

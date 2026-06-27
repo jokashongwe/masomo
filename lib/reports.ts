@@ -20,7 +20,7 @@ export type MonthlyFeesExpenseRow = {
   expensesCDF: number;
 };
 
-/** Une ligne par (jour, frais) ou (jour, Budget pour dépenses). */
+/** Une ligne par (jour, frais) ou (jour, caution pour dépenses). */
 export type DailyByFeeRow = {
   day: string;
   feeId: number | null;
@@ -32,7 +32,7 @@ export type DailyByFeeRow = {
   expensesCDF: number;
 };
 
-/** Agrégation mensuelle par frais (ou Budget). */
+/** Agrégation mensuelle par frais (ou caution). */
 export type MonthlyByFeeRow = {
   month: string;
   feeId: number | null;
@@ -308,8 +308,8 @@ export async function getMonthlyFeesAndExpensesReport({
   };
 }
 
-const WALLET_ROW_CODE = "Budget";
-const WALLET_ROW_NAME = "Dépenses Budget";
+const WALLET_ROW_CODE = "caution";
+const WALLET_ROW_NAME = "Dépenses caution";
 
 async function computeAllDailyByFeeRows(
   startDate: string,

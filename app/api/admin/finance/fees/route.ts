@@ -9,6 +9,7 @@ const feeSchema = z.object({
   description: z.string().optional().or(z.literal("")).transform((v) => (v ? v : null)),
   chargeType: z.enum(["TOTAL", "BY_MODULE"]),
   levelIds: z.array(z.number().int().positive()).default([]),
+  accountId: z.number().int().positive().nullable().optional(),
 });
 
 export async function GET() {
@@ -21,6 +22,7 @@ export async function GET() {
       totalAmounts: true,
       moduleAmounts: true,
       trancheAmounts: true,
+      account: { select: { id: true, name: true, academicYearId: true } },
     },
   });
   return NextResponse.json({ fees });
@@ -42,6 +44,7 @@ export async function POST(req: Request) {
         name: parsed.data.name,
         description: parsed.data.description ?? null,
         chargeType: parsed.data.chargeType,
+        accountId: parsed.data.accountId ?? null,
         feeLevels: {
           create: parsed.data.levelIds.map((levelId) => ({ levelId })),
         },

@@ -3,19 +3,8 @@ import type { ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
 import { requireUser, isSystemAdmin, canReadFinance, canManageSchool } from "@/lib/auth";
 import type { UserRole } from "@/generated/prisma/client";
-import { findCurrentBillingModuleForDate, getModulePaymentWindowUTC } from "@/lib/reports";
+import { getAdminDashboardStats } from "@/lib/admin-dashboard-stats";
 import { IconFinance, IconPayments, IconPlus, IconReports, IconStudents, IconWallet } from "./components/AdminIcons";
-
-function sumsFromPaymentOrExpenseAgg(rows: { currency: string; _sum: { amount: unknown } }[]) {
-  let usd = 0;
-  let cdf = 0;
-  for (const r of rows) {
-    const n = r._sum.amount != null ? Number(r._sum.amount) : 0;
-    if (r.currency === "USD") usd += n;
-    if (r.currency === "CDF") cdf += n;
-  }
-  return { usd, cdf };
-}
 
 function formatMoney(amount: number, currency: "USD" | "CDF") {
   try {
@@ -51,6 +40,100 @@ function GenericRoleWelcome({ name }: { name: string }) {
   );
 }
 
+function DashboardKpiGrid({
+  stats,
+  showStudents,
+  cardBase,
+}: {
+  stats: Awaited<ReturnType<typeof getAdminDashboardStats>>;
+  showStudents: boolean;
+  cardBase: string;
+}) {
+  return (
+    <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+      <div className={cardBase}>
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-[#2D9CDB] dark:bg-sky-900/40 dark:text-sky-300">
+          <IconFinance className="h-6 w-6" />
+        </div>
+        <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total encaissé</p>
+        <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">{formatMoney(stats.totalEncaisse.usd, "USD")}</p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(stats.totalEncaisse.cdf, "CDF")}</p>
+        <p className="mt-2 text-xs text-zinc-500">Paiements de frais — année en cours</p>
+      </div>
+
+      <div className={cardBase}>
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+          <IconFinance className="h-6 w-6" />
+        </div>
+        <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde du compte principal</p>
+        {stats.mainAccount ? (
+          <>
+            <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
+              {formatMoney(stats.mainAccount.balanceUSD, "USD")}
+            </p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              {formatMoney(stats.mainAccount.balanceCDF, "CDF")}
+            </p>
+            <p className="mt-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">{stats.mainAccount.name}</p>
+          </>
+        ) : (
+          <p className="mt-2 text-sm text-zinc-500">Aucun compte pour cette année</p>
+        )}
+      </div>
+
+      <div className={cardBase}>
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+          <IconFinance className="h-6 w-6" />
+        </div>
+        <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Retraits (compte principal)</p>
+        <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
+          {formatMoney(stats.mainAccountWithdrawals.usd, "USD")}
+        </p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(stats.mainAccountWithdrawals.cdf, "CDF")}</p>
+        <p className="mt-2 text-xs text-zinc-500">Année en cours</p>
+      </div>
+
+      <div className={cardBase}>
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+          <IconWallet className="h-6 w-6" />
+        </div>
+        <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde caution</p>
+        {stats.walletBalance ? (
+          <>
+            <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
+              {formatMoney(stats.walletBalance.usd, "USD")}
+            </p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(stats.walletBalance.cdf, "CDF")}</p>
+          </>
+        ) : (
+          <p className="mt-2 text-sm text-zinc-500">Caution non configurée</p>
+        )}
+      </div>
+
+      <div className={cardBase}>
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+          <IconWallet className="h-6 w-6" />
+        </div>
+        <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total dépenses (caution)</p>
+        <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">{formatMoney(stats.walletExpenses.usd, "USD")}</p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(stats.walletExpenses.cdf, "CDF")}</p>
+        <p className="mt-2 text-xs text-zinc-500">Année en cours</p>
+      </div>
+
+      {showStudents ? (
+        <div className={cardBase}>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
+            <IconStudents className="h-6 w-6" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total inscrits</p>
+          <p className="mt-1 text-3xl font-bold text-zinc-900 dark:text-white">{stats.studentTotal}</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Élèves — année en cours</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 async function FinanceManagerHome({ name, role }: { name: string; role: UserRole }) {
   const currentYear = await prisma.academicYear.findFirst({
     where: { isCurrent: true },
@@ -79,61 +162,12 @@ async function FinanceManagerHome({ name, role }: { name: string; role: UserRole
   const yearStart = currentYear.startDate;
   const yearEndExclusive = new Date(currentYear.endDate.getTime() + 1);
 
-  const [modules, paymentsYearAgg, paymentsCount, wallet, depositCount, expenseCount] = await Promise.all([
-    prisma.billingModule.findMany({ orderBy: { id: "asc" } }),
-    prisma.feePayment.groupBy({
-      by: ["currency"],
-      _sum: { amount: true },
-      where: { academicYearId: currentYear.id },
-    }),
-    prisma.feePayment.count({ where: { academicYearId: currentYear.id } }),
-    prisma.wallet.findFirst({
-      orderBy: { id: "asc" },
-      select: { id: true, balanceUSD: true, balanceCDF: true },
-    }),
-    prisma.walletTransaction.count({
-      where: {
-        academicYearId: currentYear.id,
-        type: "DEPOSIT",
-      },
-    }),
-    prisma.expense.count({
-      where: { academicYearId: currentYear.id },
-    }),
-  ]);
-
-  const expenseAgg = wallet
-    ? await prisma.expense.groupBy({
-        by: ["currency"],
-        _sum: { amount: true },
-        where: {
-          walletId: wallet.id,
-          academicYearId: currentYear.id,
-          occurredAt: { gte: yearStart, lt: yearEndExclusive },
-        },
-      })
-    : [];
-
-  const currentModule = findCurrentBillingModuleForDate(new Date(), currentYear.startDate, modules);
-  const { usd: totalPerceivedUSD, cdf: totalPerceivedCDF } = sumsFromPaymentOrExpenseAgg(paymentsYearAgg);
-  const { usd: totalExpensesUSD, cdf: totalExpensesCDF } = sumsFromPaymentOrExpenseAgg(expenseAgg);
-
-  let moduleCurrentPerceivedUSD = 0;
-  let moduleCurrentPerceivedCDF = 0;
-  if (currentModule) {
-    const { gte, lt } = getModulePaymentWindowUTC(currentYear.startDate, currentModule);
-    const modulePaymentsAgg = await prisma.feePayment.groupBy({
-      by: ["currency"],
-      _sum: { amount: true },
-      where: {
-        academicYearId: currentYear.id,
-        paidAt: { gte, lt },
-      },
-    });
-    const m = sumsFromPaymentOrExpenseAgg(modulePaymentsAgg);
-    moduleCurrentPerceivedUSD = m.usd;
-    moduleCurrentPerceivedCDF = m.cdf;
-  }
+  const stats = await getAdminDashboardStats({
+    academicYearId: currentYear.id,
+    yearStart,
+    yearEndExclusive,
+    includeStudents: false,
+  });
 
   const cardBase =
     "relative overflow-hidden rounded-3xl border border-sky-100/70 bg-white p-6 shadow-lg shadow-sky-200/25 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-none";
@@ -148,7 +182,7 @@ async function FinanceManagerHome({ name, role }: { name: string; role: UserRole
         <div>
           <p className="text-sm font-medium text-[#2D9CDB]">Tableau de bord — {roleLabel}</p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white md:text-3xl">
-            Paiements & portefeuille — {currentYear.name}
+            Finances — {currentYear.name}
           </h1>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Bon retour {name}.</p>
         </div>
@@ -158,68 +192,11 @@ async function FinanceManagerHome({ name, role }: { name: string; role: UserRole
         className={`${cardBase} mb-8 bg-gradient-to-br from-white via-sky-50/40 to-emerald-50/20 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900`}
       >
         <p className="text-zinc-600 dark:text-zinc-300">
-          Encaissements et dépenses sont calculés pour l’année scolaire en cours. Le portefeuille affiche les soldes actuels
-          (toutes opérations confondues).
+          Synthèse financière pour l’année scolaire en cours : encaissements, compte principal, caution et dépenses.
         </p>
       </section>
 
-      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-        <div className={cardBase}>
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-[#2D9CDB] dark:bg-sky-900/40 dark:text-sky-300">
-            <IconFinance className="h-6 w-6" />
-          </div>
-          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total encaissé (année)</p>
-          <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">{formatMoney(totalPerceivedUSD, "USD")}</p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(totalPerceivedCDF, "CDF")}</p>
-          <p className="mt-2 text-xs text-zinc-500">{paymentsCount} paiement(s) enregistré(s)</p>
-        </div>
-
-        <div className={cardBase}>
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-            <IconFinance className="h-6 w-6" />
-          </div>
-          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Encaissé (module en cours)</p>
-          <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
-            {currentModule ? formatMoney(moduleCurrentPerceivedUSD, "USD") : "—"}
-          </p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {currentModule ? formatMoney(moduleCurrentPerceivedCDF, "CDF") : "Aucun module ne correspond à la date du jour"}
-          </p>
-          {currentModule ? (
-            <p className="mt-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">{currentModule.name}</p>
-          ) : null}
-        </div>
-
-        <div className={cardBase}>
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
-            <IconWallet className="h-6 w-6" />
-          </div>
-          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde portefeuille</p>
-          {wallet ? (
-            <>
-              <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
-                {formatMoney(Number(wallet.balanceUSD), "USD")}
-              </p>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                {formatMoney(Number(wallet.balanceCDF), "CDF")}
-              </p>
-              <p className="mt-2 text-xs text-zinc-500">{depositCount} dépôt(s) sur l’année</p>
-            </>
-          ) : (
-            <p className="mt-2 text-sm text-zinc-500">Portefeuille non configuré</p>
-          )}
-        </div>
-
-        <div className={cardBase}>
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
-            <IconWallet className="h-6 w-6" />
-          </div>
-          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total dépenses (année)</p>
-          <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">{formatMoney(totalExpensesUSD, "USD")}</p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(totalExpensesCDF, "CDF")}</p>
-          <p className="mt-2 text-xs text-zinc-500">{expenseCount} dépense(s)</p>
-        </div>
-      </div>
+      <DashboardKpiGrid stats={stats} showStudents={false} cardBase={cardBase} />
 
       <div className={`${cardBase}`}>
         <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Raccourcis</h3>
@@ -237,8 +214,17 @@ async function FinanceManagerHome({ name, role }: { name: string; role: UserRole
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300">
               <IconWallet className="h-6 w-6" />
             </div>
-            <p className="mt-2 text-center text-sm font-semibold text-zinc-900 dark:text-white">Portefeuille</p>
+            <p className="mt-2 text-center text-sm font-semibold text-zinc-900 dark:text-white">Caution</p>
             <Link href="/admin/wallet" className={`${btnPrimary} mt-3`}>
+              Ouvrir
+            </Link>
+          </div>
+          <div className="flex flex-col rounded-2xl border border-emerald-100/80 bg-emerald-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+              <IconFinance className="h-6 w-6" />
+            </div>
+            <p className="mt-2 text-center text-sm font-semibold text-zinc-900 dark:text-white">Comptes</p>
+            <Link href="/admin/finance/accounts" className={`${btnPrimary} mt-3`}>
               Ouvrir
             </Link>
           </div>
@@ -482,60 +468,23 @@ export default async function AdminHomePage() {
   const yearStart = currentYear.startDate;
   const yearEndExclusive = new Date(currentYear.endDate.getTime() + 1);
 
-  const [modules, sexCounts, studentTotal, paymentsYearAgg, wallet] = await Promise.all([
-    prisma.billingModule.findMany({ orderBy: { id: "asc" } }),
+  const [stats, sexCounts] = await Promise.all([
+    getAdminDashboardStats({
+      academicYearId: currentYear.id,
+      yearStart,
+      yearEndExclusive,
+      includeStudents: true,
+    }),
     prisma.student.groupBy({
       by: ["sex"],
       where: { academicYearId: currentYear.id },
       _count: { _all: true },
     }),
-    prisma.student.count({ where: { academicYearId: currentYear.id } }),
-    prisma.feePayment.groupBy({
-      by: ["currency"],
-      _sum: { amount: true },
-      where: { academicYearId: currentYear.id },
-    }),
-    prisma.wallet.findFirst({ orderBy: { id: "asc" }, select: { id: true, balanceUSD: true, balanceCDF: true } }),
   ]);
-
-  const expenseAgg = wallet
-    ? await prisma.expense.groupBy({
-        by: ["currency"],
-        _sum: { amount: true },
-        where: {
-          walletId: wallet.id,
-          academicYearId: currentYear.id,
-          occurredAt: { gte: yearStart, lt: yearEndExclusive },
-        },
-      })
-    : [];
-
-  const currentModule = findCurrentBillingModuleForDate(new Date(), currentYear.startDate, modules);
-
-  const { usd: totalPerceivedUSD, cdf: totalPerceivedCDF } = sumsFromPaymentOrExpenseAgg(paymentsYearAgg);
-
-  let moduleCurrentPerceivedUSD = 0;
-  let moduleCurrentPerceivedCDF = 0;
-  if (currentModule) {
-    const { gte, lt } = getModulePaymentWindowUTC(currentYear.startDate, currentModule);
-    const modulePaymentsAgg = await prisma.feePayment.groupBy({
-      by: ["currency"],
-      _sum: { amount: true },
-      where: {
-        academicYearId: currentYear.id,
-        paidAt: { gte, lt },
-      },
-    });
-    const m = sumsFromPaymentOrExpenseAgg(modulePaymentsAgg);
-    moduleCurrentPerceivedUSD = m.usd;
-    moduleCurrentPerceivedCDF = m.cdf;
-  }
 
   const totalMale = sexCounts.find((x) => x.sex === "MALE")?._count._all ?? 0;
   const totalFemale = sexCounts.find((x) => x.sex === "FEMALE")?._count._all ?? 0;
   const totalOther = sexCounts.find((x) => x.sex === "OTHER")?._count._all ?? 0;
-
-  const { usd: totalExpensesUSD, cdf: totalExpensesCDF } = sumsFromPaymentOrExpenseAgg(expenseAgg);
 
   const expenseByUserRaw = await prisma.expense.groupBy({
     by: ["createdById", "currency"],
@@ -609,7 +558,7 @@ export default async function AdminHomePage() {
           <div className="max-w-xl">
             <h2 className="text-2xl font-bold text-zinc-900 dark:text-white md:text-3xl">Bon retour {user.name} !</h2>
             <p className="mt-2 text-zinc-600 dark:text-zinc-300">
-              Découvrer notre portail permettant d'avoir une vue globale de votre établissement
+              Vue globale de votre établissement pour l’année scolaire en cours.
             </p>
           </div>
           <div className="relative mx-auto h-32 w-44 shrink-0 lg:mx-0">
@@ -621,202 +570,19 @@ export default async function AdminHomePage() {
         </div>
       </section>
 
-      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-5">
-        <div className={cardBase}>
-          <Link
-            href="/admin/finance/fees"
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-[#2D9CDB] transition hover:bg-sky-200 dark:bg-sky-900/50 dark:text-sky-300 dark:hover:bg-sky-900"
-            title="Configurer les frais"
-          >
-            <IconPlus className="h-5 w-5" />
-          </Link>
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-[#2D9CDB] dark:bg-sky-900/40 dark:text-sky-300">
-            <IconFinance className="h-6 w-6" />
-          </div>
-          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total encaissé (année)</p>
-          <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">{formatMoney(totalPerceivedUSD, "USD")}</p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(totalPerceivedCDF, "CDF")}</p>
-        </div>
-
-        <div className={cardBase}>
-          <Link
-            href="/admin/finance/modules"
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 transition hover:bg-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300"
-            title="Modules de facturation"
-          >
-            <IconPlus className="h-5 w-5" />
-          </Link>
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-            <IconFinance className="h-6 w-6" />
-          </div>
-          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Encaissé (module en cours)</p>
-          <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
-            {currentModule ? formatMoney(moduleCurrentPerceivedUSD, "USD") : "—"}
-          </p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {currentModule
-              ? formatMoney(moduleCurrentPerceivedCDF, "CDF")
-              : "Aucun module de facturation ne correspond à la date du jour"}
-          </p>
-          {currentModule ? (
-            <p className="mt-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">{currentModule.name}</p>
-          ) : null}
-        </div>
-
-        <div className={cardBase}>
-          <Link
-            href="/admin/wallet"
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 transition hover:bg-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300"
-            title="Budget"
-          >
-            <IconPlus className="h-5 w-5" />
-          </Link>
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
-            <IconWallet className="h-6 w-6" />
-          </div>
-          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde Budget</p>
-          {wallet ? (
-            <>
-              <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
-                {formatMoney(Number(wallet.balanceUSD), "USD")}
-              </p>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(Number(wallet.balanceCDF), "CDF")}</p>
-            </>
-          ) : (
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Budget non configuré</p>
-          )}
-        </div>
-
-        <div className={cardBase}>
-          <Link
-            href="/admin/wallet/expenses"
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 text-rose-700 transition hover:bg-rose-200 dark:bg-rose-950/50 dark:text-rose-300"
-            title="Dépenses"
-          >
-            <IconPlus className="h-5 w-5" />
-          </Link>
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
-            <IconWallet className="h-6 w-6" />
-          </div>
-          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total dépenses</p>
-          <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">{formatMoney(totalExpensesUSD, "USD")}</p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(totalExpensesCDF, "CDF")}</p>
-        </div>
-
-        <div className={cardBase}>
-          <Link
-            href="/admin/students"
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-700 transition hover:bg-violet-200 dark:bg-violet-950/50 dark:text-violet-300"
-            title="Élèves"
-          >
-            <IconPlus className="h-5 w-5" />
-          </Link>
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
-            <IconStudents className="h-6 w-6" />
-          </div>
-          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Élèves inscrits</p>
-          <p className="mt-1 text-3xl font-bold text-zinc-900 dark:text-white">{studentTotal}</p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Répartition par sexe sur l’année en cours</p>
-        </div>
-      </div>
+      <DashboardKpiGrid stats={stats} showStudents={true} cardBase={cardBase} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className={`${cardBase} lg:col-span-1`}>
-          <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Répartition des élèves</h3>
-          <div className="mt-4 space-y-3 text-sm">
-            <div className="flex items-center justify-between rounded-2xl bg-sky-50/80 px-4 py-3 dark:bg-sky-950/20">
-              <span className="text-zinc-600 dark:text-zinc-300">Garçons</span>
-              <span className="text-lg font-bold text-[#2D9CDB]">{totalMale}</span>
-            </div>
-            <div className="flex items-center justify-between rounded-2xl bg-pink-50/80 px-4 py-3 dark:bg-pink-950/20">
-              <span className="text-zinc-600 dark:text-zinc-300">Filles</span>
-              <span className="text-lg font-bold text-pink-600 dark:text-pink-400">{totalFemale}</span>
-            </div>
-            <div className="flex items-center justify-between rounded-2xl bg-zinc-50 px-4 py-3 dark:bg-zinc-800/50">
-              <span className="text-zinc-600 dark:text-zinc-300">Autre</span>
-              <span className="text-lg font-bold text-zinc-800 dark:text-zinc-200">{totalOther}</span>
-            </div>
-          </div>
-        </div>
+        
+        
 
-        <div className={`${cardBase} lg:col-span-1`}>
-          <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Dépenses par utilisateur</h3>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Année en cours (Budget).</p>
-          <div className="mt-4 space-y-3 text-sm">
-            {expenseByUser.length === 0 ? (
-              <div className="rounded-2xl bg-zinc-50 px-4 py-3 text-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-300">
-                Aucune dépense enregistrée.
-              </div>
-            ) : (
-              expenseByUser.map((row) => (
-                <div
-                  key={row.key}
-                  className="rounded-2xl border border-sky-100/70 bg-white/70 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/40"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium text-zinc-800 dark:text-zinc-100">{row.label}</span>
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{row.count} opération(s)</span>
-                  </div>
-                  <div className="mt-1 text-zinc-700 dark:text-zinc-300">
-                    {formatMoney(row.usd, "USD")} • {formatMoney(row.cdf, "CDF")}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className={`${cardBase} lg:col-span-1`}>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Activités fréquentes</h3>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Raccourcis vers les actions du quotidien.</p>
-            </div>
-          </div>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col rounded-2xl border border-sky-100/80 bg-sky-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#2D9CDB]/15 text-[#2D9CDB]">
-                <IconFinance className="h-7 w-7" />
-              </div>
-              <p className="mt-3 text-center font-semibold text-zinc-900 dark:text-white">Mettre à jour les frais</p>
-              <Link href="/admin/finance/fees" className={`${btnPrimary} mt-4`}>
-                <IconPlus className="h-4 w-4" /> Ouvrir les frais
-              </Link>
-            </div>
-            <div className="flex flex-col rounded-2xl border border-emerald-100/80 bg-emerald-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
-                <IconPayments className="h-7 w-7" />
-              </div>
-              <p className="mt-3 text-center font-semibold text-zinc-900 dark:text-white">Enregistrer un paiement</p>
-              <Link href="/admin/finance/payments" className={`${btnPrimary} mt-4`}>
-                <IconPlus className="h-4 w-4" /> Nouveau paiement
-              </Link>
-            </div>
-            <div className="flex flex-col rounded-2xl border border-violet-100/80 bg-violet-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-500/15 text-violet-700 dark:text-violet-300">
-                <IconStudents className="h-7 w-7" />
-              </div>
-              <p className="mt-3 text-center font-semibold text-zinc-900 dark:text-white">Gérer les élèves</p>
-              <Link href="/admin/students" className={`${btnPrimary} mt-4`}>
-                <IconPlus className="h-4 w-4" /> Liste des élèves
-              </Link>
-            </div>
-            <div className="flex flex-col rounded-2xl border border-amber-100/80 bg-amber-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300">
-                <IconReports className="h-7 w-7" />
-              </div>
-              <p className="mt-3 text-center font-semibold text-zinc-900 dark:text-white">Analyser les données</p>
-              <Link href="/admin/reports" className={`${btnPrimary} mt-4`}>
-                <IconPlus className="h-4 w-4" /> Voir les rapports
-              </Link>
-            </div>
-          </div>
-        </div>
+        
+        
       </div>
 
       <div className="mt-6 rounded-3xl border border-dashed border-sky-200/80 bg-white/60 p-5 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-300">
-        <span className="font-semibold text-[#2D9CDB]">Astuce :</span> « Module en cours » repose sur les dates jour/mois des
-        modules de facturation (année calendaire alignée sur le début d’année scolaire), comme dans les rapports financiers.
+        <span className="font-semibold text-[#2D9CDB]">Astuce :</span> le compte principal est « Encaissement École » pour
+        l’année en cours (sinon le premier compte créé). Les retraits et soldes du compte sont distincts de la caution.
       </div>
     </PageShell>
   );

@@ -18,6 +18,10 @@ import {
   adminTableWrap,
   adminTh,
   adminTr,
+  adminThead,
+  adminTd,
+  adminTdStrong,
+  adminTableEmpty,
 } from "../components/admin-ui";
 
 type Section = { id: number; codeSection: string; nameSection: string; school?: { name: string } | null };
@@ -180,7 +184,7 @@ export default function OptionCrud({
         <h2 className={adminSectionTitle}>Options existantes</h2>
         <div className={adminTableWrap}>
           <table className={adminTable}>
-            <thead>
+            <thead className={adminThead}>
               <tr>
                 <th className={adminTh}>Code</th>
                 <th className={adminTh}>Nom</th>
@@ -191,7 +195,7 @@ export default function OptionCrud({
             <tbody>
               {options.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-6 text-zinc-600 dark:text-zinc-300">
+                  <td colSpan={4} className={adminTableEmpty}>
                     Aucune option.
                   </td>
                 </tr>
@@ -201,10 +205,10 @@ export default function OptionCrud({
                   const label = sectionLabel ? `${sectionLabel.codeSection} - ${sectionLabel.nameSection}` : "-";
                   return (
                     <tr key={o.id} className={adminTr}>
-                      <td className="py-3 pr-3 font-medium">{o.codeOption}</td>
-                      <td className="py-3 pr-3">{o.nameOption}</td>
-                      <td className="py-3 pr-3">{label}</td>
-                      <td className="py-3 pr-3">
+                      <td className={adminTdStrong}>{o.codeOption}</td>
+                      <td className={adminTd}>{o.nameOption}</td>
+                      <td className={adminTd}>{label}</td>
+                      <td className={adminTd}>
                         <div className="flex gap-2">
                           <button
                             type="button"

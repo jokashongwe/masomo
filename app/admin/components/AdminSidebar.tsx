@@ -144,7 +144,8 @@ export default function AdminSidebar({
         ? [
             { href: "/admin/finance", label: "Finances", icon: <IconFinance /> },
             { href: "/admin/finance/payments", label: "Paiements", icon: <IconPayments /> },
-            { href: "/admin/wallet", label: "Budget", icon: <IconWallet /> },
+            { href: "/admin/finance/accounts", label: "Comptes", icon: <IconWallet /> },
+            { href: "/admin/wallet", label: "caution", icon: <IconWallet /> },
           ]
         : [],
     [showFinance],

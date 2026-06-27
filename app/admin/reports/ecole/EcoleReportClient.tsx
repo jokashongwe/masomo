@@ -6,6 +6,7 @@ import {
   adminBackLink,
   adminCard,
   adminErrorBox,
+  adminGhostButton,
   adminHeaderRow,
   adminInput,
   adminKicker,
@@ -17,6 +18,10 @@ import {
   adminTh,
   adminTitle,
   adminTr,
+  adminThead,
+  adminTd,
+  adminTdMuted,
+  adminTableWrap,
 } from "../../components/admin-ui";
 
 type SectionRow = { id: number; codeSection: string; nameSection: string };
@@ -53,6 +58,10 @@ type ReportResponse = {
   scopeLabel: string;
   currency: "USD" | "CDF";
   rows: ReportRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
 };
 
 function formatCurrency(n: number, currency: "USD" | "CDF") {
@@ -91,6 +100,8 @@ export default function EcoleReportClient() {
   const [report, setReport] = useState<ReportResponse | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   const optionChoices = useMemo(() => {
     if (!sectionId) return options;
@@ -170,6 +181,10 @@ export default function EcoleReportClient() {
     }
   }, [moduleId, trancheId, trancheOptions]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [currency, sectionId, optionId, classId, moduleId, trancheId, pageSize]);
+
   const fetchReport = useCallback(async () => {
     if (!moduleId) {
       setReportError("Choisissez un module de facturation.");
@@ -186,6 +201,8 @@ export default function EcoleReportClient() {
       if (sectionId) params.set("sectionId", sectionId);
       if (optionId) params.set("optionId", optionId);
       if (classId) params.set("classId", classId);
+      params.set("page", String(page));
+      params.set("pageSize", String(pageSize));
 
       const res = await fetch(`/api/admin/reports/school-module-status?${params.toString()}`);
       const data = await res.json().catch(() => null);
@@ -197,34 +214,63 @@ export default function EcoleReportClient() {
     } finally {
       setLoadingReport(false);
     }
-  }, [currency, moduleId, trancheId, sectionId, optionId, classId]);
+  }, [currency, moduleId, trancheId, sectionId, optionId, classId, page, pageSize]);
 
-  function exportCsv() {
-    if (!report || report.rows.length === 0) return;
-    const sep = ";";
-    const head = [
-      "Nom de l'élève",
-      "Classe",
-      `Payé (${report.currency})`,
-      `Dû (${report.currency})`,
-      `Solde restant (${report.currency})`,
-      "Statut",
-    ];
-    const lines = [
-      head.join(sep),
-      ...report.rows.map((r) =>
-        [
-          `"${r.displayName.replace(/"/g, '""')}"`,
-          `"${r.classLabel.replace(/"/g, '""')}"`,
-          String(r.paid).replace(".", ","),
-          String(r.due).replace(".", ","),
-          String(r.balance).replace(".", ","),
-          r.statusLabel,
-        ].join(sep),
-      ),
-    ];
-    const name = `paiements-ecole-${report.moduleName ?? "module"}-${new Date().toISOString().slice(0, 10)}.csv`;
-    downloadCsv(name, lines.join("\r\n"));
+  useEffect(() => {
+    if (loadingMeta || !moduleId) return;
+    fetchReport();
+  }, [loadingMeta, moduleId, page, pageSize, currency, trancheId, sectionId, optionId, classId, fetchReport]);
+
+  async function exportCsv() {
+    if (!moduleId) return;
+    setReportError(null);
+    try {
+      const params = new URLSearchParams();
+      params.set("currency", currency);
+      params.set("moduleId", moduleId);
+      params.set("all", "1");
+      if (trancheId) params.set("trancheId", trancheId);
+      if (sectionId) params.set("sectionId", sectionId);
+      if (optionId) params.set("optionId", optionId);
+      if (classId) params.set("classId", classId);
+
+      const res = await fetch(`/api/admin/reports/school-module-status?${params.toString()}`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error ?? "Export impossible");
+      const rows = data?.rows as ReportRow[] | undefined;
+      const cur = data?.currency as "USD" | "CDF" | undefined;
+      if (!rows?.length) {
+        setReportError("Aucune ligne à exporter.");
+        return;
+      }
+      const sep = ";";
+      const head = [
+        "Nom de l'élève",
+        "Classe",
+        `Payé (${cur ?? currency})`,
+        `Dû (${cur ?? currency})`,
+        `Solde restant (${cur ?? currency})`,
+        "Statut",
+      ];
+      const lines = [
+        head.join(sep),
+        ...rows.map((r) =>
+          [
+            `"${r.displayName.replace(/"/g, '""')}"`,
+            `"${r.classLabel.replace(/"/g, '""')}"`,
+            String(r.paid).replace(".", ","),
+            String(r.due).replace(".", ","),
+            String(r.balance).replace(".", ","),
+            r.statusLabel,
+          ].join(sep),
+        ),
+      ];
+      const modName = (data?.moduleName as string | null) ?? "module";
+      const name = `paiements-ecole-${modName}-${new Date().toISOString().slice(0, 10)}.csv`;
+      downloadCsv(name, lines.join("\r\n"));
+    } catch (e) {
+      setReportError(e instanceof Error ? e.message : "Erreur d’export");
+    }
   }
 
   return (
@@ -361,14 +407,23 @@ export default function EcoleReportClient() {
           >
             Actualiser
           </button>
-          <button
-            type="button"
-            onClick={exportCsv}
-            disabled={!report || report.rows.length === 0}
-            className={adminSecondaryButton}
-          >
-            Exporter CSV
+          <button type="button" onClick={() => exportCsv()} disabled={!moduleId} className={adminSecondaryButton}>
+            Exporter CSV (tout)
           </button>
+          <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+            <label htmlFor="ecole-page-size">Lignes / page</label>
+            <select
+              id="ecole-page-size"
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className={`${adminInput} w-auto min-w-[4.5rem] py-2`}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
         </div>
         {metaError ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">{metaError}</p> : null}
       </div>
@@ -397,46 +452,67 @@ export default function EcoleReportClient() {
         <div className={`${adminCard} mt-6`}>Aucune année scolaire en cours.</div>
       ) : null}
 
-      {report?.rows && report.rows.length > 0 ? (
-        <div className={`${adminCard} mt-6 overflow-x-auto`}>
-          <table className={adminTable}>
-            <thead>
-              <tr>
-                <th className={adminTh}>Nom de l&apos;élève</th>
-                <th className={adminTh}>Classe</th>
-                <th className={adminTh}>Payé ({report.currency})</th>
-                <th className={adminTh}>Dû</th>
-                <th className={adminTh}>Solde restant</th>
-                <th className={adminTh}>Situation</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.rows.map((r) => (
-                <tr key={r.studentId} className={adminTr}>
-                  <td className="py-3 pr-3">{r.displayName}</td>
-                  <td className="py-3 pr-3 text-zinc-700 dark:text-zinc-300">{r.classLabel}</td>
-                  <td className="py-3 pr-3">{formatCurrency(r.paid, report.currency)}</td>
-                  <td className="py-3 pr-3">{formatCurrency(r.due, report.currency)}</td>
-                  <td className="py-3 pr-3">{formatCurrency(r.balance, report.currency)}</td>
-                  <td className="py-3 pr-3">
-                    <span
-                      className={
-                        r.status === "EN_ORDRE"
-                          ? "rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200"
-                          : "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
-                      }
-                    >
-                      {r.statusLabel}
-                    </span>
-                  </td>
+      {report && (report.total ?? 0) > 0 ? (
+        <>
+          <div className={`${adminCard} mt-6`}>
+            <div className={adminTableWrap}>
+            <table className={adminTable}>
+              <thead className={adminThead}>
+                <tr>
+                  <th className={adminTh}>Nom de l&apos;élève</th>
+                  <th className={adminTh}>Classe</th>
+                  <th className={adminTh}>Payé ({report.currency})</th>
+                  <th className={adminTh}>Dû</th>
+                  <th className={adminTh}>Solde restant</th>
+                  <th className={adminTh}>Situation</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {report.rows.map((r) => (
+                  <tr key={r.studentId} className={adminTr}>
+                    <td className={adminTd}>{r.displayName}</td>
+                    <td className={adminTdMuted}>{r.classLabel}</td>
+                    <td className={adminTd}>{formatCurrency(r.paid, report.currency)}</td>
+                    <td className={adminTd}>{formatCurrency(r.due, report.currency)}</td>
+                    <td className={adminTd}>{formatCurrency(r.balance, report.currency)}</td>
+                    <td className={adminTd}>
+                      <span
+                        className={
+                          r.status === "EN_ORDRE"
+                            ? "rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200"
+                            : "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+                        }
+                      >
+                        {r.statusLabel}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm text-zinc-600 dark:text-zinc-300">
+              Page {report.page} sur {report.pageCount} ({report.total} élève{report.total > 1 ? "s" : ""})
+            </div>
+            <div className="flex items-center gap-2">
+              {report.page > 1 ? (
+                <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} className={adminGhostButton}>
+                  Précédent
+                </button>
+              ) : null}
+              {report.page < report.pageCount ? (
+                <button type="button" onClick={() => setPage((p) => p + 1)} className={adminGhostButton}>
+                  Suivant
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </>
       ) : null}
 
-      {report && report.academicYearName && report.rows.length === 0 && !loadingReport ? (
+      {report && report.academicYearName && (report.total ?? 0) === 0 && !loadingReport ? (
         <div className={`${adminCard} mt-6`}>
           Aucun élève ne correspond aux filtres, ou aucun montant dû pour ce module dans cette devise.
         </div>

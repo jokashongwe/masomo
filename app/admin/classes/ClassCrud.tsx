@@ -20,6 +20,10 @@ import {
   adminTableWrap,
   adminTh,
   adminTr,
+  adminThead,
+  adminTd,
+  adminTdStrong,
+  adminTableEmpty,
 } from "../components/admin-ui";
 
 type Level = {
@@ -101,7 +105,7 @@ export default function ClassCrud({
     const section = opt.section;
     const schoolName = section?.school?.name ?? "";
     const sectionLabel = section ? `${section.codeSection} - ${section.nameSection}` : "";
-    return `${l.codeLevel} - ${l.name} | ${opt.codeOption} - ${opt.nameOption}${sectionLabel ? ` | ${sectionLabel}` : ""}${schoolName ? ` | ${schoolName}` : ""}`.replace(/\s+\|/g, " |").trim();
+    return `${l.codeLevel} ${l.codeLevel == "1" ? "ère": "ème"} ${section?.nameSection ?? ""} ${opt.nameOption}`.replace(/\s+\|/g, " |").trim();
   }
 
   function resetUpdateFromEditing(target: SchoolClass) {
@@ -263,7 +267,7 @@ export default function ClassCrud({
 
         <div className={adminTableWrap}>
           <table className={adminTable}>
-            <thead>
+            <thead className={adminThead}>
               <tr>
                 <th className={adminTh}>Code</th>
                 <th className={adminTh}>Niveau</th>
@@ -273,16 +277,16 @@ export default function ClassCrud({
             <tbody>
               {pagedClasses.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="py-6 text-zinc-600 dark:text-zinc-300">
+                  <td colSpan={3} className={adminTableEmpty}>
                     Aucune classe ne correspond aux critères.
                   </td>
                 </tr>
               ) : (
                 pagedClasses.map((c) => (
                   <tr key={c.id} className={adminTr}>
-                    <td className="py-3 pr-3 font-medium">{c.codeClass}</td>
-                    <td className="py-3 pr-3">{levelLabel(c.levelId)}</td>
-                    <td className="py-3 pr-3">
+                    <td className={adminTdStrong}>{c.codeClass}</td>
+                    <td className={adminTd}>{levelLabel(c.levelId)}</td>
+                    <td className={adminTd}>
                       <div className="flex gap-2">
                         <button
                           type="button"

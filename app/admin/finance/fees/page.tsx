@@ -6,7 +6,7 @@ import { adminPage } from "../../components/admin-ui";
 
 export default async function AdminFinanceFeesPage() {
   await requireRoles((role) => canReadFinance(role));
-  const [levels, modules, tranches, fees] = await Promise.all([
+  const [levels, modules, tranches, fees, accounts] = await Promise.all([
     prisma.level.findMany({
       orderBy: { id: "asc" },
       include: { option: { include: { section: { include: { school: true } } } } },
@@ -20,7 +20,12 @@ export default async function AdminFinanceFeesPage() {
         totalAmounts: true,
         moduleAmounts: true,
         trancheAmounts: true,
+        account: { select: { id: true, name: true, academicYearId: true } },
       },
+    }),
+    prisma.financeAccount.findMany({
+      orderBy: [{ academicYear: { startDate: "desc" } }, { name: "asc" }],
+      include: { academicYear: { select: { name: true } } },
     }),
   ]);
 
@@ -42,7 +47,12 @@ export default async function AdminFinanceFeesPage() {
 
   const levelOptions = levels.map((l) => ({
     id: l.id,
-    label: `${l.codeLevel} - ${l.name} | ${l.option.codeOption} | ${l.option.section.codeSection} | ${l.option.section.school.name}`,
+    label: `${l.codeLevel} ${l.option.nameOption}`,
+  }));
+
+  const accountOptions = accounts.map((a) => ({
+    id: a.id,
+    label: `${a.name} (${a.academicYear.name})`,
   }));
 
   return (
@@ -50,7 +60,7 @@ export default async function AdminFinanceFeesPage() {
       <AdminPageHeader
         kicker="Finances"
         title="Frais"
-        subtitle="Gérer les frais, les attacher aux niveaux, et configurer les montants en USD/CDF (TOTAL ou PAR MODULE)."
+        subtitle="Gérer les frais, les attacher aux niveaux et aux comptes d’encaissement, et configurer les montants en USD/CDF."
         backHref="/admin/finance"
       />
       <div className="mt-6">
@@ -59,6 +69,7 @@ export default async function AdminFinanceFeesPage() {
           levelOptions={levelOptions}
           modules={modules}
           tranches={tranches}
+          accountOptions={accountOptions}
         />
       </div>
     </div>

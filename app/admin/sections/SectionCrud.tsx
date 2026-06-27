@@ -18,6 +18,10 @@ import {
   adminTableWrap,
   adminTh,
   adminTr,
+  adminThead,
+  adminTd,
+  adminTdStrong,
+  adminTableEmpty,
 } from "../components/admin-ui";
 
 type School = { id: number; name: string };
@@ -187,7 +191,7 @@ export default function SectionCrud({
         <h2 className={adminSectionTitle}>Sections existantes</h2>
         <div className={adminTableWrap}>
           <table className={adminTable}>
-            <thead>
+            <thead className={adminThead}>
               <tr>
                 <th className={adminTh}>Code</th>
                 <th className={adminTh}>Nom</th>
@@ -198,7 +202,7 @@ export default function SectionCrud({
             <tbody>
               {sections.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-6 text-zinc-600 dark:text-zinc-300">
+                  <td colSpan={4} className={adminTableEmpty}>
                     Aucune section.
                   </td>
                 </tr>
@@ -207,10 +211,10 @@ export default function SectionCrud({
                   const schoolName = schools.find((x) => x.id === s.schoolId)?.name ?? s.school?.name ?? "-";
                   return (
                     <tr key={s.id} className={adminTr}>
-                      <td className="py-3 pr-3 font-medium">{s.codeSection}</td>
-                      <td className="py-3 pr-3">{s.nameSection}</td>
-                      <td className="py-3 pr-3">{schoolName}</td>
-                      <td className="py-3 pr-3">
+                      <td className={adminTdStrong}>{s.codeSection}</td>
+                      <td className={adminTd}>{s.nameSection}</td>
+                      <td className={adminTd}>{schoolName}</td>
+                      <td className={adminTd}>
                         <div className="flex gap-2">
                           <button
                             type="button"

@@ -31,7 +31,7 @@ export default async function AdminWalletPage() {
     <div className={adminPage}>
       <AdminPageHeader
         kicker="Trésorerie"
-        title="Budget"
+        title="caution"
         subtitle="Gérer les soldes USD/CDF et les dépenses."
         actions={
           <Link href="/admin/wallet/expenses" className={adminSecondaryButton}>
@@ -54,7 +54,7 @@ export default async function AdminWalletPage() {
         </div>
       ) : (
         <div className={`${adminCard} mt-6`}>
-          Budget introuvable. Lancez le seed ou créez-en un via l’administrateur système.
+          caution introuvable. Lancez le seed ou créez-en un via l’administrateur système.
         </div>
       )}
 

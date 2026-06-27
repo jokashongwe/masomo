@@ -18,6 +18,10 @@ import {
   adminTableWrap,
   adminTh,
   adminTr,
+  adminThead,
+  adminTd,
+  adminTdStrong,
+  adminTableEmpty,
 } from "../components/admin-ui";
 
 type UserRole = "SYSTEM_ADMIN" | "FINANCE_MANAGER" | "FINANCE_VIEWER" | "SCHOOL_MANAGER";
@@ -176,7 +180,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
         <h2 className={adminSectionTitle}>Utilisateurs existants</h2>
         <div className={adminTableWrap}>
           <table className={adminTable}>
-            <thead>
+            <thead className={adminThead}>
               <tr>
                 <th className={adminTh}>Email</th>
                 <th className={adminTh}>Nom</th>
@@ -187,17 +191,17 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
             <tbody>
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-6 text-zinc-600 dark:text-zinc-300">
+                  <td colSpan={4} className={adminTableEmpty}>
                     Aucun utilisateur.
                   </td>
                 </tr>
               ) : (
                 users.map((u) => (
                   <tr key={u.id} className={adminTr}>
-                    <td className="py-3 pr-3 font-medium">{u.email}</td>
-                    <td className="py-3 pr-3">{u.name}</td>
-                    <td className="py-3 pr-3">{u.role}</td>
-                    <td className="py-3 pr-3">
+                    <td className={adminTdStrong}>{u.email}</td>
+                    <td className={adminTd}>{u.name}</td>
+                    <td className={adminTd}>{u.role}</td>
+                    <td className={adminTd}>
                       <div className="flex gap-2">
                         <button
                           type="button"

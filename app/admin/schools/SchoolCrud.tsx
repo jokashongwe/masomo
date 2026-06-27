@@ -18,6 +18,10 @@ import {
   adminTableWrap,
   adminTh,
   adminTr,
+  adminThead,
+  adminTd,
+  adminTdStrong,
+  adminTableEmpty,
 } from "../components/admin-ui";
 
 type School = {
@@ -222,7 +226,7 @@ export default function SchoolCrud({ initialSchools }: { initialSchools: School[
         <h2 className={adminSectionTitle}>Écoles existantes</h2>
         <div className={adminTableWrap}>
           <table className={adminTable}>
-            <thead>
+            <thead className={adminThead}>
               <tr>
                 <th className={adminTh}>Nom</th>
                 <th className={adminTh}>Ville</th>
@@ -233,17 +237,17 @@ export default function SchoolCrud({ initialSchools }: { initialSchools: School[
             <tbody>
               {schools.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-6 text-zinc-600 dark:text-zinc-300">
+                  <td colSpan={4} className={adminTableEmpty}>
                     Aucune école.
                   </td>
                 </tr>
               ) : (
                 schools.map((s) => (
                   <tr key={s.id} className={adminTr}>
-                    <td className="py-3 pr-3 font-medium">{s.name}</td>
-                    <td className="py-3 pr-3">{s.city}</td>
-                    <td className="py-3 pr-3">{s.email ?? "-"}</td>
-                    <td className="py-3 pr-3">
+                    <td className={adminTdStrong}>{s.name}</td>
+                    <td className={adminTd}>{s.city}</td>
+                    <td className={adminTd}>{s.email ?? "-"}</td>
+                    <td className={adminTd}>
                       <div className="flex gap-2">
                         <button
                           type="button"

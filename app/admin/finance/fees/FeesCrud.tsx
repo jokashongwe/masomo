@@ -20,6 +20,12 @@ import {
   adminTableWrap,
   adminTh,
   adminTr,
+  adminThead,
+  adminTd,
+  adminTdStrong,
+  adminTdSm,
+  adminTableEmpty,
+  adminTableWrapNested,
 } from "../../components/admin-ui";
 
 type Currency = "USD" | "CDF";
@@ -31,6 +37,8 @@ type Fee = {
   name: string;
   description: string | null;
   chargeType: FeeChargeType;
+  accountId: number | null;
+  account: { id: number; name: string; academicYearId: number } | null;
   feeLevels: { levelId: number }[];
   // Prisma Decimal arrives as string-like (Decimal.js). Keep as string for UI.
   totalAmounts: { currency: Currency; amount: string }[];
@@ -51,6 +59,8 @@ type ModuleTranche = {
   module: BillingModule;
 };
 
+type AccountOption = { id: number; label: string };
+
 function fmtDM(day: number, month: number) {
   return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
 }
@@ -68,11 +78,13 @@ export default function FeesCrud({
   levelOptions,
   modules,
   tranches,
+  accountOptions,
 }: {
   initialFees: Fee[];
   levelOptions: LevelOption[];
   modules: BillingModule[];
   tranches: ModuleTranche[];
+  accountOptions: AccountOption[];
 }) {
   const router = useRouter();
   const [fees] = useState(initialFees);
@@ -83,6 +95,7 @@ export default function FeesCrud({
     description: "",
     chargeType: "TOTAL" as FeeChargeType,
     levelIds: [] as number[],
+    accountId: "" as string,
   });
 
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -94,6 +107,7 @@ export default function FeesCrud({
     description: "",
     chargeType: "TOTAL" as FeeChargeType,
     levelIds: [] as number[],
+    accountId: "" as string,
   });
 
   const [totalUSD, setTotalUSD] = useState("");
@@ -112,6 +126,7 @@ export default function FeesCrud({
       description: fee.description ?? "",
       chargeType: fee.chargeType,
       levelIds: fee.feeLevels.map((fl) => fl.levelId),
+      accountId: fee.accountId != null ? String(fee.accountId) : "",
     });
 
     const usd = fee.totalAmounts.find((a) => a.currency === "USD")?.amount;
@@ -156,6 +171,7 @@ export default function FeesCrud({
           description: create.description,
           chargeType: create.chargeType,
           levelIds: create.levelIds,
+          accountId: create.accountId ? Number(create.accountId) : null,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -163,7 +179,7 @@ export default function FeesCrud({
         setError(data?.error?.message ?? data?.error ?? "Échec de création");
         return;
       }
-      setCreate({ code: "", name: "", description: "", chargeType: "TOTAL", levelIds: [] });
+      setCreate({ code: "", name: "", description: "", chargeType: "TOTAL", levelIds: [], accountId: "" });
       router.refresh();
     } finally {
       setSubmitting(false);
@@ -185,6 +201,7 @@ export default function FeesCrud({
           description: update.description,
           chargeType: update.chargeType,
           levelIds: update.levelIds,
+          accountId: update.accountId ? Number(update.accountId) : null,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -304,6 +321,19 @@ export default function FeesCrud({
             <option value="BY_MODULE">Par module</option>
           </select>
 
+          <select
+            className={adminInput}
+            value={create.accountId}
+            onChange={(e) => setCreate((c) => ({ ...c, accountId: e.target.value }))}
+          >
+            <option value="">Aucun compte (pas de crédit auto)</option>
+            {accountOptions.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.label}
+              </option>
+            ))}
+          </select>
+
           <div className={adminSoftCard}>
             <div className="text-sm font-medium text-zinc-800 dark:text-zinc-100">Attacher aux niveaux</div>
             <div className="mt-2 max-h-48 overflow-auto space-y-2">
@@ -338,11 +368,12 @@ export default function FeesCrud({
         <h2 className={adminSectionTitle}>Frais existants</h2>
         <div className={adminTableWrap}>
           <table className={adminTable}>
-            <thead>
+            <thead className={adminThead}>
               <tr>
                 <th className={adminTh}>Code</th>
                 <th className={adminTh}>Nom</th>
                 <th className={adminTh}>Type</th>
+                <th className={adminTh}>Compte</th>
                 <th className={adminTh}>Niveaux</th>
                 <th className={adminTh}>Actions</th>
               </tr>
@@ -350,18 +381,19 @@ export default function FeesCrud({
             <tbody>
               {fees.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-6 text-zinc-600 dark:text-zinc-300">
+                  <td colSpan={6} className={adminTableEmpty}>
                     Aucun frais.
                   </td>
                 </tr>
               ) : (
                 fees.map((f) => (
                   <tr key={f.id} className={adminTr}>
-                    <td className="py-3 pr-3 font-medium">{f.code}</td>
-                    <td className="py-3 pr-3">{f.name}</td>
-                    <td className="py-3 pr-3">{f.chargeType}</td>
-                    <td className="py-3 pr-3">{f.feeLevels.length}</td>
-                    <td className="py-3 pr-3">
+                    <td className={adminTdStrong}>{f.code}</td>
+                    <td className={adminTd}>{f.name}</td>
+                    <td className={adminTd}>{f.chargeType}</td>
+                    <td className={adminTdSm}>{f.account?.name ?? "—"}</td>
+                    <td className={adminTd}>{f.feeLevels.length}</td>
+                    <td className={adminTd}>
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -421,6 +453,19 @@ export default function FeesCrud({
               >
                 <option value="TOTAL">Frais en totalité</option>
                 <option value="BY_MODULE">Par module</option>
+              </select>
+
+              <select
+                className={adminInput}
+                value={update.accountId}
+                onChange={(e) => setUpdate((u) => ({ ...u, accountId: e.target.value }))}
+              >
+                <option value="">Aucun compte (pas de crédit auto)</option>
+                {accountOptions.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
+                  </option>
+                ))}
               </select>
 
               <div className={adminSoftCard}>
@@ -507,9 +552,9 @@ export default function FeesCrud({
                 <div className="mt-4 space-y-6">
                   <div>
                     <div className="font-medium text-black dark:text-white">Par module</div>
-                    <div className="mt-2 overflow-x-auto">
-                      <table className="min-w-full text-sm">
-                        <thead>
+                    <div className={adminTableWrapNested}>
+                      <table className={adminTable}>
+                        <thead className={adminThead}>
                           <tr>
                             <th className={adminTh}>Module</th>
                             <th className={adminTh}>USD</th>
@@ -519,10 +564,10 @@ export default function FeesCrud({
                         <tbody>
                           {modules.map((m) => (
                             <tr key={m.id} className={adminTr}>
-                              <td className="py-3 pr-3">
+                              <td className={adminTd}>
                                 {m.name} ({fmtDM(m.startDay, m.startMonth)} → {fmtDM(m.endDay, m.endMonth)})
                               </td>
-                              <td className="py-3 pr-3">
+                              <td className={adminTd}>
                                 <input
                                   type="number"
                                   min={0}
@@ -534,7 +579,7 @@ export default function FeesCrud({
                                   }
                                 />
                               </td>
-                              <td className="py-3 pr-3">
+                              <td className={adminTd}>
                                 <input
                                   type="number"
                                   min={0}
@@ -555,9 +600,9 @@ export default function FeesCrud({
 
                   <div>
                     <div className="font-medium text-black dark:text-white">Par tranche</div>
-                    <div className="mt-2 overflow-x-auto">
-                      <table className="min-w-full text-sm">
-                        <thead>
+                    <div className={adminTableWrapNested}>
+                      <table className={adminTable}>
+                        <thead className={adminThead}>
                           <tr>
                             <th className={adminTh}>Tranche</th>
                             <th className={adminTh}>Module</th>
@@ -568,17 +613,17 @@ export default function FeesCrud({
                         <tbody>
                           {tranches.map((t) => (
                             <tr key={t.id} className={adminTr}>
-                              <td className="py-3 pr-3 font-medium">
+                              <td className={adminTdStrong}>
                                 {t.codeTranche}{" "}
                                 <span className="block text-xs font-normal text-zinc-500 dark:text-zinc-400">
                                   {fmtDM(t.startDay, t.startMonth)} → {fmtDM(t.endDay, t.endMonth)}
                                 </span>
                               </td>
-                              <td className="py-3 pr-3">
+                              <td className={adminTd}>
                                 {t.module.name} ({fmtDM(t.module.startDay, t.module.startMonth)} →{" "}
                                 {fmtDM(t.module.endDay, t.module.endMonth)})
                               </td>
-                              <td className="py-3 pr-3">
+                              <td className={adminTd}>
                                 <input
                                   type="number"
                                   min={0}
@@ -590,7 +635,7 @@ export default function FeesCrud({
                                   }
                                 />
                               </td>
-                              <td className="py-3 pr-3">
+                              <td className={adminTd}>
                                 <input
                                   type="number"
                                   min={0}

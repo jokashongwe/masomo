@@ -14,6 +14,12 @@ import {
   adminTable,
   adminTh,
   adminTr,
+  adminThead,
+  adminTd,
+  adminTdStrong,
+  adminTdActions,
+  adminTableEmpty,
+  adminTableWrap,
 } from "../../components/admin-ui";
 
 type Currency = "USD" | "CDF";
@@ -376,9 +382,10 @@ export default function ExpensesCrud({
         </form>
       ) : null}
 
-      <div className={`${adminCard} overflow-x-auto`}>
+      <div className={adminCard}>
+        <div className={adminTableWrap}>
         <table className={adminTable}>
-          <thead>
+          <thead className={adminThead}>
             <tr>
               <th className={adminTh}>Année</th>
               <th className={adminTh}>Date</th>
@@ -391,19 +398,19 @@ export default function ExpensesCrud({
           <tbody>
             {expenses.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-8 text-zinc-600 dark:text-zinc-300">
+                <td colSpan={6} className={adminTableEmpty}>
                   Aucune dépense trouvée.
                 </td>
               </tr>
             ) : (
               expenses.map((e) => (
                 <tr key={e.id} className={adminTr}>
-                  <td className="py-3 pr-3 whitespace-nowrap">{e.academicYearName}</td>
-                  <td className="py-3 pr-3">{e.occurredAt.slice(0, 10)}</td>
-                  <td className="py-3 pr-3">{e.description ?? "-"}</td>
-                  <td className="py-3 pr-3">{e.currency}</td>
-                  <td className="py-3 pr-3 font-medium">{e.amount}</td>
-                  <td className="py-3 pr-3">
+                  <td className={adminTdActions}>{e.academicYearName}</td>
+                  <td className={adminTd}>{e.occurredAt.slice(0, 10)}</td>
+                  <td className={adminTd}>{e.description ?? "-"}</td>
+                  <td className={adminTd}>{e.currency}</td>
+                  <td className={adminTdStrong}>{e.amount}</td>
+                  <td className={adminTd}>
                     <div className="flex gap-2">
                       <button
                         type="button"
@@ -431,6 +438,7 @@ export default function ExpensesCrud({
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div className="flex items-center justify-between gap-3 flex-wrap">

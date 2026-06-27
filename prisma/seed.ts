@@ -229,6 +229,39 @@ async function main() {
   });
   const trancheIdByModuleAndCode = new Map(trancheRows.map((t) => [`${t.moduleId}:${t.codeTranche}`, t.id]));
 
+  let accountEcoleId: number | null = null;
+  let accountEtatId: number | null = null;
+  if (currentAcademicYear) {
+    const accountEcole = await prisma.financeAccount.upsert({
+      where: {
+        academicYearId_name: { academicYearId: currentAcademicYear.id, name: "Encaissement École" },
+      },
+      update: {
+        description: "Frais scolaires, pull-overs, etc.",
+      },
+      create: {
+        name: "Encaissement École",
+        description: "Frais scolaires, pull-overs, etc.",
+        academicYearId: currentAcademicYear.id,
+      },
+    });
+    const accountEtat = await prisma.financeAccount.upsert({
+      where: {
+        academicYearId_name: { academicYearId: currentAcademicYear.id, name: "Encaissement État" },
+      },
+      update: {
+        description: "Frais de bulletins, frais connexes, etc.",
+      },
+      create: {
+        name: "Encaissement État",
+        description: "Frais de bulletins, frais connexes, etc.",
+        academicYearId: currentAcademicYear.id,
+      },
+    });
+    accountEcoleId = accountEcole.id;
+    accountEtatId = accountEtat.id;
+  }
+
   // Fees
   await prisma.fee.upsert({
     where: { code: feeRegistrationCode },
@@ -276,6 +309,15 @@ async function main() {
 
   // Amounts (USD/CDF)
   const registrationFeeId = feeIdByCode.get(feeRegistrationCode)!;
+  const tuitionFeeId = feeIdByCode.get(feeTuitionCode)!;
+
+  if (accountEcoleId) {
+    await prisma.fee.update({ where: { id: tuitionFeeId }, data: { accountId: accountEcoleId } });
+  }
+  if (accountEtatId) {
+    await prisma.fee.update({ where: { id: registrationFeeId }, data: { accountId: accountEtatId } });
+  }
+
   await prisma.feeTotalAmount.createMany({
     data: [
       { feeId: registrationFeeId, currency: currencyUSD, amount: 20 },
@@ -284,7 +326,6 @@ async function main() {
     skipDuplicates: true,
   });
 
-  const tuitionFeeId = feeIdByCode.get(feeTuitionCode)!;
   // By-module: define amounts per module
   await prisma.feeModuleAmount.createMany({
     data: moduleRows.map((m) => [

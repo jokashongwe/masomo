@@ -45,14 +45,41 @@ export const adminDangerButton =
   "inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-100 disabled:opacity-50 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300";
 
 export const adminTableWrap =
-  "mt-3 overflow-x-auto rounded-2xl border border-sky-100/80 dark:border-zinc-800";
+  "overflow-x-auto rounded-2xl border border-sky-100/90 bg-white shadow-sm ring-1 ring-sky-100/50 dark:border-zinc-800 dark:bg-zinc-900/60 dark:ring-zinc-800/80";
 
-export const adminTable = "min-w-full text-sm";
+/** Conteneur scrollable pour grands tableaux (ex. résultats d’import). */
+export const adminTableScroll = `${adminTableWrap} max-h-[28rem] overflow-y-auto`;
+
+/** Tableau imbriqué (sous-formulaire, montants par module). */
+export const adminTableWrapNested =
+  "overflow-x-auto rounded-xl border border-sky-100/80 bg-sky-50/30 dark:border-zinc-700 dark:bg-zinc-900/40";
+
+export const adminTable = "w-full min-w-full border-collapse text-sm";
+
+export const adminThead =
+  "border-b border-sky-200/80 bg-gradient-to-r from-sky-50/95 via-white to-sky-50/80 dark:border-zinc-700 dark:from-zinc-800/95 dark:via-zinc-900/80 dark:to-zinc-800/95";
 
 export const adminTh =
-  "py-3 pr-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400";
+  "whitespace-nowrap px-4 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-500 first:pl-5 last:pr-5 dark:text-zinc-400";
 
-export const adminTr = "border-t border-sky-100/80 dark:border-zinc-800";
+export const adminTr =
+  "border-b border-sky-100/60 transition-colors last:border-b-0 hover:bg-sky-50/50 dark:border-zinc-800/70 dark:hover:bg-zinc-800/35";
+
+export const adminTd =
+  "px-4 py-3.5 align-middle text-zinc-800 first:pl-5 last:pr-5 dark:text-zinc-100";
+
+export const adminTdStrong = `${adminTd} font-semibold text-zinc-900 dark:text-white`;
+
+export const adminTdMuted = `${adminTd} text-zinc-600 dark:text-zinc-400`;
+
+export const adminTdSm = `${adminTd} text-sm`;
+
+export const adminTdMono = `${adminTd} font-mono text-xs text-zinc-700 dark:text-zinc-300`;
+
+export const adminTdActions = `${adminTd} whitespace-nowrap`;
+
+export const adminTableEmpty =
+  "px-5 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400";
 
 export const adminSectionTitle = "text-lg font-bold text-zinc-900 dark:text-white";
 
@@ -83,7 +110,7 @@ export const adminSegmentActive =
 export const adminSegmentInactive =
   "rounded-full border border-sky-200 cursor-pointer bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:border-[#2D9CDB]/50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200";
 
-/** Totaux rapports / Budget */
+/** Totaux rapports / caution */
 export const adminStatFees =
   "rounded-3xl bg-gradient-to-br from-[#2D9CDB]  to-sky-600 p-5 text-white shadow-lg shadow-sky-300/25";
 

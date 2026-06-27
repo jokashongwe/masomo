@@ -21,6 +21,12 @@ import {
   adminTh,
   adminTitle,
   adminTr,
+  adminThead,
+  adminTd,
+  adminTdMono,
+  adminTdActions,
+  adminTableEmpty,
+  adminTableWrap,
 } from "../components/admin-ui";
 
 type DailyRow = {
@@ -223,8 +229,8 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
           <h1 className={`mt-1 ${adminTitle}`}>Rapports</h1>
           <p className={adminSubtitle}>
             {reportView === "global"
-              ? "Encaissements réels (paiements de frais saisis, selon la date de paiement) et dépenses réelles (sorties du Budget, selon la date de la dépense). Seules les dates avec au moins une opération sont listées."
-              : "Détail par type de frais (code / libellé) et ligne « Dépenses Budget » pour les sorties du Budget. Une ligne par date ou par mois et par frais."}
+              ? "Encaissements réels (paiements de frais saisis, selon la date de paiement) et dépenses réelles (sorties du caution, selon la date de la dépense). Seules les dates avec au moins une opération sont listées."
+              : "Détail par type de frais (code / libellé) et ligne « Dépenses caution » pour les sorties du caution. Une ligne par date ou par mois et par frais."}
           </p>
         </div>
 
@@ -361,9 +367,10 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
             </div>
           </div>
 
-          <div className={`${adminCard} mt-6 overflow-x-auto`}>
+          <div className={`${adminCard} mt-6`}>
+            <div className={adminTableWrap}>
             <table className={adminTable}>
-              <thead>
+              <thead className={adminThead}>
                 <tr>
                   <th className={adminTh}>Date</th>
                   <th className={adminTh}>Frais USD</th>
@@ -375,23 +382,24 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
               <tbody>
                 {daily.items.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-zinc-600 dark:text-zinc-300">
+                    <td colSpan={5} className={adminTableEmpty}>
                       Aucune donnée sur cette période.
                     </td>
                   </tr>
                 ) : (
                   daily.items.map((r) => (
                     <tr key={r.day} className={adminTr}>
-                      <td className="py-3 pr-3">{r.day}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.feesUSD, "USD")}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.feesCDF, "CDF")}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.expensesUSD, "USD")}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.expensesCDF, "CDF")}</td>
+                      <td className={adminTd}>{r.day}</td>
+                      <td className={adminTd}>{formatCurrency(r.feesUSD, "USD")}</td>
+                      <td className={adminTd}>{formatCurrency(r.feesCDF, "CDF")}</td>
+                      <td className={adminTd}>{formatCurrency(r.expensesUSD, "USD")}</td>
+                      <td className={adminTd}>{formatCurrency(r.expensesCDF, "CDF")}</td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
+            </div>
           </div>
 
           <div className="mt-6 flex items-center justify-between gap-3 flex-wrap">
@@ -443,9 +451,10 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
             </div>
           </div>
 
-          <div className={`${adminCard} mt-6 overflow-x-auto`}>
+          <div className={`${adminCard} mt-6`}>
+            <div className={adminTableWrap}>
             <table className={adminTable}>
-              <thead>
+              <thead className={adminThead}>
                 <tr>
                   <th className={adminTh}>Mois</th>
                   <th className={adminTh}>Frais USD</th>
@@ -457,23 +466,24 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
               <tbody>
                 {monthly.items.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-zinc-600 dark:text-zinc-300">
+                    <td colSpan={5} className={adminTableEmpty}>
                       Aucune donnée sur cette période.
                     </td>
                   </tr>
                 ) : (
                   monthly.items.map((r) => (
                     <tr key={r.month} className={adminTr}>
-                      <td className="py-3 pr-3">{formatMonthFR(r.month)}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.feesUSD, "USD")}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.feesCDF, "CDF")}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.expensesUSD, "USD")}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.expensesCDF, "CDF")}</td>
+                      <td className={adminTd}>{formatMonthFR(r.month)}</td>
+                      <td className={adminTd}>{formatCurrency(r.feesUSD, "USD")}</td>
+                      <td className={adminTd}>{formatCurrency(r.feesCDF, "CDF")}</td>
+                      <td className={adminTd}>{formatCurrency(r.expensesUSD, "USD")}</td>
+                      <td className={adminTd}>{formatCurrency(r.expensesCDF, "CDF")}</td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </>
       ) : null}
@@ -499,9 +509,10 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
             </div>
           </div>
 
-          <div className={`${adminCard} mt-6 overflow-x-auto`}>
+          <div className={`${adminCard} mt-6`}>
+            <div className={adminTableWrap}>
             <table className={adminTable}>
-              <thead>
+              <thead className={adminThead}>
                 <tr>
                   <th className={adminTh}>Date</th>
                   <th className={adminTh}>Code</th>
@@ -515,25 +526,26 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
               <tbody>
                 {dailyByFee.items.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-zinc-600 dark:text-zinc-300">
+                    <td colSpan={7} className={adminTableEmpty}>
                       Aucune donnée sur cette période.
                     </td>
                   </tr>
                 ) : (
                   dailyByFee.items.map((r) => (
                     <tr key={`${r.day}-${r.feeId ?? "wallet"}`} className={adminTr}>
-                      <td className="py-3 pr-3 whitespace-nowrap">{r.day}</td>
-                      <td className="py-3 pr-3 font-mono text-sm">{r.feeCode}</td>
-                      <td className="py-3 pr-3">{r.feeName}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.feesUSD, "USD")}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.feesCDF, "CDF")}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.expensesUSD, "USD")}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.expensesCDF, "CDF")}</td>
+                      <td className={adminTdActions}>{r.day}</td>
+                      <td className={adminTdMono}>{r.feeCode}</td>
+                      <td className={adminTd}>{r.feeName}</td>
+                      <td className={adminTd}>{formatCurrency(r.feesUSD, "USD")}</td>
+                      <td className={adminTd}>{formatCurrency(r.feesCDF, "CDF")}</td>
+                      <td className={adminTd}>{formatCurrency(r.expensesUSD, "USD")}</td>
+                      <td className={adminTd}>{formatCurrency(r.expensesCDF, "CDF")}</td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
+            </div>
           </div>
 
           <div className="mt-6 flex items-center justify-between gap-3 flex-wrap">
@@ -585,9 +597,10 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
             </div>
           </div>
 
-          <div className={`${adminCard} mt-6 overflow-x-auto`}>
+          <div className={`${adminCard} mt-6`}>
+            <div className={adminTableWrap}>
             <table className={adminTable}>
-              <thead>
+              <thead className={adminThead}>
                 <tr>
                   <th className={adminTh}>Mois</th>
                   <th className={adminTh}>Code</th>
@@ -601,25 +614,26 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
               <tbody>
                 {monthlyByFee.items.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-zinc-600 dark:text-zinc-300">
+                    <td colSpan={7} className={adminTableEmpty}>
                       Aucune donnée sur cette période.
                     </td>
                   </tr>
                 ) : (
                   monthlyByFee.items.map((r) => (
                     <tr key={`${r.month}-${r.feeId ?? "wallet"}`} className={adminTr}>
-                      <td className="py-3 pr-3 whitespace-nowrap">{formatMonthFR(r.month)}</td>
-                      <td className="py-3 pr-3 font-mono text-sm">{r.feeCode}</td>
-                      <td className="py-3 pr-3">{r.feeName}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.feesUSD, "USD")}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.feesCDF, "CDF")}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.expensesUSD, "USD")}</td>
-                      <td className="py-3 pr-3">{formatCurrency(r.expensesCDF, "CDF")}</td>
+                      <td className={adminTdActions}>{formatMonthFR(r.month)}</td>
+                      <td className={adminTdMono}>{r.feeCode}</td>
+                      <td className={adminTd}>{r.feeName}</td>
+                      <td className={adminTd}>{formatCurrency(r.feesUSD, "USD")}</td>
+                      <td className={adminTd}>{formatCurrency(r.feesCDF, "CDF")}</td>
+                      <td className={adminTd}>{formatCurrency(r.expensesUSD, "USD")}</td>
+                      <td className={adminTd}>{formatCurrency(r.expensesCDF, "CDF")}</td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </>
       ) : null}

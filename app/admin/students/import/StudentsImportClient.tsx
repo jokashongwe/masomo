@@ -10,28 +10,14 @@ import {
   adminPage,
   adminPrimaryButton,
   adminSectionTitle,
+  adminTable,
+  adminTableScroll,
+  adminTh,
+  adminThead,
+  adminTr,
+  adminTd,
 } from "../../components/admin-ui";
 import AdminPageHeader from "../../components/AdminPageHeader";
-
-const TEMPLATE_COLUMNS = [
-  "classId",
-  "schoolName",
-  "schoolId",
-  "codeSection",
-  "codeOption",
-  "codeLevel",
-  "codeClass",
-  "firstName",
-  "name",
-  "postnom",
-  "sex",
-  "birthDate",
-  "tutorFirstName",
-  "tutorName",
-  "tutorPostnom",
-  "tutorAddress",
-  "tutorContact",
-];
 
 export default function StudentsImportClient() {
   const router = useRouter();
@@ -74,8 +60,8 @@ export default function StudentsImportClient() {
     <div className={adminPage}>
       <AdminPageHeader
         kicker="Scolarité"
-        title="Import élèves (Excel)"
-        subtitle="Une ligne par élève, inscrit dans l’année scolaire en cours. Un tuteur minimum par ligne (identifié par le contact)."
+        title="Import élèves (Excel / CSV)"
+        subtitle="Format Matricule, Nom, section/option/niveau par codes. Section, option et niveau créés automatiquement s’ils n’existent pas. N/A = donnée manquante (tuteur)."
         backHref="/admin/students"
         backLabel="Liste des élèves"
         actions={
@@ -87,38 +73,34 @@ export default function StudentsImportClient() {
 
       <div className={`${adminCard} mt-6 space-y-4`}>
         <div>
-          <div className={adminSectionTitle}>Fichier</div>
+          <div className={adminSectionTitle}>Modèle Excel</div>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-            Utilisez la <strong>première feuille</strong>. Colonnes attendues (en-têtes de la première ligne) :
+            Téléchargez le fichier modèle avec les colonnes requises, une ligne d’exemple et une feuille
+            d’instructions. Renseignez la feuille <strong>Eleves</strong> (première feuille) puis importez le fichier
+            ci-dessous.
           </p>
-          <ul className="mt-2 list-inside list-disc text-sm text-zinc-600 dark:text-zinc-300">
-            <li>
-              <strong>Classe :</strong> soit <code className="text-xs">classId</code> (numérique), soit les codes{" "}
-              <code className="text-xs">codeSection</code>, <code className="text-xs">codeOption</code>,{" "}
-              <code className="text-xs">codeLevel</code>, <code className="text-xs">codeClass</code> — optionnellement{" "}
-              <code className="text-xs">schoolName</code> ou <code className="text-xs">schoolId</code> s’il y a plusieurs
-              écoles.
-            </li>
-            <li>
-              <strong>Élève :</strong> <code className="text-xs">firstName</code>, <code className="text-xs">name</code>,{" "}
-              <code className="text-xs">postnom</code>, <code className="text-xs">sex</code> (MALE/FEMALE/OTHER ou M/F/H),{" "}
-              <code className="text-xs">birthDate</code> (AAAA-MM-JJ ou date Excel).
-            </li>
-            <li>
-              <strong>Tuteur :</strong> <code className="text-xs">tutorFirstName</code>, <code className="text-xs">tutorName</code>,{" "}
-              <code className="text-xs">tutorPostnom</code>, <code className="text-xs">tutorAddress</code>,{" "}
-              <code className="text-xs">tutorContact</code> (unique — réutilisé si déjà en base).
-            </li>
-          </ul>
-          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-            Noms alternatifs acceptés : prenom, nom, tuteur_prenom, tuteur_nom, etc.
+          <a
+            href="/api/admin/students/import/template"
+            download="modele-import-eleves.xlsx"
+            className={`${adminGhostButton} mt-4 inline-flex`}
+          >
+            Télécharger le modèle (.xlsx)
+          </a>
+        </div>
+
+        <div>
+          <div className={adminSectionTitle}>Importer un fichier</div>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+            Colonnes : <code>Matricule</code>, <code>Nom</code>, <code>Numero_Tuteur</code>, <code>Nom_Tuteur</code>,{" "}
+            <code>Niveau</code>, <code>Section</code>, <code>codeSection</code>, <code>Option</code>,{" "}
+            <code>codeOption</code>. Fichiers <strong>.xlsx</strong> ou <strong>.csv</strong> acceptés.
           </p>
         </div>
 
         <form onSubmit={onSubmit} className="space-y-3">
           <input
             type="file"
-            accept=".xlsx,.xls"
+            accept=".xlsx,.xls,.csv"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             className="block w-full text-sm text-zinc-700 dark:text-zinc-200"
           />
@@ -137,21 +119,21 @@ export default function StudentsImportClient() {
       {rows.length > 0 ? (
         <div className={`${adminCard} mt-6`}>
           <div className={adminSectionTitle}>Détail par ligne</div>
-          <div className="mt-3 max-h-96 overflow-auto text-sm">
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                  <th className="py-2 pr-2">Ligne</th>
-                  <th className="py-2 pr-2">Statut</th>
-                  <th className="py-2 pr-2">Message</th>
+          <div className={`${adminTableScroll} mt-3`}>
+            <table className={adminTable}>
+              <thead className={adminThead}>
+                <tr>
+                  <th className={adminTh}>Ligne</th>
+                  <th className={adminTh}>Statut</th>
+                  <th className={adminTh}>Message</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.index} className="border-b border-zinc-100 dark:border-zinc-800">
-                    <td className="py-2 pr-2">{r.index}</td>
-                    <td className="py-2 pr-2">{r.ok ? "OK" : "Erreur"}</td>
-                    <td className="py-2 pr-2">
+                  <tr key={r.index} className={adminTr}>
+                    <td className={adminTd}>{r.index}</td>
+                    <td className={adminTd}>{r.ok ? "OK" : "Erreur"}</td>
+                    <td className={adminTd}>
                       {r.message}
                       {r.studentId != null ? ` (élève #${r.studentId})` : ""}
                     </td>
@@ -163,10 +145,6 @@ export default function StudentsImportClient() {
         </div>
       ) : null}
 
-      <div className="mt-6 text-xs text-zinc-500 dark:text-zinc-400">
-        Référence API : colonnes renvoyées dans la réponse JSON sous <code>templateColumns</code> —{" "}
-        {TEMPLATE_COLUMNS.join(", ")}.
-      </div>
     </div>
   );
 }

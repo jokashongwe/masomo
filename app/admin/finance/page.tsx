@@ -8,7 +8,8 @@ export default async function AdminFinanceHomePage() {
   const links = [
     { href: "/admin/finance/modules", title: "Modules", desc: "Périodes et modules de facturation." },
     { href: "/admin/finance/tranches", title: "Tranches", desc: "Tranches rattachées aux modules." },
-    { href: "/admin/finance/fees", title: "Frais", desc: "Barèmes par niveau, USD et CDF." },
+    { href: "/admin/finance/fees", title: "Frais", desc: "Barèmes par niveau, comptes, USD et CDF." },
+    { href: "/admin/finance/accounts", title: "Comptes", desc: "Encaissements par année (école, état…)." },
     { href: "/admin/finance/payments", title: "Paiements", desc: "Saisie et suivi des paiements." },
   ];
 

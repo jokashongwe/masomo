@@ -104,6 +104,11 @@ export function isSystemAdmin(role: UserRole) {
   return role === "SYSTEM_ADMIN";
 }
 
+/** Modification des fiches élèves (identité, classe, statut, tuteurs). */
+export function canEditStudents(role: UserRole) {
+  return role === "SYSTEM_ADMIN";
+}
+
 export async function requireUser() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

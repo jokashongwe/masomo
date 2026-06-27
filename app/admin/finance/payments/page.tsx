@@ -15,7 +15,7 @@ export default async function AdminFinancePaymentsPage() {
         name: true,
         postnom: true,
         firstName: true,
-        schoolClass: { select: { codeClass: true } },
+        schoolClass: { select: { codeClass: true, level: { select: { codeLevel: true, option: { select: { nameOption: true } } } } } },
       },
       take: 2000,
     }),
@@ -56,7 +56,7 @@ export default async function AdminFinancePaymentsPage() {
           schoolName={school?.name ?? "Établissement"}
           students={students.map((s) => ({
             id: s.id,
-            label: `${s.firstName} ${s.name} ${s.postnom} - ${s.schoolClass.codeClass}`,
+            label: `${s.firstName} ${s.name} - ${s.schoolClass.level.codeLevel} ${s.schoolClass.level.codeLevel == "1" ? "ère": "ème"} ${s.schoolClass.level.option.nameOption} ${s.schoolClass.codeClass}`,
           }))}
           fees={fees}
           modules={modules}

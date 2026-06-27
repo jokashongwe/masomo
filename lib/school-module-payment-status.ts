@@ -28,6 +28,10 @@ export type SchoolModulePaymentReport = {
   scopeLabel: string;
   currency: Currency;
   rows: SchoolModulePaymentRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
 };
 
 function studentWhere(filters: {
@@ -47,6 +51,16 @@ function studentWhere(filters: {
   return w;
 }
 
+const DEFAULT_PAGE_SIZE = 25;
+const MAX_PAGE_SIZE = 100;
+
+function clampPageInfo(total: number, page: number, pageSize: number) {
+  const safeSize = Math.min(MAX_PAGE_SIZE, Math.max(1, pageSize));
+  const pageCount = Math.max(1, Math.ceil(total / safeSize) || 1);
+  const safePage = Math.min(Math.max(1, page), pageCount);
+  return { page: safePage, pageSize: safeSize, pageCount };
+}
+
 export async function getSchoolModulePaymentStatusReport(input: {
   currency: Currency;
   moduleId: number;
@@ -54,6 +68,11 @@ export async function getSchoolModulePaymentStatusReport(input: {
   sectionId?: number | null;
   optionId?: number | null;
   classId?: number | null;
+  /** 1-based. Ignoré si `all` est vrai. */
+  page?: number;
+  pageSize?: number;
+  /** Retourne toutes les lignes (export CSV). */
+  all?: boolean;
 }): Promise<SchoolModulePaymentReport> {
   const year = await prisma.academicYear.findFirst({
     where: { isCurrent: true },
@@ -67,6 +86,10 @@ export async function getSchoolModulePaymentStatusReport(input: {
       scopeLabel: "",
       currency: input.currency,
       rows: [],
+      total: 0,
+      page: 1,
+      pageSize: DEFAULT_PAGE_SIZE,
+      pageCount: 1,
     };
   }
 
@@ -82,6 +105,10 @@ export async function getSchoolModulePaymentStatusReport(input: {
       scopeLabel: "",
       currency: input.currency,
       rows: [],
+      total: 0,
+      page: 1,
+      pageSize: DEFAULT_PAGE_SIZE,
+      pageCount: 1,
     };
   }
 
@@ -160,7 +187,16 @@ export async function getSchoolModulePaymentStatusReport(input: {
       const lines = await linesForFee(fee.id);
       for (const line of lines) {
         if (input.trancheId != null && input.trancheId > 0) {
-          if (line.trancheId === input.trancheId) dueSum += line.due;
+          // Ligne tranche (montants FeeTrancheAmount)
+          if (line.trancheId === input.trancheId) {
+            dueSum += line.due;
+            continue;
+          }
+          // Montants uniquement par module (FeeModuleAmount) : pas de trancheId, mais le reste
+          // à payer pour ce module s'applique quel que soit l'onglet tranche affiché.
+          if (line.trancheId == null && line.moduleId === mod.id) {
+            dueSum += line.due;
+          }
         } else if (line.moduleId === mod.id) {
           dueSum += line.due;
         }
@@ -178,7 +214,11 @@ export async function getSchoolModulePaymentStatusReport(input: {
       payment: { academicYearId: year.id, studentId: { in: studentIds } },
     };
     if (input.trancheId != null && input.trancheId > 0) {
-      allocWhere.trancheId = input.trancheId;
+      // Paiements imputés à la tranche OU au module seul (sans tranche), même logique que les montants dus.
+      allocWhere.OR = [
+        { trancheId: input.trancheId },
+        { AND: [{ moduleId: mod.id }, { trancheId: null }] },
+      ];
     } else {
       allocWhere.OR = [{ moduleId: mod.id }, { tranche: { moduleId: mod.id } }];
     }
@@ -196,7 +236,7 @@ export async function getSchoolModulePaymentStatusReport(input: {
     }
   }
 
-  const rows: SchoolModulePaymentRow[] = students.map((s) => {
+  const allRows: SchoolModulePaymentRow[] = students.map((s) => {
     const due = dueByStudent.get(s.id) ?? 0;
     const paid = paidByStudent.get(s.id) ?? 0;
     const balance = round2(Math.max(0, due - paid));
@@ -215,6 +255,28 @@ export async function getSchoolModulePaymentStatusReport(input: {
     };
   });
 
+  const total = allRows.length;
+  if (input.all) {
+    return {
+      academicYearName: year.name,
+      moduleName: mod.name,
+      trancheCode,
+      scopeLabel,
+      currency: input.currency,
+      rows: allRows,
+      total,
+      page: 1,
+      pageSize: Math.max(total, 1),
+      pageCount: 1,
+    };
+  }
+
+  const requestedPage = input.page ?? 1;
+  const requestedSize = input.pageSize ?? DEFAULT_PAGE_SIZE;
+  const { page, pageSize, pageCount } = clampPageInfo(total, requestedPage, requestedSize);
+  const start = (page - 1) * pageSize;
+  const rows = allRows.slice(start, start + pageSize);
+
   return {
     academicYearName: year.name,
     moduleName: mod.name,
@@ -222,5 +284,9 @@ export async function getSchoolModulePaymentStatusReport(input: {
     scopeLabel,
     currency: input.currency,
     rows,
+    total,
+    page,
+    pageSize,
+    pageCount,
   };
 }

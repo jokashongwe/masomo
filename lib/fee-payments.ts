@@ -1,5 +1,6 @@
 import "server-only";
 
+import { creditFinanceAccountOnFeePayment } from "@/lib/finance-accounts";
 import { prisma } from "@/lib/prisma";
 import type { Currency, FeePaymentSource, Prisma } from "@/generated/prisma/client";
 
@@ -207,24 +208,25 @@ export async function createFeePayment(input: CreateFeePaymentInput) {
   if (input.amount <= 0) throw new Error("Le montant doit être > 0");
 
   return prisma.$transaction(async (tx) => {
-    const [student, fee, wallet] = await Promise.all([
+    const [student, fee] = await Promise.all([
       tx.student.findUnique({
         where: { id: input.studentId },
         select: { id: true, classId: true, academicYearId: true, schoolClass: { select: { levelId: true } } },
       }),
       tx.fee.findUnique({
         where: { id: input.feeId },
-        include: {
+        select: {
+          id: true,
+          chargeType: true,
+          accountId: true,
           feeLevels: true,
           totalAmounts: true,
         },
       }),
-      tx.wallet.findFirst({ orderBy: { id: "asc" }, select: { id: true } }),
     ]);
 
     if (!student) throw new Error("Élève introuvable");
     if (!fee) throw new Error("Frais introuvable");
-    if (!wallet) throw new Error("Wallet introuvable");
 
     const levelAllowed = fee.feeLevels.some((fl) => fl.levelId === student.schoolClass.levelId);
     if (!levelAllowed) throw new Error("Ce frais n'est pas attaché au niveau de l'élève");
@@ -345,25 +347,17 @@ export async function createFeePayment(input: CreateFeePaymentInput) {
       },
       select: { id: true, receiptNumber: true },
     });
-    /*
-    if (input.currency === "USD") {
-      await tx.wallet.update({ where: { id: wallet.id }, data: { balanceUSD: { increment: input.amount } } });
-    } else {
-      await tx.wallet.update({ where: { id: wallet.id }, data: { balanceCDF: { increment: input.amount } } });
-    }
 
-    await tx.walletTransaction.create({
-      data: {
-        walletId: wallet.id,
-        type: "FEE_PAYMENT",
+    if (fee.accountId) {
+      await creditFinanceAccountOnFeePayment(tx, {
+        accountId: fee.accountId,
+        academicYearId: student.academicYearId,
+        feePaymentId: created.id,
         currency: input.currency,
         amount: input.amount,
-        note: input.note ? `Paiement frais: ${input.note}` : "Paiement de frais",
-        feePaymentId: created.id,
-        academicYearId: student.academicYearId,
-      },
-    });
-    */
+        note: input.note,
+      });
+    }
 
     return created;
   });

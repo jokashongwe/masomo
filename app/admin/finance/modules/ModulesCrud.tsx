@@ -18,6 +18,10 @@ import {
   adminTableWrap,
   adminTh,
   adminTr,
+  adminThead,
+  adminTd,
+  adminTdStrong,
+  adminTableEmpty,
 } from "../../components/admin-ui";
 
 type ModuleTranche = {
@@ -212,7 +216,7 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
         <h2 className={adminSectionTitle}>Modules existants</h2>
         <div className={adminTableWrap}>
           <table className={adminTable}>
-            <thead>
+            <thead className={adminThead}>
               <tr>
                 <th className={adminTh}>Nom</th>
                 <th className={adminTh}>Période</th>
@@ -223,25 +227,25 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
             <tbody>
               {modules.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-6 text-zinc-600 dark:text-zinc-300">
+                  <td colSpan={4} className={adminTableEmpty}>
                     Aucun module.
                   </td>
                 </tr>
               ) : (
                 modules.map((m) => (
                   <tr key={m.id} className={adminTr}>
-                    <td className="py-3 pr-3 font-medium">{m.name}</td>
-                    <td className="py-3 pr-3">
+                    <td className={adminTdStrong}>{m.name}</td>
+                    <td className={adminTd}>
                       {fmtDM(m.startDay, m.startMonth)} → {fmtDM(m.endDay, m.endMonth)}
                     </td>
-                    <td className="py-3 pr-3">
+                    <td className={adminTd}>
                       {m.tranches.length > 0
                         ? m.tranches
                             .map((t) => `${t.codeTranche} (${fmtDM(t.startDay, t.startMonth)}→${fmtDM(t.endDay, t.endMonth)})`)
                             .join(", ")
                         : "-"}
                     </td>
-                    <td className="py-3 pr-3">
+                    <td className={adminTd}>
                       <div className="flex gap-2">
                         <button
                           type="button"

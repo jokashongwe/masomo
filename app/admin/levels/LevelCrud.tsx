@@ -18,6 +18,10 @@ import {
   adminTableWrap,
   adminTh,
   adminTr,
+  adminThead,
+  adminTd,
+  adminTdStrong,
+  adminTableEmpty,
 } from "../components/admin-ui";
 
 type Option = { id: number; codeOption: string; nameOption: string; section?: { codeSection: string; nameSection: string; school?: { name: string } | null } | null };
@@ -81,7 +85,7 @@ export default function LevelCrud({
     if (!o) return "-";
     const section = o.section;
     if (!section) return `${o.codeOption} - ${o.nameOption}`;
-    return `${o.codeOption} - ${o.nameOption} | ${section.codeSection} - ${section.nameSection} | ${section.school?.name ?? ""}`.replace(/\s+\|/, " |").trim();
+    return `${o.nameOption} `.replace(/\s+\|/, " |").trim();
   }
 
   function resetUpdateFromEditing(target: Level) {
@@ -231,7 +235,7 @@ export default function LevelCrud({
         <h2 className={adminSectionTitle}>Niveaux existants</h2>
         <div className={adminTableWrap}>
           <table className={adminTable}>
-            <thead>
+            <thead className={adminThead}>
               <tr>
                 <th className={adminTh}>Code</th>
                 <th className={adminTh}>Nom</th>
@@ -242,17 +246,17 @@ export default function LevelCrud({
             <tbody>
               {levels.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-6 text-zinc-600 dark:text-zinc-300">
+                  <td colSpan={4} className={adminTableEmpty}>
                     Aucun niveau.
                   </td>
                 </tr>
               ) : (
                 levels.map((l) => (
                   <tr key={l.id} className={adminTr}>
-                    <td className="py-3 pr-3 font-medium">{l.codeLevel}</td>
-                    <td className="py-3 pr-3">{l.name}</td>
-                    <td className="py-3 pr-3">{optionLabel(l.optionId)}</td>
-                    <td className="py-3 pr-3">
+                    <td className={adminTdStrong}>{l.codeLevel}</td>
+                    <td className={adminTd}>{l.name}</td>
+                    <td className={adminTd}>{optionLabel(l.optionId)}</td>
+                    <td className={adminTd}>
                       <div className="flex gap-2">
                         <button
                           type="button"

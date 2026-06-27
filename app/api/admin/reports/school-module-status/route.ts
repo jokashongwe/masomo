@@ -11,6 +11,9 @@ const querySchema = z.object({
   sectionId: z.coerce.number().int().positive().optional(),
   optionId: z.coerce.number().int().positive().optional(),
   classId: z.coerce.number().int().positive().optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(100).optional(),
+  all: z.enum(["0", "1"]).optional(),
 });
 
 export async function GET(req: Request) {
@@ -25,6 +28,9 @@ export async function GET(req: Request) {
     sectionId: url.searchParams.get("sectionId") ?? undefined,
     optionId: url.searchParams.get("optionId") ?? undefined,
     classId: url.searchParams.get("classId") ?? undefined,
+    page: url.searchParams.get("page") ?? undefined,
+    pageSize: url.searchParams.get("pageSize") ?? undefined,
+    all: url.searchParams.get("all") ?? undefined,
   };
   for (const k of Object.keys(raw)) {
     if (raw[k] === "") delete raw[k];
@@ -35,7 +41,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { currency, moduleId, trancheId, sectionId, optionId, classId } = parsed.data;
+  const { currency, moduleId, trancheId, sectionId, optionId, classId, page, pageSize, all } = parsed.data;
 
   if (trancheId != null) {
     const tr = await prisma.moduleTranche.findUnique({
@@ -58,6 +64,9 @@ export async function GET(req: Request) {
       sectionId: sectionId ?? null,
       optionId: optionId ?? null,
       classId: classId ?? null,
+      page: page ?? undefined,
+      pageSize: pageSize ?? undefined,
+      all: all === "1",
     });
     return NextResponse.json(report);
   } catch (e) {
