@@ -51,18 +51,49 @@ async function resolveCurrencyForFee(feeId: number, explicit: Currency | null): 
   return defaultPaymentImportCurrency();
 }
 
-async function resolveFeeByCode(feeCode: string, feeByCode: Map<string, FeeCacheEntry>): Promise<FeeCacheEntry> {
-  const key = feeCode.toUpperCase();
-  let entry = feeByCode.get(key);
-  if (!entry) {
-    const fee = await prisma.fee.findFirst({
-      where: { code: { equals: feeCode, mode: "insensitive" } },
-      select: { id: true, accountId: true },
-    });
-    if (!fee) throw new Error(`Code frais introuvable (PMT_TYPE): ${feeCode}`);
-    entry = { id: fee.id, accountId: fee.accountId };
-    feeByCode.set(key, entry);
+async function resolveFeeForStudent(
+  feeCode: string,
+  studentId: number,
+  feeCache: Map<string, FeeCacheEntry>,
+): Promise<FeeCacheEntry> {
+  const student = await prisma.student.findUnique({
+    where: { id: studentId },
+    select: { schoolClass: { select: { levelId: true } } },
+  });
+  if (!student) throw new Error("Élève introuvable");
+
+  const levelId = student.schoolClass.levelId;
+  const cacheKey = `${feeCode.toUpperCase()}:${levelId}`;
+  const cached = feeCache.get(cacheKey);
+  if (cached) {
+    if (!cached.accountId) {
+      throw new Error(`Le frais ${feeCode} n'est pas rattaché à un compte financier`);
+    }
+    return cached;
   }
+
+  const fees = await prisma.fee.findMany({
+    where: { code: { equals: feeCode, mode: "insensitive" } },
+    select: {
+      id: true,
+      accountId: true,
+      name: true,
+      feeLevels: { select: { levelId: true } },
+    },
+  });
+  if (!fees.length) throw new Error(`Code frais introuvable (PMT_TYPE): ${feeCode}`);
+
+  const matching = fees.filter((f) => f.feeLevels.some((fl) => fl.levelId === levelId));
+  if (matching.length === 0) {
+    throw new Error(`Aucun frais « ${feeCode} » configuré pour le niveau de l'élève`);
+  }
+  if (matching.length > 1) {
+    const labels = matching.map((f) => `#${f.id} ${f.name}`).join(", ");
+    throw new Error(`Code frais « ${feeCode} » ambigu pour ce niveau (${labels})`);
+  }
+
+  const entry: FeeCacheEntry = { id: matching[0].id, accountId: matching[0].accountId };
+  feeCache.set(cacheKey, entry);
   if (!entry.accountId) {
     throw new Error(`Le frais ${feeCode} n'est pas rattaché à un compte financier`);
   }
@@ -92,7 +123,7 @@ async function importJournalRow(
   ctx: {
     academicYearId: number;
     studentByMatricule: Map<string, number>;
-    feeByCode: Map<string, FeeCacheEntry>;
+    feeCache: Map<string, FeeCacheEntry>;
     sheetCurrency: Currency | null;
   },
 ) {
@@ -111,7 +142,7 @@ async function importJournalRow(
     ctx.studentByMatricule.set(parsed.studentMatricule.toUpperCase(), studentId);
   }
 
-  const fee = await resolveFeeByCode(parsed.feeCode, ctx.feeByCode);
+  const fee = await resolveFeeForStudent(parsed.feeCode, studentId, ctx.feeCache);
   const currency = ctx.sheetCurrency
     ? ctx.sheetCurrency
     : parsed.currency ?? (await resolveCurrencyForFee(fee.id, null));
@@ -136,17 +167,17 @@ async function importJournalRow(
 
 async function importLegacyRow(
   row: LegacyImportRow,
-  feeByCode: Map<string, FeeCacheEntry>,
+  feeCache: Map<string, FeeCacheEntry>,
   sheetCurrency: Currency | null,
 ) {
   const studentId = Number(row.studentId);
   const amount = Number(row.amount);
   const feeCode = String(row.feeCode ?? cell(row, "feeCode", "fee_code")).trim();
-  const fee = await resolveFeeByCode(feeCode, feeByCode);
+  if (!Number.isFinite(studentId) || studentId <= 0) throw new Error("studentId invalide");
+  const fee = await resolveFeeForStudent(feeCode, studentId, feeCache);
   const currencyRaw =
     sheetCurrency ?? (row.currency === "CDF" ? "CDF" : row.currency === "USD" ? "USD" : null);
   const currency = await resolveCurrencyForFee(fee.id, currencyRaw);
-  if (!Number.isFinite(studentId) || studentId <= 0) throw new Error("studentId invalide");
   if (!Number.isFinite(amount) || amount <= 0) throw new Error("amount invalide");
 
   return createFeePayment({
@@ -191,7 +222,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Le fichier est vide ou ne contient aucune feuille de données" }, { status: 400 });
   }
 
-  const feeByCode = new Map<string, FeeCacheEntry>();
+  const feeCache = new Map<string, FeeCacheEntry>();
   const studentByMatricule = new Map<string, number>();
   const results: ImportResultRow[] = [];
 
@@ -204,10 +235,10 @@ export async function POST(req: Request) {
           ? await importJournalRow(row, {
               academicYearId: currentYear.id,
               studentByMatricule,
-              feeByCode,
+              feeCache,
               sheetCurrency: batch.currency,
             })
-          : await importLegacyRow(row as LegacyImportRow, feeByCode, batch.currency);
+          : await importLegacyRow(row as LegacyImportRow, feeCache, batch.currency);
         results.push({
           index: i + 1,
           sheet: batch.sheetName,

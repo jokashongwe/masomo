@@ -294,7 +294,7 @@ export default function FeesCrud({
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
-            placeholder="Code du frais (unique)"
+            placeholder="Code du frais"
             className={adminInput}
             value={create.code}
             onChange={(e) => setCreate((c) => ({ ...c, code: e.target.value }))}

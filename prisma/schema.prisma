@@ -221,7 +221,7 @@ model StudentTutor {
 model Fee {
   id Int @id @default(autoincrement())
 
-  code String @unique
+  code String
   name String
   chargeType FeeChargeType
 
@@ -246,6 +246,7 @@ model Fee {
   updatedAt DateTime @updatedAt
 
   @@index([accountId])
+  @@index([code])
 }
 
 model FeeLevel {
