@@ -20,24 +20,24 @@ async function main() {
   const systemAdminPassword = getEnv("SEED_SYSTEM_ADMIN_PASSWORD", "admin123456");
   const systemAdminName = getEnv("SEED_SYSTEM_ADMIN_NAME", "System Administrator");
 
-  const schoolName = getEnv("SEED_SCHOOL_NAME", "Kela Academy");
+  const schoolName = getEnv("SEED_SCHOOL_NAME", "Complexe Scolaire Vie Nouvelle");
   const schoolCity = getEnv("SEED_SCHOOL_CITY", "Kinshasa");
 
-  const feeRegistrationCode = "FEE_REGISTRATION";
-  const feeTuitionCode = "FEE_TUITION";
+  //const feeRegistrationCode = "FEE_REGISTRATION";
+  //const feeTuitionCode = "FEE_TUITION";
 
   const modules = [
     { name: "Term 1", startDay: 1, startMonth: 1, endDay: 30, endMonth: 3, tranches: ["T1", "T2"] },
     { name: "Term 2", startDay: 1, startMonth: 4, endDay: 30, endMonth: 6, tranches: ["T1", "T2"] },
   ];
 
-  const currencyUSD = "USD" as const;
-  const currencyCDF = "CDF" as const;
+  //const currencyUSD = "USD" as const;
+  //const currencyCDF = "CDF" as const;
 
   // Academic year (always keep exactly one in progress)
   const today = new Date();
   const baseYear = today.getFullYear();
-  const seedYearName = getEnv("SEED_ACADEMIC_YEAR_NAME", `${baseYear}-${baseYear + 1}`);
+  const seedYearName = getEnv("SEED_ACADEMIC_YEAR_NAME", `${baseYear-1}-${baseYear}`);
   const seedStartDate = new Date(getEnv("SEED_ACADEMIC_YEAR_START_DATE", `${baseYear}-01-01T00:00:00.000Z`));
   const seedEndDate = new Date(getEnv("SEED_ACADEMIC_YEAR_END_DATE", `${baseYear}-12-31T23:59:59.000Z`));
 
@@ -47,6 +47,12 @@ async function main() {
     update: { startDate: seedStartDate, endDate: seedEndDate, isCurrent: true },
     create: { name: seedYearName, startDate: seedStartDate, endDate: seedEndDate, isCurrent: true },
   });
+
+  const school = await prisma.school.findFirst({ where: { name: schoolName } });
+  const schoolId = school
+    ? school.id
+    : (await prisma.school.create({ data: { name: schoolName, logo: null, address: `${schoolName} HQ`, city: schoolCity, contacts: null, email: null } })).id;
+
 
   // Create SYSTEM_ADMIN user (upsert by email)
   const passwordHash = await bcrypt.hash(systemAdminPassword, await bcrypt.genSalt(12));
@@ -72,11 +78,10 @@ async function main() {
     wallet = await prisma.wallet.create({ data: {} });
   }
 
-  const currentAcademicYear = await prisma.academicYear.findFirst({
-    where: { isCurrent: true },
-    select: { id: true },
-  });
-
+  await prisma.$disconnect();
+  console.log("Seed completed successfully.");
+}
+/*
   // Seed a deposit + an example expense so the dashboard has non-zero data.
   if (currentAcademicYear) {
     await prisma.$transaction(async (tx) => {
@@ -382,3 +387,4 @@ main()
     process.exit(0);
   });
 
+*/
