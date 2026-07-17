@@ -1,9 +1,16 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { MAIN_FINANCE_ACCOUNT_NAME } from "@/lib/finance-account-labels";
 
-/** Compte d’encaissement principal affiché sur le tableau de bord. */
-export const MAIN_FINANCE_ACCOUNT_NAME = "Encaissement École";
+export { MAIN_FINANCE_ACCOUNT_NAME, isMainFinanceAccountName } from "@/lib/finance-account-labels";
+
+const mainAccountSelect = {
+  id: true,
+  name: true,
+  balanceUSD: true,
+  balanceCDF: true,
+} as const;
 
 function sumsFromAgg(rows: { currency: string; _sum: { amount: unknown } }[]) {
   let usd = 0;
@@ -14,6 +21,37 @@ function sumsFromAgg(rows: { currency: string; _sum: { amount: unknown } }[]) {
     if (r.currency === "CDF") cdf += n;
   }
   return { usd, cdf };
+}
+
+/** Résout le compte principal de l’année (nom exact, variante « école », sinon premier compte). */
+export async function resolveMainFinanceAccount(academicYearId: number) {
+  const exact = await prisma.financeAccount.findUnique({
+    where: {
+      academicYearId_name: { academicYearId, name: MAIN_FINANCE_ACCOUNT_NAME },
+    },
+    select: mainAccountSelect,
+  });
+  if (exact) return exact;
+
+  const schoolNamed = await prisma.financeAccount.findFirst({
+    where: {
+      academicYearId,
+      OR: [
+        { name: { equals: MAIN_FINANCE_ACCOUNT_NAME, mode: "insensitive" } },
+        { name: { contains: "école", mode: "insensitive" } },
+        { name: { contains: "ecole", mode: "insensitive" } },
+      ],
+    },
+    orderBy: { id: "asc" },
+    select: mainAccountSelect,
+  });
+  if (schoolNamed) return schoolNamed;
+
+  return prisma.financeAccount.findFirst({
+    where: { academicYearId },
+    orderBy: { id: "asc" },
+    select: mainAccountSelect,
+  });
 }
 
 export type AdminDashboardStats = {
@@ -38,7 +76,7 @@ export async function getAdminDashboardStats(input: {
 }): Promise<AdminDashboardStats> {
   const { academicYearId, yearStart, yearEndExclusive, includeStudents = true } = input;
 
-  const [paymentsYearAgg, wallet, mainAccountByName, mainAccountFallback, studentTotal] = await Promise.all([
+  const [paymentsYearAgg, wallet, mainAccountRow, studentTotal] = await Promise.all([
     prisma.feePayment.groupBy({
       by: ["currency"],
       _sum: { amount: true },
@@ -48,23 +86,11 @@ export async function getAdminDashboardStats(input: {
       orderBy: { id: "asc" },
       select: { id: true, balanceUSD: true, balanceCDF: true },
     }),
-    prisma.financeAccount.findUnique({
-      where: {
-        academicYearId_name: { academicYearId, name: MAIN_FINANCE_ACCOUNT_NAME },
-      },
-      select: { id: true, name: true, balanceUSD: true, balanceCDF: true },
-    }),
-    prisma.financeAccount.findFirst({
-      where: { academicYearId },
-      orderBy: { id: "asc" },
-      select: { id: true, name: true, balanceUSD: true, balanceCDF: true },
-    }),
+    resolveMainFinanceAccount(academicYearId),
     includeStudents
       ? prisma.student.count({ where: { academicYearId } })
       : Promise.resolve(0),
   ]);
-
-  const mainAccountRow = mainAccountByName ?? mainAccountFallback;
 
   const [withdrawalAgg, expenseAgg] = await Promise.all([
     mainAccountRow

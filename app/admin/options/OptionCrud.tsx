@@ -23,6 +23,8 @@ import {
   adminTdStrong,
   adminTableEmpty,
 } from "../components/admin-ui";
+import { useClientSort } from "../components/useClientSort";
+import { SortableTh } from "../components/SortableTh";
 
 type Section = { id: number; codeSection: string; nameSection: string; school?: { name: string } | null };
 type Option = { id: number; codeOption: string; nameOption: string; sectionId: number; section?: { codeSection: string; nameSection: string } | null };
@@ -55,6 +57,18 @@ export default function OptionCrud({
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(options, {
+    defaultKey: "codeOption",
+    getters: {
+      codeOption: (r) => r.codeOption,
+      nameOption: (r) => r.nameOption,
+      section: (r) => {
+        const s = sections.find((x) => x.id === r.sectionId);
+        return s ? `${s.codeSection} - ${s.nameSection}` : "";
+      },
+    },
+  });
 
   function resetUpdateFromEditing(target: Option) {
     setUpdate({
@@ -186,21 +200,21 @@ export default function OptionCrud({
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>
-                <th className={adminTh}>Code</th>
-                <th className={adminTh}>Nom</th>
-                <th className={adminTh}>Section</th>
+                <SortableTh column="codeOption" label="Code" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="nameOption" label="Nom" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="section" label="Section" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {options.length === 0 ? (
+              {sortedRows.length === 0 ? (
                 <tr>
                   <td colSpan={4} className={adminTableEmpty}>
                     Aucune option.
                   </td>
                 </tr>
               ) : (
-                options.map((o) => {
+                sortedRows.map((o) => {
                   const sectionLabel = sections.find((s) => s.id === o.sectionId);
                   const label = sectionLabel ? `${sectionLabel.codeSection} - ${sectionLabel.nameSection}` : "-";
                   return (

@@ -5,7 +5,7 @@ import AdminPageHeader from "../components/AdminPageHeader";
 import { adminPage } from "../components/admin-ui";
 
 export default async function AdminAcademicYearsPage() {
-  await requireRoles((role) => isSystemAdmin(role));
+  await requireRoles(isSystemAdmin);
   const years = await prisma.academicYear.findMany({
     orderBy: { startDate: "desc" },
     select: { id: true, name: true, startDate: true, endDate: true, isCurrent: true },

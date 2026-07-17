@@ -13,7 +13,6 @@ import {
   adminSoftCard,
   adminTable,
   adminTableWrap,
-  adminTh,
   adminTr,
   adminThead,
   adminTd,
@@ -21,6 +20,8 @@ import {
   adminTdSm,
   adminTableEmpty,
 } from "../../../components/admin-ui";
+import { useClientSort } from "../../../components/useClientSort";
+import { SortableTh } from "../../../components/SortableTh";
 import { AccountBalanceCards } from "../AccountsCrud";
 
 type TransactionRow = {
@@ -43,6 +44,22 @@ type FeeLink = { id: number; code: string; name: string };
 type AccountOpt = { id: number; name: string };
 
 type WithdrawDestination = "EXTERNAL" | "ACCOUNT" | "WALLET";
+
+function typeLabel(t: TransactionRow["type"]) {
+  return t === "DEPOSIT" ? "Crédit" : "Retrait / transfert";
+}
+
+function movementDetail(t: TransactionRow) {
+  if (t.type === "DEPOSIT" && t.feePayment) {
+    const s = t.feePayment.student;
+    return `${t.feePayment.receiptNumber} — ${s.firstName} ${s.name} ${s.postnom} (${t.feePayment.fee.name})`;
+  }
+  if (t.note) return t.note;
+  if (t.type === "WITHDRAWAL" && t.createdBy) {
+    return `Par ${t.createdBy.name}`;
+  }
+  return "—";
+}
 
 export default function AccountDetailClient({
   account,
@@ -73,6 +90,17 @@ export default function AccountDetailClient({
   });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(initialTransactions, {
+    defaultKey: "createdAt",
+    defaultDir: "desc",
+    getters: {
+      createdAt: (r) => r.createdAt,
+      type: (r) => typeLabel(r.type),
+      amount: (r) => Number(r.amount),
+      detail: (r) => movementDetail(r),
+    },
+  });
 
   async function handleWithdraw(e: React.FormEvent) {
     e.preventDefault();
@@ -108,22 +136,6 @@ export default function AccountDetailClient({
     } finally {
       setSubmitting(false);
     }
-  }
-
-  function typeLabel(t: TransactionRow["type"]) {
-    return t === "DEPOSIT" ? "Crédit" : "Retrait / transfert";
-  }
-
-  function movementDetail(t: TransactionRow) {
-    if (t.type === "DEPOSIT" && t.feePayment) {
-      const s = t.feePayment.student;
-      return `${t.feePayment.receiptNumber} — ${s.firstName} ${s.name} ${s.postnom} (${t.feePayment.fee.name})`;
-    }
-    if (t.note) return t.note;
-    if (t.type === "WITHDRAWAL" && t.createdBy) {
-      return `Par ${t.createdBy.name}`;
-    }
-    return "—";
   }
 
   const destinationHelp: Record<WithdrawDestination, string> = {
@@ -267,21 +279,21 @@ export default function AccountDetailClient({
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>
-                <th className={adminTh}>Date</th>
-                <th className={adminTh}>Type</th>
-                <th className={adminTh}>Montant</th>
-                <th className={adminTh}>Détail</th>
+                <SortableTh column="createdAt" label="Date" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="type" label="Type" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="amount" label="Montant" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="detail" label="Détail" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody>
-              {initialTransactions.length === 0 ? (
+              {sortedRows.length === 0 ? (
                 <tr>
                   <td colSpan={4} className={adminTableEmpty}>
                     Aucun mouvement pour l&apos;instant.
                   </td>
                 </tr>
               ) : (
-                initialTransactions.map((t) => (
+                sortedRows.map((t) => (
                   <tr key={t.id} className={adminTr}>
                     <td className={adminTdSm}>{new Date(t.createdAt).toLocaleString("fr-FR")}</td>
                     <td className={adminTd}>{typeLabel(t.type)}</td>

@@ -10,7 +10,7 @@ export default async function AdminFinanceAccountDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const user = await requireRoles((role) => canReadFinance(role));
+  const user = await requireRoles(canReadFinance);
   const { id } = await params;
   const accountId = Number(id);
   if (!Number.isFinite(accountId)) notFound();
@@ -81,7 +81,7 @@ export default async function AdminFinanceAccountDetailPage({
           feePayment: t.feePayment,
           createdBy: t.createdBy,
         }))}
-        canWithdraw={isSystemAdmin(user.role)}
+        canWithdraw={isSystemAdmin(user.roles)}
       />
     </div>
   );

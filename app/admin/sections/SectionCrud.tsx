@@ -23,6 +23,8 @@ import {
   adminTdStrong,
   adminTableEmpty,
 } from "../components/admin-ui";
+import { useClientSort } from "../components/useClientSort";
+import { SortableTh } from "../components/SortableTh";
 
 type School = { id: number; name: string };
 type Section = {
@@ -61,6 +63,15 @@ export default function SectionCrud({
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(sections, {
+    defaultKey: "codeSection",
+    getters: {
+      codeSection: (r) => r.codeSection,
+      nameSection: (r) => r.nameSection,
+      school: (r) => schools.find((x) => x.id === r.schoolId)?.name ?? r.school?.name ?? "",
+    },
+  });
 
   function resetUpdateFromEditing(target: Section) {
     setUpdate({
@@ -193,21 +204,21 @@ export default function SectionCrud({
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>
-                <th className={adminTh}>Code</th>
-                <th className={adminTh}>Nom</th>
-                <th className={adminTh}>École</th>
+                <SortableTh column="codeSection" label="Code" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="nameSection" label="Nom" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="school" label="École" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {sections.length === 0 ? (
+              {sortedRows.length === 0 ? (
                 <tr>
                   <td colSpan={4} className={adminTableEmpty}>
                     Aucune section.
                   </td>
                 </tr>
               ) : (
-                sections.map((s) => {
+                sortedRows.map((s) => {
                   const schoolName = schools.find((x) => x.id === s.schoolId)?.name ?? s.school?.name ?? "-";
                   return (
                     <tr key={s.id} className={adminTr}>

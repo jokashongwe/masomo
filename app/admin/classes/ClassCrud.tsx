@@ -25,6 +25,8 @@ import {
   adminTdStrong,
   adminTableEmpty,
 } from "../components/admin-ui";
+import { useClientSort } from "../components/useClientSort";
+import { SortableTh } from "../components/SortableTh";
 
 type Level = {
   id: number;
@@ -82,6 +84,25 @@ export default function ClassCrud({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  function levelLabel(levelId: number) {
+    const l = levels.find((x) => x.id === levelId);
+    if (!l) return "-";
+    const opt = l.option;
+    if (!opt) return `${l.codeLevel} - ${l.name}`;
+    const section = opt.section;
+    const schoolName = section?.school?.name ?? "";
+    const sectionLabel = section ? `${section.codeSection} - ${section.nameSection}` : "";
+    return `${l.codeLevel} ${l.codeLevel == "1" ? "ère": "ème"} ${section?.nameSection ?? ""} ${opt.nameOption}`.replace(/\s+\|/g, " |").trim();
+  }
+
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(pagedClasses, {
+    defaultKey: "codeClass",
+    getters: {
+      codeClass: (r) => r.codeClass,
+      level: (r) => levelLabel(r.levelId),
+    },
+  });
+
   useEffect(() => {
     if (editingId !== null && !pagedClasses.some((c) => c.id === editingId)) {
       setEditingId(null);
@@ -95,17 +116,6 @@ export default function ClassCrud({
     params.set("page", String(nextPage));
     params.set("take", String(listTake));
     return `/admin/classes?${params.toString()}`;
-  }
-
-  function levelLabel(levelId: number) {
-    const l = levels.find((x) => x.id === levelId);
-    if (!l) return "-";
-    const opt = l.option;
-    if (!opt) return `${l.codeLevel} - ${l.name}`;
-    const section = opt.section;
-    const schoolName = section?.school?.name ?? "";
-    const sectionLabel = section ? `${section.codeSection} - ${section.nameSection}` : "";
-    return `${l.codeLevel} ${l.codeLevel == "1" ? "ère": "ème"} ${section?.nameSection ?? ""} ${opt.nameOption}`.replace(/\s+\|/g, " |").trim();
   }
 
   function resetUpdateFromEditing(target: SchoolClass) {
@@ -269,20 +279,20 @@ export default function ClassCrud({
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>
-                <th className={adminTh}>Code</th>
-                <th className={adminTh}>Niveau</th>
+                <SortableTh column="codeClass" label="Code" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="level" label="Niveau" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {pagedClasses.length === 0 ? (
+              {sortedRows.length === 0 ? (
                 <tr>
                   <td colSpan={3} className={adminTableEmpty}>
                     Aucune classe ne correspond aux critères.
                   </td>
                 </tr>
               ) : (
-                pagedClasses.map((c) => (
+                sortedRows.map((c) => (
                   <tr key={c.id} className={adminTr}>
                     <td className={adminTdStrong}>{c.codeClass}</td>
                     <td className={adminTd}>{levelLabel(c.levelId)}</td>

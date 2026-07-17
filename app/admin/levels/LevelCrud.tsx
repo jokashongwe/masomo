@@ -23,6 +23,8 @@ import {
   adminTdStrong,
   adminTableEmpty,
 } from "../components/admin-ui";
+import { useClientSort } from "../components/useClientSort";
+import { SortableTh } from "../components/SortableTh";
 
 type Option = { id: number; codeOption: string; nameOption: string; section?: { codeSection: string; nameSection: string; school?: { name: string } | null } | null };
 type Level = {
@@ -87,6 +89,15 @@ export default function LevelCrud({
     if (!section) return `${o.codeOption} - ${o.nameOption}`;
     return `${o.nameOption} `.replace(/\s+\|/, " |").trim();
   }
+
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(levels, {
+    defaultKey: "codeLevel",
+    getters: {
+      codeLevel: (r) => r.codeLevel,
+      name: (r) => r.name,
+      option: (r) => optionLabel(r.optionId),
+    },
+  });
 
   function resetUpdateFromEditing(target: Level) {
     setUpdate({
@@ -237,21 +248,21 @@ export default function LevelCrud({
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>
-                <th className={adminTh}>Code</th>
-                <th className={adminTh}>Nom</th>
-                <th className={adminTh}>Option</th>
+                <SortableTh column="codeLevel" label="Code" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="name" label="Nom" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="option" label="Option" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {levels.length === 0 ? (
+              {sortedRows.length === 0 ? (
                 <tr>
                   <td colSpan={4} className={adminTableEmpty}>
                     Aucun niveau.
                   </td>
                 </tr>
               ) : (
-                levels.map((l) => (
+                sortedRows.map((l) => (
                   <tr key={l.id} className={adminTr}>
                     <td className={adminTdStrong}>{l.codeLevel}</td>
                     <td className={adminTd}>{l.name}</td>

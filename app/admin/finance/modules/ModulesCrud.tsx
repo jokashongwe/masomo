@@ -23,6 +23,8 @@ import {
   adminTdStrong,
   adminTableEmpty,
 } from "../../components/admin-ui";
+import { useClientSort } from "../../components/useClientSort";
+import { SortableTh } from "../../components/SortableTh";
 
 type ModuleTranche = {
   id: number;
@@ -72,6 +74,18 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(modules, {
+    defaultKey: "name",
+    getters: {
+      name: (r) => r.name,
+      period: (r) => r.startMonth * 100 + r.startDay,
+      tranches: (r) =>
+        r.tranches
+          .map((t) => `${t.codeTranche} (${fmtDM(t.startDay, t.startMonth)}→${fmtDM(t.endDay, t.endMonth)})`)
+          .join(", "),
+    },
+  });
 
   function resetUpdateFromEditing(target: BillingModule) {
     setUpdate({
@@ -218,21 +232,21 @@ export default function ModulesCrud({ initialModules }: { initialModules: Billin
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>
-                <th className={adminTh}>Nom</th>
-                <th className={adminTh}>Période</th>
-                <th className={adminTh}>Tranches</th>
+                <SortableTh column="name" label="Nom" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="period" label="Période" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="tranches" label="Tranches" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {modules.length === 0 ? (
+              {sortedRows.length === 0 ? (
                 <tr>
                   <td colSpan={4} className={adminTableEmpty}>
                     Aucun module.
                   </td>
                 </tr>
               ) : (
-                modules.map((m) => (
+                sortedRows.map((m) => (
                   <tr key={m.id} className={adminTr}>
                     <td className={adminTdStrong}>{m.name}</td>
                     <td className={adminTd}>

@@ -20,6 +20,8 @@ import {
   adminThead,
   adminTr,
 } from "../../components/admin-ui";
+import { useClientSort } from "../../components/useClientSort";
+import { SortableTh } from "../../components/SortableTh";
 
 type AcademicYearOpt = { id: number; name: string; isCurrent: boolean };
 type FeeOpt = { id: number; code: string; name: string; feeLevels: { levelId: number }[] };
@@ -96,6 +98,16 @@ export default function FeeSupportCrud({
     if (!yearFilter) return initialSupports;
     return initialSupports.filter((s) => String(s.academicYearId) === yearFilter);
   }, [initialSupports, yearFilter]);
+
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(filtered, {
+    defaultKey: "student",
+    getters: {
+      student: (r) => r.studentLabel,
+      reductions: (r) =>
+        r.reductions.map((x) => `${x.feeCode} ${x.reductionPercent}`).join(", "),
+      note: (r) => r.note,
+    },
+  });
 
   const supportedStudentIds = useMemo(
     () => new Set(filtered.map((s) => s.studentId)),
@@ -312,21 +324,21 @@ export default function FeeSupportCrud({
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>
-                <th className={adminTh}>Élève</th>
-                <th className={adminTh}>Réductions</th>
-                <th className={adminTh}>Note</th>
+                <SortableTh column="student" label="Élève" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="reductions" label="Réductions" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="note" label="Note" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 {canWrite ? <th className={adminTh}>Actions</th> : null}
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {sortedRows.length === 0 ? (
                 <tr>
                   <td colSpan={canWrite ? 4 : 3} className={adminTableEmpty}>
                     Aucune prise en charge pour cette année.
                   </td>
                 </tr>
               ) : (
-                filtered.map((row) => (
+                sortedRows.map((row) => (
                   <Fragment key={row.id}>
                     <tr className={adminTr}>
                       <td className={adminTd}>

@@ -7,6 +7,6 @@ export const dynamic = "force-dynamic";
 export default async function EnrollLegacyRedirect() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!canManageSchool(user.role)) redirect("/admin");
+  if (!canManageSchool(user.roles)) redirect("/admin");
   redirect("/admin/enroll");
 }

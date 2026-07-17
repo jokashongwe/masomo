@@ -5,7 +5,7 @@ import AdminPageHeader from "../../components/AdminPageHeader";
 import { adminPage } from "../../components/admin-ui";
 
 export default async function AdminFinancePaymentsPage() {
-  await requireRoles((role) => canReadFinance(role));
+  await requireRoles(canReadFinance);
 
   const [students, fees, modules, tranches, school] = await Promise.all([
     prisma.student.findMany({

@@ -111,7 +111,7 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
   });
   if (!existing) return NextResponse.json({ error: "Élève introuvable" }, { status: 404 });
 
-  const mayChangeStatus = canEditStudentStatus(auth.user.role);
+  const mayChangeStatus = canEditStudentStatus(auth.user.roles);
   const nextStatus = mayChangeStatus ? parsed.data.status : existing.status;
   if (!mayChangeStatus && parsed.data.status !== existing.status) {
     return NextResponse.json(

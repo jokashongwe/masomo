@@ -45,7 +45,7 @@ model User {
   name  String
   passwordHash String
 
-  role UserRole
+  roles UserRole[]
 
   sessions Session[]
   expensesCreated Expense[]

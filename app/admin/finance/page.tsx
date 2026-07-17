@@ -4,7 +4,7 @@ import AdminPageHeader from "../components/AdminPageHeader";
 import { adminHubCard, adminHubCardDesc, adminHubCardTitle, adminPage } from "../components/admin-ui";
 
 export default async function AdminFinanceHomePage() {
-  await requireRoles((role) => canReadFinance(role));
+  await requireRoles(canReadFinance);
   const links = [
     { href: "/admin/finance/modules", title: "Modules", desc: "Périodes et modules de facturation." },
     { href: "/admin/finance/tranches", title: "Tranches", desc: "Tranches rattachées aux modules." },

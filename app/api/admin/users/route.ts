@@ -5,12 +5,14 @@ import { requireSystemAdminApi } from "@/lib/rbac";
 import { hashPassword } from "@/lib/auth";
 import { optionalEmailFieldSchema, usernameFieldSchema } from "@/lib/user-username";
 
+import { rolesFieldSchema } from "@/lib/user-roles";
+
 const createUserSchema = z.object({
   username: usernameFieldSchema,
   email: optionalEmailFieldSchema,
   name: z.string().min(1),
   password: z.string().min(6),
-  role: z.enum(["SYSTEM_ADMIN", "FINANCE_MANAGER", "FINANCE_VIEWER", "SCHOOL_MANAGER"]),
+  roles: rolesFieldSchema,
 });
 
 const userSelect = {
@@ -18,7 +20,7 @@ const userSelect = {
   username: true,
   email: true,
   name: true,
-  role: true,
+  roles: true,
   createdAt: true,
 } as const;
 
@@ -52,7 +54,7 @@ export async function POST(req: Request) {
         email: parsed.data.email,
         name: parsed.data.name,
         passwordHash,
-        role: parsed.data.role,
+        roles: parsed.data.roles,
       },
       select: userSelect,
     });

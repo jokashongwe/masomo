@@ -19,42 +19,42 @@ function forbidden() {
 export async function requireFinanceReadApi() {
   const auth = await requireApiAuth();
   if (!auth.ok) return auth;
-  if (!canReadFinance(auth.user.role)) return { ok: false as const, response: forbidden() };
+  if (!canReadFinance(auth.user.roles)) return { ok: false as const, response: forbidden() };
   return auth;
 }
 
 export async function requireFinanceWriteApi() {
   const auth = await requireApiAuth();
   if (!auth.ok) return auth;
-  if (!canWriteFinance(auth.user.role)) return { ok: false as const, response: forbidden() };
+  if (!canWriteFinance(auth.user.roles)) return { ok: false as const, response: forbidden() };
   return auth;
 }
 
 export async function requireSchoolManageApi() {
   const auth = await requireApiAuth();
   if (!auth.ok) return auth;
-  if (!canManageSchool(auth.user.role)) return { ok: false as const, response: forbidden() };
+  if (!canManageSchool(auth.user.roles)) return { ok: false as const, response: forbidden() };
   return auth;
 }
 
 export async function requireSystemAdminApi() {
   const auth = await requireApiAuth();
   if (!auth.ok) return auth;
-  if (!isSystemAdmin(auth.user.role)) return { ok: false as const, response: forbidden() };
+  if (!isSystemAdmin(auth.user.roles)) return { ok: false as const, response: forbidden() };
   return auth;
 }
 
 export async function requireStudentEditApi() {
   const auth = await requireApiAuth();
   if (!auth.ok) return auth;
-  if (!canEditStudents(auth.user.role)) return { ok: false as const, response: forbidden() };
+  if (!canEditStudents(auth.user.roles)) return { ok: false as const, response: forbidden() };
   return auth;
 }
 
 export async function requireStudentProfileEditApi() {
   const auth = await requireApiAuth();
   if (!auth.ok) return auth;
-  if (!canEditStudentProfile(auth.user.role)) return { ok: false as const, response: forbidden() };
+  if (!canEditStudentProfile(auth.user.roles)) return { ok: false as const, response: forbidden() };
   return auth;
 }
 

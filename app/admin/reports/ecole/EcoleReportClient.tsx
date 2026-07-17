@@ -15,7 +15,6 @@ import {
   adminSecondaryButton,
   adminSubtitle,
   adminTable,
-  adminTh,
   adminTitle,
   adminTr,
   adminThead,
@@ -23,6 +22,8 @@ import {
   adminTdMuted,
   adminTableWrap,
 } from "../../components/admin-ui";
+import { SortableTh } from "../../components/SortableTh";
+import { useClientSort } from "../../components/useClientSort";
 
 type SectionRow = { id: number; codeSection: string; nameSection: string };
 type OptionRow = { id: number; codeOption: string; nameOption: string; sectionId: number };
@@ -220,6 +221,18 @@ export default function EcoleReportClient() {
     if (loadingMeta || !moduleId) return;
     fetchReport();
   }, [loadingMeta, moduleId, page, pageSize, currency, trancheId, sectionId, optionId, classId, fetchReport]);
+
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(report?.rows ?? [], {
+    defaultKey: "displayName",
+    getters: {
+      displayName: (r) => r.displayName,
+      classLabel: (r) => r.classLabel,
+      paid: (r) => r.paid,
+      due: (r) => r.due,
+      balance: (r) => r.balance,
+      status: (r) => r.statusLabel,
+    },
+  });
 
   async function exportCsv() {
     if (!moduleId) return;
@@ -459,16 +472,16 @@ export default function EcoleReportClient() {
             <table className={adminTable}>
               <thead className={adminThead}>
                 <tr>
-                  <th className={adminTh}>Nom de l&apos;élève</th>
-                  <th className={adminTh}>Classe</th>
-                  <th className={adminTh}>Payé ({report.currency})</th>
-                  <th className={adminTh}>Dû</th>
-                  <th className={adminTh}>Solde restant</th>
-                  <th className={adminTh}>Situation</th>
+                  <SortableTh column="displayName" label="Nom de l'élève" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh column="classLabel" label="Classe" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh column="paid" label={`Payé (${report.currency})`} sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh column="due" label="Dû" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh column="balance" label="Solde restant" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh column="status" label="Situation" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 </tr>
               </thead>
               <tbody>
-                {report.rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={r.studentId} className={adminTr}>
                     <td className={adminTd}>{r.displayName}</td>
                     <td className={adminTdMuted}>{r.classLabel}</td>

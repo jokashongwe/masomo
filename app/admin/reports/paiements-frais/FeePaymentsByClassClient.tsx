@@ -15,7 +15,6 @@ import {
   adminSecondaryButton,
   adminSubtitle,
   adminTable,
-  adminTh,
   adminTitle,
   adminTr,
   adminThead,
@@ -23,6 +22,8 @@ import {
   adminTdMuted,
   adminTableWrap,
 } from "../../components/admin-ui";
+import { SortableTh } from "../../components/SortableTh";
+import { useClientSort } from "../../components/useClientSort";
 
 type ModuleRow = {
   id: number;
@@ -169,6 +170,15 @@ export default function FeePaymentsByClassClient() {
     if (loadingMeta) return;
     fetchReport();
   }, [loadingMeta, fetchReport]);
+
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(report?.rows ?? [], {
+    defaultKey: "displayName",
+    getters: {
+      displayName: (r) => r.displayName,
+      classLabel: (r) => r.classLabel,
+      paid: (r) => r.paid,
+    },
+  });
 
   async function exportCsv() {
     setReportError(null);
@@ -331,13 +341,13 @@ export default function FeePaymentsByClassClient() {
             <table className={adminTable}>
               <thead className={adminThead}>
                 <tr>
-                  <th className={adminTh}>Élève</th>
-                  <th className={adminTh}>Classe</th>
-                  <th className={adminTh}>Montant payé ({currency})</th>
+                  <SortableTh column="displayName" label="Élève" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh column="classLabel" label="Classe" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh column="paid" label={`Montant payé (${currency})`} sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 </tr>
               </thead>
               <tbody>
-                {report.rows.map((r) => (
+                {sortedRows.map((r) => (
                   <tr key={`${r.classId}-${r.studentId}`} className={adminTr}>
                     <td className={adminTd}>{r.displayName}</td>
                     <td className={adminTdMuted}>{r.classLabel}</td>

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
 import { requireUser, isSystemAdmin, canReadFinance, canManageSchool } from "@/lib/auth";
 import type { UserRole } from "@/generated/prisma/client";
-import { getAdminDashboardStats } from "@/lib/admin-dashboard-stats";
+import { getAdminDashboardStats, MAIN_FINANCE_ACCOUNT_NAME } from "@/lib/admin-dashboard-stats";
 import { getEnrollmentsByOption, getWalletBalanceSummary } from "@/lib/school-dashboard-stats";
 import { IconFinance, IconPayments, IconPlus, IconReports, IconStudents, IconWallet } from "./components/AdminIcons";
 
@@ -76,9 +76,23 @@ function DashboardKpiGrid({
               {formatMoney(stats.mainAccount.balanceCDF, "CDF")}
             </p>
             <p className="mt-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">{stats.mainAccount.name}</p>
+            <Link
+              href={`/admin/finance/accounts/${stats.mainAccount.id}`}
+              className="mt-3 inline-flex text-sm font-semibold text-[#2D9CDB] hover:underline"
+            >
+              Voir le compte →
+            </Link>
           </>
         ) : (
-          <p className="mt-2 text-sm text-zinc-500">Aucun compte pour cette année</p>
+          <>
+            <p className="mt-2 text-sm text-zinc-500">Aucun compte pour cette année</p>
+            <Link
+              href="/admin/finance/accounts"
+              className="mt-3 inline-flex text-sm font-semibold text-[#2D9CDB] hover:underline"
+            >
+              Gérer les comptes →
+            </Link>
+          </>
         )}
       </div>
 
@@ -135,7 +149,7 @@ function DashboardKpiGrid({
   );
 }
 
-async function FinanceManagerHome({ name, role }: { name: string; role: UserRole }) {
+async function FinanceManagerHome({ name, roles }: { name: string; roles: UserRole[] }) {
   const currentYear = await prisma.academicYear.findFirst({
     where: { isCurrent: true },
     select: { id: true, name: true, startDate: true, endDate: true },
@@ -175,7 +189,10 @@ async function FinanceManagerHome({ name, role }: { name: string; role: UserRole
   const btnPrimary =
     "inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#2D9CDB] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-300/35 hover:bg-[#2590c9]";
 
-  const roleLabel = role === "FINANCE_VIEWER" ? "Consultation finance" : "Finances";
+  const roleLabel =
+    roles.includes("FINANCE_VIEWER") && !roles.includes("FINANCE_MANAGER")
+      ? "Consultation finance"
+      : "Finances";
 
   return (
     <PageShell>
@@ -199,9 +216,50 @@ async function FinanceManagerHome({ name, role }: { name: string; role: UserRole
 
       <DashboardKpiGrid stats={stats} showStudents={false} cardBase={cardBase} />
 
+      {stats.mainAccount ? (
+        <section className={`${cardBase} mb-8 border-emerald-100/80 bg-gradient-to-br from-emerald-50/50 via-white to-sky-50/30 dark:border-emerald-900/40 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900`}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Compte principal</p>
+              <h2 className="mt-1 text-xl font-bold text-zinc-900 dark:text-white">{stats.mainAccount.name}</h2>
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+                {formatMoney(stats.mainAccount.balanceUSD, "USD")} · {formatMoney(stats.mainAccount.balanceCDF, "CDF")}
+              </p>
+            </div>
+            <Link
+              href={`/admin/finance/accounts/${stats.mainAccount.id}`}
+              className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-300/30 hover:bg-emerald-700"
+            >
+              Ouvrir le compte
+            </Link>
+          </div>
+        </section>
+      ) : (
+        <section className={`${cardBase} mb-8 border-amber-100 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/20`}>
+          <p className="font-semibold text-zinc-900 dark:text-white">Compte principal introuvable</p>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+            Aucun compte d’encaissement pour l’année {currentYear.name}. Créez « {MAIN_FINANCE_ACCOUNT_NAME} » dans Comptes.
+          </p>
+          <Link href="/admin/finance/accounts" className={`${btnPrimary} mt-4 w-auto`}>
+            Aller aux comptes
+          </Link>
+        </section>
+      )}
+
       <div className={`${cardBase}`}>
         <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Raccourcis</h3>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {stats.mainAccount ? (
+            <div className="flex flex-col rounded-2xl border border-emerald-100/80 bg-emerald-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                <IconFinance className="h-6 w-6" />
+              </div>
+              <p className="mt-2 text-center text-sm font-semibold text-zinc-900 dark:text-white">Compte principal</p>
+              <Link href={`/admin/finance/accounts/${stats.mainAccount.id}`} className={`${btnPrimary} mt-3`}>
+                Ouvrir
+              </Link>
+            </div>
+          ) : null}
           <div className="flex flex-col rounded-2xl border border-sky-100/80 bg-sky-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#2D9CDB]/15 text-[#2D9CDB]">
               <IconPayments className="h-6 w-6" />
@@ -433,15 +491,13 @@ async function SchoolManagerHome({ name }: { name: string }) {
 export default async function AdminHomePage() {
   const user = await requireUser();
 
-  if (canReadFinance(user.role) && !isSystemAdmin(user.role)) {
-    return <FinanceManagerHome name={user.name} role={user.role} />;
-  }
-
-  if (canManageSchool(user.role) && !isSystemAdmin(user.role)) {
-    return <SchoolManagerHome name={user.name} />;
-  }
-
-  if (!isSystemAdmin(user.role)) {
+  if (!isSystemAdmin(user.roles)) {
+    if (canReadFinance(user.roles)) {
+      return <FinanceManagerHome name={user.name} roles={user.roles} />;
+    }
+    if (canManageSchool(user.roles)) {
+      return <SchoolManagerHome name={user.name} />;
+    }
     return <GenericRoleWelcome name={user.name} />;
   }
 

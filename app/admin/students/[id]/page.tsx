@@ -12,9 +12,9 @@ export default async function AdminStudentDetailPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<Record<string, string | string[] | undefined> | undefined>;
 }) {
-  const user = await requireRoles((role) => canManageSchool(role));
-  const canEdit = canEditStudentProfile(user.role);
-  const canEditStatus = canEditStudentStatus(user.role);
+  const user = await requireRoles(canManageSchool);
+  const canEdit = canEditStudentProfile(user.roles);
+  const canEditStatus = canEditStudentStatus(user.roles);
   const { id } = await params;
   const studentId = Number(id);
   if (!Number.isFinite(studentId)) notFound();

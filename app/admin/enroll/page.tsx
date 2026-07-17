@@ -6,7 +6,7 @@ import { adminCard, adminGhostButton, adminPage } from "../components/admin-ui";
 import EnrollmentForm from "./EnrollmentForm";
 
 export default async function AdminEnrollPage() {
-  await requireRoles((role) => canManageSchool(role));
+  await requireRoles(canManageSchool);
 
   const currentYear = await prisma.academicYear.findFirst({
     where: { isCurrent: true },

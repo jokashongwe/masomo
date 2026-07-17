@@ -61,7 +61,7 @@ async function main() {
     where: { username: systemAdminUsername.toLowerCase() },
     update: {
       name: systemAdminName,
-      role: "SYSTEM_ADMIN",
+      roles: ["SYSTEM_ADMIN"],
       passwordHash,
       email: systemAdminEmail,
     },
@@ -69,7 +69,7 @@ async function main() {
       username: systemAdminUsername.toLowerCase(),
       email: systemAdminEmail,
       name: systemAdminName,
-      role: "SYSTEM_ADMIN",
+      roles: ["SYSTEM_ADMIN"],
       passwordHash,
     },
   });

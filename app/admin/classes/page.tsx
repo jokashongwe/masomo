@@ -18,7 +18,7 @@ export default async function AdminClassesPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined> | undefined>;
 }) {
-  await requireRoles((role) => canManageSchool(role));
+  await requireRoles(canManageSchool);
   const sp = (await searchParams) ?? {};
 
   const qRaw = sp.q;

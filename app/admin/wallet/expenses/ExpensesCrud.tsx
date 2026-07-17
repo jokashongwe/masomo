@@ -21,6 +21,8 @@ import {
   adminTableEmpty,
   adminTableWrap,
 } from "../../components/admin-ui";
+import { useClientSort } from "../../components/useClientSort";
+import { SortableTh } from "../../components/SortableTh";
 
 type Currency = "USD" | "CDF";
 
@@ -81,6 +83,17 @@ export default function ExpensesCrud({
     description: "",
     occurredAt: "",
     academicYearId: 0,
+  });
+
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(expenses, {
+    defaultKey: "academicYearName",
+    getters: {
+      academicYearName: (r) => r.academicYearName,
+      occurredAt: (r) => r.occurredAt,
+      description: (r) => r.description,
+      currency: (r) => r.currency,
+      amount: (r) => Number(r.amount),
+    },
   });
 
   function toLocalDateTimeInput(iso: string) {
@@ -387,23 +400,23 @@ export default function ExpensesCrud({
         <table className={adminTable}>
           <thead className={adminThead}>
             <tr>
-              <th className={adminTh}>Année</th>
-              <th className={adminTh}>Date</th>
-              <th className={adminTh}>Description</th>
-              <th className={adminTh}>Devise</th>
-              <th className={adminTh}>Montant</th>
+              <SortableTh column="academicYearName" label="Année" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+              <SortableTh column="occurredAt" label="Date" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+              <SortableTh column="description" label="Description" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+              <SortableTh column="currency" label="Devise" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+              <SortableTh column="amount" label="Montant" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               <th className={adminTh}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {expenses.length === 0 ? (
+            {sortedRows.length === 0 ? (
               <tr>
                 <td colSpan={6} className={adminTableEmpty}>
                   Aucune dépense trouvée.
                 </td>
               </tr>
             ) : (
-              expenses.map((e) => (
+              sortedRows.map((e) => (
                 <tr key={e.id} className={adminTr}>
                   <td className={adminTdActions}>{e.academicYearName}</td>
                   <td className={adminTd}>{e.occurredAt.slice(0, 10)}</td>

@@ -4,7 +4,7 @@ import ReportsClient from "./ReportsClient";
 import { adminCard, adminPage } from "../components/admin-ui";
 
 export default async function AdminReportsPage() {
-  await requireRoles((role) => canReadFinance(role));
+  await requireRoles(canReadFinance);
 
   const currentYear = await prisma.academicYear.findFirst({
     where: { isCurrent: true },

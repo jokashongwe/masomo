@@ -7,11 +7,13 @@ import { optionalEmailFieldSchema, usernameFieldSchema } from "@/lib/user-userna
 
 const idSchema = z.object({ id: z.coerce.number().int().positive() });
 
+import { rolesFieldSchema } from "@/lib/user-roles";
+
 const updateUserSchema = z.object({
   username: usernameFieldSchema,
   email: optionalEmailFieldSchema,
   name: z.string().min(1),
-  role: z.enum(["SYSTEM_ADMIN", "FINANCE_MANAGER", "FINANCE_VIEWER", "SCHOOL_MANAGER"]),
+  roles: rolesFieldSchema,
   password: z.string().min(6).optional().or(z.literal("")),
 });
 
@@ -20,7 +22,7 @@ const userSelect = {
   username: true,
   email: true,
   name: true,
-  role: true,
+  roles: true,
   createdAt: true,
 } as const;
 
@@ -47,7 +49,7 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
         username: parsed.data.username,
         email: parsed.data.email,
         name: parsed.data.name,
-        role: parsed.data.role,
+        roles: parsed.data.roles,
         ...(passwordHash ? { passwordHash } : {}),
       },
       select: userSelect,

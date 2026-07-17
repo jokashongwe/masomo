@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { roleLabelFr, USER_ROLE_VALUES } from "@/lib/user-roles";
 import {
   adminCard,
   adminCrudLayout,
@@ -9,6 +10,7 @@ import {
   adminErrorBox,
   adminGhostButton,
   adminInput,
+  adminLabel,
   adminNestedCard,
   adminPrimaryButton,
   adminPrimaryButtonBlock,
@@ -23,23 +25,59 @@ import {
   adminTdStrong,
   adminTableEmpty,
 } from "../components/admin-ui";
+import { useClientSort } from "../components/useClientSort";
+import { SortableTh } from "../components/SortableTh";
 
-type UserRole = "SYSTEM_ADMIN" | "FINANCE_MANAGER" | "FINANCE_VIEWER" | "SCHOOL_MANAGER";
+type UserRole = (typeof USER_ROLE_VALUES)[number];
 type UserRow = {
   id: number;
   username: string;
   email: string | null;
   name: string;
-  role: UserRole;
+  roles: UserRole[];
   createdAt: string | Date;
 };
 
-const ROLES: { value: UserRole; label: string }[] = [
-  { value: "SYSTEM_ADMIN", label: "Administrateur système" },
-  { value: "FINANCE_MANAGER", label: "Responsable finances" },
-  { value: "FINANCE_VIEWER", label: "Lecteur finances" },
-  { value: "SCHOOL_MANAGER", label: "Responsable scolaire" },
-];
+const ROLES = USER_ROLE_VALUES.map((value) => ({
+  value,
+  label: roleLabelFr(value),
+}));
+
+function RoleCheckboxes({
+  selected,
+  onChange,
+}: {
+  selected: UserRole[];
+  onChange: (roles: UserRole[]) => void;
+}) {
+  function toggle(role: UserRole) {
+    if (selected.includes(role)) {
+      if (selected.length === 1) return;
+      onChange(selected.filter((r) => r !== role));
+      return;
+    }
+    onChange([...selected, role]);
+  }
+
+  return (
+    <fieldset className="space-y-2">
+      <legend className={adminLabel}>Rôles</legend>
+      <div className="mt-2 flex flex-col gap-2">
+        {ROLES.map((r) => (
+          <label key={r.value} className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-200">
+            <input
+              type="checkbox"
+              checked={selected.includes(r.value)}
+              onChange={() => toggle(r.value)}
+              className="size-4 rounded border-zinc-300"
+            />
+            {r.label}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 
 export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] }) {
   const router = useRouter();
@@ -50,7 +88,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
     email: "",
     name: "",
     password: "",
-    role: "SCHOOL_MANAGER" as UserRole,
+    roles: ["SCHOOL_MANAGER"] as UserRole[],
   });
 
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -61,18 +99,28 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
     email: "",
     name: "",
     password: "",
-    role: "SCHOOL_MANAGER" as UserRole,
+    roles: ["SCHOOL_MANAGER"] as UserRole[],
   });
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(users, {
+    defaultKey: "username",
+    getters: {
+      username: (r) => r.username,
+      email: (r) => r.email,
+      name: (r) => r.name,
+      roles: (r) => r.roles.map(roleLabelFr).join(", "),
+    },
+  });
 
   function resetUpdateFromEditing(u: UserRow) {
     setUpdate({
       username: u.username,
       email: u.email ?? "",
       name: u.name,
-      role: u.role,
+      roles: [...u.roles],
       password: "",
     });
   }
@@ -92,7 +140,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
         setError(data?.error?.formErrors ? String(data.error.formErrors) : data?.error ?? "Échec de création");
         return;
       }
-      setCreate({ username: "", email: "", name: "", password: "", role: "SCHOOL_MANAGER" });
+      setCreate({ username: "", email: "", name: "", password: "", roles: ["SCHOOL_MANAGER"] });
       router.refresh();
     } finally {
       setSubmitting(false);
@@ -175,17 +223,10 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
             value={create.password}
             onChange={(e) => setCreate((c) => ({ ...c, password: e.target.value }))}
           />
-          <select
-            className={adminInput}
-            value={create.role}
-            onChange={(e) => setCreate((c) => ({ ...c, role: e.target.value as UserRole }))}
-          >
-            {ROLES.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-          </select>
+          <RoleCheckboxes
+            selected={create.roles}
+            onChange={(roles) => setCreate((c) => ({ ...c, roles }))}
+          />
 
           <button disabled={submitting} type="submit" className={adminPrimaryButtonBlock}>
             {submitting ? "Enregistrement…" : "Créer"}
@@ -199,27 +240,27 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>
-                <th className={adminTh}>Nom d&apos;utilisateur</th>
-                <th className={adminTh}>E-mail</th>
-                <th className={adminTh}>Nom affiché</th>
-                <th className={adminTh}>Rôle</th>
+                <SortableTh column="username" label="Nom d'utilisateur" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="email" label="E-mail" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="name" label="Nom affiché" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="roles" label="Rôles" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {users.length === 0 ? (
+              {sortedRows.length === 0 ? (
                 <tr>
                   <td colSpan={5} className={adminTableEmpty}>
                     Aucun utilisateur.
                   </td>
                 </tr>
               ) : (
-                users.map((u) => (
+                sortedRows.map((u) => (
                   <tr key={u.id} className={adminTr}>
                     <td className={adminTdStrong}>{u.username}</td>
                     <td className={adminTd}>{u.email ?? "—"}</td>
                     <td className={adminTd}>{u.name}</td>
-                    <td className={adminTd}>{u.role}</td>
+                    <td className={adminTd}>{u.roles.map(roleLabelFr).join(", ")}</td>
                     <td className={adminTd}>
                       <div className="flex gap-2">
                         <button
@@ -281,17 +322,10 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
                 value={update.password}
                 onChange={(e) => setUpdate((x) => ({ ...x, password: e.target.value }))}
               />
-              <select
-                className={adminInput}
-                value={update.role}
-                onChange={(e) => setUpdate((x) => ({ ...x, role: e.target.value as UserRole }))}
-              >
-                {ROLES.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
+              <RoleCheckboxes
+                selected={update.roles}
+                onChange={(roles) => setUpdate((x) => ({ ...x, roles }))}
+              />
 
               <div className="flex items-center justify-between gap-3">
                 <button type="submit" disabled={submitting} className={adminPrimaryButton}>

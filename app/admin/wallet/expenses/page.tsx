@@ -18,8 +18,8 @@ export default async function AdminWalletExpensesPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined> | undefined>;
 }) {
-  const user = await requireRoles((role) => canReadFinance(role));
-  const canWrite = canWriteFinance(user.role);
+  const user = await requireRoles(canReadFinance);
+  const canWrite = canWriteFinance(user.roles);
 
   const sp = (await searchParams) ?? {};
   const q = sp.q;

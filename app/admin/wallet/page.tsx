@@ -12,8 +12,8 @@ import {
 } from "../components/admin-ui";
 
 export default async function AdminWalletPage() {
-  const user = await requireRoles((role) => canReadFinance(role));
-  const canWrite = canWriteFinance(user.role);
+  const user = await requireRoles(canReadFinance);
+  const canWrite = canWriteFinance(user.roles);
 
   const academicYears = await prisma.academicYear.findMany({
     orderBy: [{ startDate: "desc" }, { id: "desc" }],

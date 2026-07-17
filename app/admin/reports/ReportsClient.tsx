@@ -18,7 +18,6 @@ import {
   adminStatFees,
   adminSubtitle,
   adminTable,
-  adminTh,
   adminTitle,
   adminTr,
   adminThead,
@@ -28,6 +27,8 @@ import {
   adminTableEmpty,
   adminTableWrap,
 } from "../components/admin-ui";
+import { SortableTh } from "../components/SortableTh";
+import { useClientSort } from "../components/useClientSort";
 
 type DailyRow = {
   day: string; // YYYY-MM-DD
@@ -221,6 +222,74 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
     setParamsEnd(draftEnd);
   }
 
+  const {
+    sortedRows: dailySorted,
+    sortKey: dailySortKey,
+    sortDir: dailySortDir,
+    toggleSort: toggleDailySort,
+  } = useClientSort(daily?.items ?? [], {
+    defaultKey: "day",
+    getters: {
+      day: (r) => r.day,
+      feesUSD: (r) => r.feesUSD,
+      feesCDF: (r) => r.feesCDF,
+      expensesUSD: (r) => r.expensesUSD,
+      expensesCDF: (r) => r.expensesCDF,
+    },
+  });
+
+  const {
+    sortedRows: monthlySorted,
+    sortKey: monthlySortKey,
+    sortDir: monthlySortDir,
+    toggleSort: toggleMonthlySort,
+  } = useClientSort(monthly?.items ?? [], {
+    defaultKey: "month",
+    getters: {
+      month: (r) => r.month,
+      feesUSD: (r) => r.feesUSD,
+      feesCDF: (r) => r.feesCDF,
+      expensesUSD: (r) => r.expensesUSD,
+      expensesCDF: (r) => r.expensesCDF,
+    },
+  });
+
+  const {
+    sortedRows: dailyByFeeSorted,
+    sortKey: dailyByFeeSortKey,
+    sortDir: dailyByFeeSortDir,
+    toggleSort: toggleDailyByFeeSort,
+  } = useClientSort(dailyByFee?.items ?? [], {
+    defaultKey: "day",
+    getters: {
+      day: (r) => r.day,
+      feeCode: (r) => r.feeCode,
+      feeName: (r) => r.feeName,
+      feesUSD: (r) => r.feesUSD,
+      feesCDF: (r) => r.feesCDF,
+      expensesUSD: (r) => r.expensesUSD,
+      expensesCDF: (r) => r.expensesCDF,
+    },
+  });
+
+  const {
+    sortedRows: monthlyByFeeSorted,
+    sortKey: monthlyByFeeSortKey,
+    sortDir: monthlyByFeeSortDir,
+    toggleSort: toggleMonthlyByFeeSort,
+  } = useClientSort(monthlyByFee?.items ?? [], {
+    defaultKey: "month",
+    getters: {
+      month: (r) => r.month,
+      feeCode: (r) => r.feeCode,
+      feeName: (r) => r.feeName,
+      feesUSD: (r) => r.feesUSD,
+      feesCDF: (r) => r.feesCDF,
+      expensesUSD: (r) => r.expensesUSD,
+      expensesCDF: (r) => r.expensesCDF,
+    },
+  });
+
   return (
     <div className={adminPage}>
       <header className={adminHeaderRow}>
@@ -372,22 +441,22 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
             <table className={adminTable}>
               <thead className={adminThead}>
                 <tr>
-                  <th className={adminTh}>Date</th>
-                  <th className={adminTh}>Frais USD</th>
-                  <th className={adminTh}>Frais CDF</th>
-                  <th className={adminTh}>Dépenses USD</th>
-                  <th className={adminTh}>Dépenses CDF</th>
+                  <SortableTh column="day" label="Date" sortKey={dailySortKey} sortDir={dailySortDir} onSort={toggleDailySort} />
+                  <SortableTh column="feesUSD" label="Frais USD" sortKey={dailySortKey} sortDir={dailySortDir} onSort={toggleDailySort} />
+                  <SortableTh column="feesCDF" label="Frais CDF" sortKey={dailySortKey} sortDir={dailySortDir} onSort={toggleDailySort} />
+                  <SortableTh column="expensesUSD" label="Dépenses USD" sortKey={dailySortKey} sortDir={dailySortDir} onSort={toggleDailySort} />
+                  <SortableTh column="expensesCDF" label="Dépenses CDF" sortKey={dailySortKey} sortDir={dailySortDir} onSort={toggleDailySort} />
                 </tr>
               </thead>
               <tbody>
-                {daily.items.length === 0 ? (
+                {dailySorted.length === 0 ? (
                   <tr>
                     <td colSpan={5} className={adminTableEmpty}>
                       Aucune donnée sur cette période.
                     </td>
                   </tr>
                 ) : (
-                  daily.items.map((r) => (
+                  dailySorted.map((r) => (
                     <tr key={r.day} className={adminTr}>
                       <td className={adminTd}>{r.day}</td>
                       <td className={adminTd}>{formatCurrency(r.feesUSD, "USD")}</td>
@@ -456,22 +525,22 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
             <table className={adminTable}>
               <thead className={adminThead}>
                 <tr>
-                  <th className={adminTh}>Mois</th>
-                  <th className={adminTh}>Frais USD</th>
-                  <th className={adminTh}>Frais CDF</th>
-                  <th className={adminTh}>Dépenses USD</th>
-                  <th className={adminTh}>Dépenses CDF</th>
+                  <SortableTh column="month" label="Mois" sortKey={monthlySortKey} sortDir={monthlySortDir} onSort={toggleMonthlySort} />
+                  <SortableTh column="feesUSD" label="Frais USD" sortKey={monthlySortKey} sortDir={monthlySortDir} onSort={toggleMonthlySort} />
+                  <SortableTh column="feesCDF" label="Frais CDF" sortKey={monthlySortKey} sortDir={monthlySortDir} onSort={toggleMonthlySort} />
+                  <SortableTh column="expensesUSD" label="Dépenses USD" sortKey={monthlySortKey} sortDir={monthlySortDir} onSort={toggleMonthlySort} />
+                  <SortableTh column="expensesCDF" label="Dépenses CDF" sortKey={monthlySortKey} sortDir={monthlySortDir} onSort={toggleMonthlySort} />
                 </tr>
               </thead>
               <tbody>
-                {monthly.items.length === 0 ? (
+                {monthlySorted.length === 0 ? (
                   <tr>
                     <td colSpan={5} className={adminTableEmpty}>
                       Aucune donnée sur cette période.
                     </td>
                   </tr>
                 ) : (
-                  monthly.items.map((r) => (
+                  monthlySorted.map((r) => (
                     <tr key={r.month} className={adminTr}>
                       <td className={adminTd}>{formatMonthFR(r.month)}</td>
                       <td className={adminTd}>{formatCurrency(r.feesUSD, "USD")}</td>
@@ -514,24 +583,24 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
             <table className={adminTable}>
               <thead className={adminThead}>
                 <tr>
-                  <th className={adminTh}>Date</th>
-                  <th className={adminTh}>Code</th>
-                  <th className={adminTh}>Frais / libellé</th>
-                  <th className={adminTh}>Encaissements USD</th>
-                  <th className={adminTh}>Encaissements CDF</th>
-                  <th className={adminTh}>Dépenses USD</th>
-                  <th className={adminTh}>Dépenses CDF</th>
+                  <SortableTh column="day" label="Date" sortKey={dailyByFeeSortKey} sortDir={dailyByFeeSortDir} onSort={toggleDailyByFeeSort} />
+                  <SortableTh column="feeCode" label="Code" sortKey={dailyByFeeSortKey} sortDir={dailyByFeeSortDir} onSort={toggleDailyByFeeSort} />
+                  <SortableTh column="feeName" label="Frais / libellé" sortKey={dailyByFeeSortKey} sortDir={dailyByFeeSortDir} onSort={toggleDailyByFeeSort} />
+                  <SortableTh column="feesUSD" label="Encaissements USD" sortKey={dailyByFeeSortKey} sortDir={dailyByFeeSortDir} onSort={toggleDailyByFeeSort} />
+                  <SortableTh column="feesCDF" label="Encaissements CDF" sortKey={dailyByFeeSortKey} sortDir={dailyByFeeSortDir} onSort={toggleDailyByFeeSort} />
+                  <SortableTh column="expensesUSD" label="Dépenses USD" sortKey={dailyByFeeSortKey} sortDir={dailyByFeeSortDir} onSort={toggleDailyByFeeSort} />
+                  <SortableTh column="expensesCDF" label="Dépenses CDF" sortKey={dailyByFeeSortKey} sortDir={dailyByFeeSortDir} onSort={toggleDailyByFeeSort} />
                 </tr>
               </thead>
               <tbody>
-                {dailyByFee.items.length === 0 ? (
+                {dailyByFeeSorted.length === 0 ? (
                   <tr>
                     <td colSpan={7} className={adminTableEmpty}>
                       Aucune donnée sur cette période.
                     </td>
                   </tr>
                 ) : (
-                  dailyByFee.items.map((r) => (
+                  dailyByFeeSorted.map((r) => (
                     <tr key={`${r.day}-${r.feeId ?? "wallet"}`} className={adminTr}>
                       <td className={adminTdActions}>{r.day}</td>
                       <td className={adminTdMono}>{r.feeCode}</td>
@@ -602,24 +671,24 @@ export default function ReportsClient({ initialStart, initialEnd }: { initialSta
             <table className={adminTable}>
               <thead className={adminThead}>
                 <tr>
-                  <th className={adminTh}>Mois</th>
-                  <th className={adminTh}>Code</th>
-                  <th className={adminTh}>Frais / libellé</th>
-                  <th className={adminTh}>Encaissements USD</th>
-                  <th className={adminTh}>Encaissements CDF</th>
-                  <th className={adminTh}>Dépenses USD</th>
-                  <th className={adminTh}>Dépenses CDF</th>
+                  <SortableTh column="month" label="Mois" sortKey={monthlyByFeeSortKey} sortDir={monthlyByFeeSortDir} onSort={toggleMonthlyByFeeSort} />
+                  <SortableTh column="feeCode" label="Code" sortKey={monthlyByFeeSortKey} sortDir={monthlyByFeeSortDir} onSort={toggleMonthlyByFeeSort} />
+                  <SortableTh column="feeName" label="Frais / libellé" sortKey={monthlyByFeeSortKey} sortDir={monthlyByFeeSortDir} onSort={toggleMonthlyByFeeSort} />
+                  <SortableTh column="feesUSD" label="Encaissements USD" sortKey={monthlyByFeeSortKey} sortDir={monthlyByFeeSortDir} onSort={toggleMonthlyByFeeSort} />
+                  <SortableTh column="feesCDF" label="Encaissements CDF" sortKey={monthlyByFeeSortKey} sortDir={monthlyByFeeSortDir} onSort={toggleMonthlyByFeeSort} />
+                  <SortableTh column="expensesUSD" label="Dépenses USD" sortKey={monthlyByFeeSortKey} sortDir={monthlyByFeeSortDir} onSort={toggleMonthlyByFeeSort} />
+                  <SortableTh column="expensesCDF" label="Dépenses CDF" sortKey={monthlyByFeeSortKey} sortDir={monthlyByFeeSortDir} onSort={toggleMonthlyByFeeSort} />
                 </tr>
               </thead>
               <tbody>
-                {monthlyByFee.items.length === 0 ? (
+                {monthlyByFeeSorted.length === 0 ? (
                   <tr>
                     <td colSpan={7} className={adminTableEmpty}>
                       Aucune donnée sur cette période.
                     </td>
                   </tr>
                 ) : (
-                  monthlyByFee.items.map((r) => (
+                  monthlyByFeeSorted.map((r) => (
                     <tr key={`${r.month}-${r.feeId ?? "wallet"}`} className={adminTr}>
                       <td className={adminTdActions}>{formatMonthFR(r.month)}</td>
                       <td className={adminTdMono}>{r.feeCode}</td>

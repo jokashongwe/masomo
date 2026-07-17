@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { isMainFinanceAccountName } from "@/lib/finance-account-labels";
 import {
   adminCard,
   adminCrudLayout,
@@ -25,6 +26,8 @@ import {
   adminTdSm,
   adminTableEmpty,
 } from "../../components/admin-ui";
+import { useClientSort } from "../../components/useClientSort";
+import { SortableTh } from "../../components/SortableTh";
 
 type AcademicYearOpt = { id: number; name: string; isCurrent: boolean };
 
@@ -66,6 +69,18 @@ export default function AccountsCrud({
     if (!yearFilter) return initialAccounts;
     return initialAccounts.filter((a) => String(a.academicYearId) === yearFilter);
   }, [initialAccounts, yearFilter]);
+
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(filtered, {
+    defaultKey: "name",
+    getters: {
+      name: (r) => r.name,
+      year: (r) => r.academicYear.name,
+      balanceUSD: (r) => Number(r.balanceUSD),
+      balanceCDF: (r) => Number(r.balanceCDF),
+      fees: (r) => r._count.fees,
+      transactions: (r) => r._count.transactions,
+    },
+  });
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -198,27 +213,34 @@ export default function AccountsCrud({
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>
-                <th className={adminTh}>Nom</th>
-                <th className={adminTh}>Année</th>
-                <th className={adminTh}>Solde USD</th>
-                <th className={adminTh}>Solde CDF</th>
-                <th className={adminTh}>Frais liés</th>
-                <th className={adminTh}>Mouvements</th>
+                <SortableTh column="name" label="Nom" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="year" label="Année" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="balanceUSD" label="Solde USD" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="balanceCDF" label="Solde CDF" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="fees" label="Frais liés" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="transactions" label="Mouvements" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {sortedRows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className={adminTableEmpty}>
                     Aucun compte pour cette sélection.
                   </td>
                 </tr>
               ) : (
-                filtered.map((a) => (
+                sortedRows.map((a) => (
                   <tr key={a.id} className={adminTr}>
                     <td className={adminTd}>
-                      <div className="font-medium">{a.name}</div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="font-medium">{a.name}</div>
+                        {isMainFinanceAccountName(a.name) ? (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+                            Principal
+                          </span>
+                        ) : null}
+                      </div>
                       {a.description ? (
                         <div className="text-xs text-zinc-500 dark:text-zinc-400">{a.description}</div>
                       ) : null}

@@ -23,6 +23,8 @@ import {
   adminTdStrong,
   adminTableEmpty,
 } from "../components/admin-ui";
+import { useClientSort } from "../components/useClientSort";
+import { SortableTh } from "../components/SortableTh";
 
 type School = {
   id: number;
@@ -63,6 +65,15 @@ export default function SchoolCrud({ initialSchools }: { initialSchools: School[
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(schools, {
+    defaultKey: "name",
+    getters: {
+      name: (r) => r.name,
+      city: (r) => r.city,
+      email: (r) => r.email,
+    },
+  });
 
   function resetUpdateFromEditing(target: School) {
     setUpdate({
@@ -228,21 +239,21 @@ export default function SchoolCrud({ initialSchools }: { initialSchools: School[
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>
-                <th className={adminTh}>Nom</th>
-                <th className={adminTh}>Ville</th>
-                <th className={adminTh}>Email</th>
+                <SortableTh column="name" label="Nom" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="city" label="Ville" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="email" label="Email" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {schools.length === 0 ? (
+              {sortedRows.length === 0 ? (
                 <tr>
                   <td colSpan={4} className={adminTableEmpty}>
                     Aucune école.
                   </td>
                 </tr>
               ) : (
-                schools.map((s) => (
+                sortedRows.map((s) => (
                   <tr key={s.id} className={adminTr}>
                     <td className={adminTdStrong}>{s.name}</td>
                     <td className={adminTd}>{s.city}</td>

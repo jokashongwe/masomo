@@ -5,7 +5,7 @@ import AdminPageHeader from "../../components/AdminPageHeader";
 import { adminPage } from "../../components/admin-ui";
 
 export default async function AdminFinanceFeesPage() {
-  await requireRoles((role) => canReadFinance(role));
+  await requireRoles(canReadFinance);
   const [levels, modules, tranches, fees, accounts] = await Promise.all([
     prisma.level.findMany({
       orderBy: { id: "asc" },

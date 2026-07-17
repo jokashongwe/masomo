@@ -68,6 +68,10 @@ export const adminThead =
 export const adminTh =
   "whitespace-nowrap px-4 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-500 first:pl-5 last:pr-5 dark:text-zinc-400";
 
+/** Bouton / lien dans un en-tête de colonne triable. */
+export const adminThSortable =
+  "inline-flex items-center gap-1.5 rounded-md text-left uppercase tracking-wider transition hover:text-[#2D9CDB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/50";
+
 export const adminTr =
   "border-b border-sky-100/60 transition-colors last:border-b-0 hover:bg-sky-50/50 dark:border-zinc-800/70 dark:hover:bg-zinc-800/35";
 

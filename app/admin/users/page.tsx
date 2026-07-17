@@ -5,10 +5,10 @@ import AdminPageHeader from "../components/AdminPageHeader";
 import { adminPage } from "../components/admin-ui";
 
 export default async function AdminUsersPage() {
-  await requireRoles((role) => isSystemAdmin(role));
+  await requireRoles(isSystemAdmin);
   const users = await prisma.user.findMany({
     orderBy: { id: "asc" },
-    select: { id: true, username: true, email: true, name: true, role: true, createdAt: true },
+    select: { id: true, username: true, email: true, name: true, roles: true, createdAt: true },
   });
 
   return (

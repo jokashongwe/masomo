@@ -27,6 +27,8 @@ import {
   adminTableEmpty,
   adminTableWrapNested,
 } from "../../components/admin-ui";
+import { useClientSort } from "../../components/useClientSort";
+import { SortableTh } from "../../components/SortableTh";
 
 type Currency = "USD" | "CDF";
 type FeeChargeType = "TOTAL" | "BY_MODULE";
@@ -118,6 +120,17 @@ export default function FeesCrud({
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(fees, {
+    defaultKey: "code",
+    getters: {
+      code: (r) => r.code,
+      name: (r) => r.name,
+      chargeType: (r) => r.chargeType,
+      account: (r) => r.account?.name ?? "",
+      levels: (r) => r.feeLevels.length,
+    },
+  });
 
   function resetUpdateFromEditing(fee: Fee) {
     setUpdate({
@@ -370,23 +383,23 @@ export default function FeesCrud({
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>
-                <th className={adminTh}>Code</th>
-                <th className={adminTh}>Nom</th>
-                <th className={adminTh}>Type</th>
-                <th className={adminTh}>Compte</th>
-                <th className={adminTh}>Niveaux</th>
+                <SortableTh column="code" label="Code" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="name" label="Nom" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="chargeType" label="Type" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="account" label="Compte" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="levels" label="Niveaux" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {fees.length === 0 ? (
+              {sortedRows.length === 0 ? (
                 <tr>
                   <td colSpan={6} className={adminTableEmpty}>
                     Aucun frais.
                   </td>
                 </tr>
               ) : (
-                fees.map((f) => (
+                sortedRows.map((f) => (
                   <tr key={f.id} className={adminTr}>
                     <td className={adminTdStrong}>{f.code}</td>
                     <td className={adminTd}>{f.name}</td>

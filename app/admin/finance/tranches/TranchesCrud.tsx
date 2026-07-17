@@ -23,6 +23,8 @@ import {
   adminTdStrong,
   adminTableEmpty,
 } from "../../components/admin-ui";
+import { useClientSort } from "../../components/useClientSort";
+import { SortableTh } from "../../components/SortableTh";
 
 type BillingModule = { id: number; name: string; startDay: number; startMonth: number; endDay: number; endMonth: number };
 type ModuleTranche = {
@@ -174,6 +176,15 @@ export default function TranchesCrud({
     return `${m.name} (${fmtDM(m.startDay, m.startMonth)} → ${fmtDM(m.endDay, m.endMonth)})`;
   }
 
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(tranches, {
+    defaultKey: "codeTranche",
+    getters: {
+      codeTranche: (r) => r.codeTranche,
+      period: (r) => r.startMonth * 100 + r.startDay,
+      module: (r) => moduleLabel(r.moduleId),
+    },
+  });
+
   function resetUpdateFromEditing(target: ModuleTranche) {
     setUpdate({
       codeTranche: target.codeTranche,
@@ -286,21 +297,21 @@ export default function TranchesCrud({
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>
-                <th className={adminTh}>Code</th>
-                <th className={adminTh}>Période</th>
-                <th className={adminTh}>Module</th>
+                <SortableTh column="codeTranche" label="Code" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="period" label="Période" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="module" label="Module" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className={adminTh}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {tranches.length === 0 ? (
+              {sortedRows.length === 0 ? (
                 <tr>
                   <td colSpan={4} className={adminTableEmpty}>
                     Aucune tranche.
                   </td>
                 </tr>
               ) : (
-                tranches.map((t) => (
+                sortedRows.map((t) => (
                   <tr key={t.id} className={adminTr}>
                     <td className={adminTdStrong}>{t.codeTranche}</td>
                     <td className={adminTd}>

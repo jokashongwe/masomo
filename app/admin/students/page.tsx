@@ -3,7 +3,9 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma, StudentStatus } from "@/generated/prisma/client";
 import { requireRoles, canManageSchool, canEditStudentProfile } from "@/lib/auth";
 import { studentSexLabel, studentStatusBadgeClass, studentStatusLabel, STUDENT_STATUS_OPTIONS } from "@/lib/student-labels";
+import type { SortDir } from "@/lib/table-sort";
 import AdminPageHeader from "../components/AdminPageHeader";
+import { SortableThLink } from "../components/SortableTh";
 import {
   adminCard,
   adminGhostButton,
@@ -27,13 +29,53 @@ function parseIntSafe(value: string | undefined, fallback: number) {
   return Math.floor(n);
 }
 
+const STUDENT_SORT_KEYS = [
+  "matricule",
+  "name",
+  "status",
+  "sex",
+  "promotion",
+  "class",
+] as const;
+
+type StudentSortKey = (typeof STUDENT_SORT_KEYS)[number];
+
+function parseSortKey(value: string | undefined): StudentSortKey {
+  if (value && (STUDENT_SORT_KEYS as readonly string[]).includes(value)) {
+    return value as StudentSortKey;
+  }
+  return "name";
+}
+
+function parseSortDir(value: string | undefined): SortDir {
+  return value === "desc" ? "desc" : "asc";
+}
+
+function studentOrderBy(sort: StudentSortKey, dir: SortDir): Prisma.StudentOrderByWithRelationInput {
+  switch (sort) {
+    case "matricule":
+      return { matricule: dir };
+    case "status":
+      return { status: dir };
+    case "sex":
+      return { sex: dir };
+    case "promotion":
+      return { schoolClass: { level: { codeLevel: dir } } };
+    case "class":
+      return { schoolClass: { codeClass: dir } };
+    case "name":
+    default:
+      return { name: dir };
+  }
+}
+
 export default async function AdminStudentsPage({
   searchParams,
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined> | undefined>;
 }) {
-  const user = await requireRoles((role) => canManageSchool(role));
-  const canEdit = canEditStudentProfile(user.role);
+  const user = await requireRoles(canManageSchool);
+  const canEdit = canEditStudentProfile(user.roles);
   const sp = (await searchParams) ?? {};
 
   const currentYear = await prisma.academicYear.findFirst({
@@ -64,6 +106,8 @@ export default async function AdminStudentsPage({
 
   const page = parseIntSafe(Array.isArray(sp.page) ? sp.page[0] : sp.page, 1);
   const take = parseIntSafe(Array.isArray(sp.take) ? sp.take[0] : sp.take, 10);
+  const sortKey = parseSortKey(Array.isArray(sp.sort) ? sp.sort[0] : sp.sort);
+  const sortDir = parseSortDir(Array.isArray(sp.order) ? sp.order[0] : sp.order);
 
   const queryWhere: Prisma.StudentWhereInput = { academicYearId: currentYear.id };
   if (classId && Number.isFinite(classId)) queryWhere.classId = classId;
@@ -97,7 +141,7 @@ export default async function AdminStudentsPage({
 
   const items = await prisma.student.findMany({
     where: queryWhere,
-    orderBy: { createdAt: "desc" },
+    orderBy: [studentOrderBy(sortKey, sortDir), { id: "asc" }],
     skip: (page - 1) * take,
     take,
     include: {
@@ -133,14 +177,25 @@ export default async function AdminStudentsPage({
 
   const pageCount = Math.max(1, Math.ceil(total / take));
 
-  function buildQuery(nextPage: number) {
+  function buildQuery(overrides?: {
+    nextPage?: number;
+    sort?: string;
+    order?: SortDir;
+  }) {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (classIdStr) params.set("classId", String(classIdStr));
     if (statusStr) params.set("status", statusStr);
-    params.set("page", String(nextPage));
+    params.set("page", String(overrides?.nextPage ?? page));
     params.set("take", String(take));
+    params.set("sort", overrides?.sort ?? sortKey);
+    params.set("order", overrides?.order ?? sortDir);
     return `?${params.toString()}`;
+  }
+
+  function buildSortHref(column: StudentSortKey) {
+    const nextDir: SortDir = sortKey === column && sortDir === "asc" ? "desc" : "asc";
+    return buildQuery({ nextPage: 1, sort: column, order: nextDir });
   }
 
   function buildStudentHref(studentId: number) {
@@ -150,6 +205,8 @@ export default async function AdminStudentsPage({
     if (statusStr) params.set("status", statusStr);
     if (page > 1) params.set("page", String(page));
     if (take !== 10) params.set("take", String(take));
+    if (sortKey !== "name") params.set("sort", sortKey);
+    if (sortDir !== "asc") params.set("order", sortDir);
     const qs = params.toString();
     return qs ? `/admin/students/${studentId}?${qs}` : `/admin/students/${studentId}`;
   }
@@ -175,6 +232,8 @@ export default async function AdminStudentsPage({
 
       <div className={`${adminCard} mt-6`}>
         <form method="GET" className="grid grid-cols-1 items-end gap-3 md:grid-cols-5">
+          <input type="hidden" name="sort" value={sortKey} />
+          <input type="hidden" name="order" value={sortDir} />
           <div className="md:col-span-2">
             <label className={`block ${adminLabel}`}>Recherche</label>
             <input
@@ -230,12 +289,48 @@ export default async function AdminStudentsPage({
         <table className={adminTable}>
           <thead className={adminThead}>
             <tr>
-              <th className={adminTh}>Matricule</th>
-              <th className={adminTh}>Élève</th>
-              <th className={adminTh}>Statut</th>
-              <th className={adminTh}>Sexe</th>
-              <th className={adminTh}>Promotion</th>
-              <th className={adminTh}>Classe</th>
+              <SortableThLink
+                column="matricule"
+                label="Matricule"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                href={buildSortHref("matricule")}
+              />
+              <SortableThLink
+                column="name"
+                label="Élève"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                href={buildSortHref("name")}
+              />
+              <SortableThLink
+                column="status"
+                label="Statut"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                href={buildSortHref("status")}
+              />
+              <SortableThLink
+                column="sex"
+                label="Sexe"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                href={buildSortHref("sex")}
+              />
+              <SortableThLink
+                column="promotion"
+                label="Promotion"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                href={buildSortHref("promotion")}
+              />
+              <SortableThLink
+                column="class"
+                label="Classe"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                href={buildSortHref("class")}
+              />
               <th className={adminTh}>Tuteurs</th>
               <th className={adminTh}>Actions</th>
             </tr>
@@ -250,7 +345,7 @@ export default async function AdminStudentsPage({
             ) : (
               items.map((s) => {
                 const classLabel = `${s.schoolClass.codeClass} `;
-                const promotionLabel = `${s.schoolClass.level.codeLevel} ${s.schoolClass.level.codeLevel == "1" ? "ère": "ème"} ${s.schoolClass.level.option.nameOption}`;
+                const promotionLabel = `${s.schoolClass.level.codeLevel} ${s.schoolClass.level.codeLevel == "1" ? "ère" : "ème"} ${s.schoolClass.level.option.nameOption}`;
                 const tutorNames = s.studentTutors.map((st) => `${st.tutor.firstName} ${st.tutor.name} ${st.tutor.postnom}`.trim());
                 return (
                   <tr key={s.id} className={adminTr}>
@@ -266,7 +361,7 @@ export default async function AdminStudentsPage({
                       </span>
                     </td>
                     <td className={adminTd}>{studentSexLabel(s.sex)}</td>
-                    
+
                     <td className={adminTd}>{promotionLabel}</td>
                     <td className={adminTd}>{classLabel}</td>
                     <td className={adminTd}>
@@ -287,18 +382,18 @@ export default async function AdminStudentsPage({
         </table>
       </div>
 
-      <div className="mt-6 flex items-center justify-between gap-3 flex-wrap">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm text-zinc-600 dark:text-zinc-300">
           Page {page} sur {pageCount} ({total} au total).
         </div>
         <div className="flex items-center gap-2">
           {page > 1 ? (
-            <Link href={buildQuery(page - 1)} className={adminGhostButton}>
+            <Link href={buildQuery({ nextPage: page - 1 })} className={adminGhostButton}>
               Précédent
             </Link>
           ) : null}
           {page < pageCount ? (
-            <Link href={buildQuery(page + 1)} className={adminGhostButton}>
+            <Link href={buildQuery({ nextPage: page + 1 })} className={adminGhostButton}>
               Suivant
             </Link>
           ) : null}
@@ -307,4 +402,3 @@ export default async function AdminStudentsPage({
     </div>
   );
 }
-

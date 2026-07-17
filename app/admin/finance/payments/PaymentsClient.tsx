@@ -24,6 +24,8 @@ import {
   adminTableEmpty,
   adminTableWrap,
 } from "../../components/admin-ui";
+import { useClientSort } from "../../components/useClientSort";
+import { SortableTh } from "../../components/SortableTh";
 import { printFeePaymentReceipt } from "./payment-receipt-print";
 
 type StudentOpt = { id: number; label: string };
@@ -140,6 +142,28 @@ export default function PaymentsClient({
   const [search, setSearch] = useState("");
   const [items, setItems] = useState<PaymentListItem[]>([]);
   const [listLoading, setListLoading] = useState(false);
+
+  const { sortedRows, sortKey, sortDir, toggleSort } = useClientSort(items, {
+    defaultKey: "receiptNumber",
+    getters: {
+      receiptNumber: (r) => r.receiptNumber,
+      paidAt: (r) => r.paidAt,
+      student: (r) => `${r.student.firstName} ${r.student.name} ${r.student.postnom}`,
+      fee: (r) => `${r.fee.code} - ${r.fee.name}`,
+      allocation: (r) =>
+        r.allocations && r.allocations.length > 0
+          ? r.allocations
+              .map((a) => {
+                if (a.tranche) return a.tranche.codeTranche;
+                if (a.module) return a.module.name;
+                return "Total";
+              })
+              .join(", ")
+          : "",
+      source: (r) => r.source,
+      amount: (r) => Number(r.amount),
+    },
+  });
 
   const selectedFee = useMemo(() => fees.find((f) => f.id === feeId) ?? null, [fees, feeId]);
 
@@ -663,25 +687,25 @@ export default function PaymentsClient({
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>
-                <th className={adminTh}>Reçu</th>
-                <th className={adminTh}>Date</th>
-                <th className={adminTh}>Élève</th>
-                <th className={adminTh}>Frais</th>
-                <th className={adminTh}>Tranche / module</th>
-                <th className={adminTh}>Source</th>
-                <th className={adminTh}>Montant</th>
+                <SortableTh column="receiptNumber" label="Reçu" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="paidAt" label="Date" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="student" label="Élève" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="fee" label="Frais" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="allocation" label="Tranche / module" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="source" label="Source" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="amount" label="Montant" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className={adminTh}>Impression</th>
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 ? (
+              {sortedRows.length === 0 ? (
                 <tr>
                   <td colSpan={8} className={adminTableEmpty}>
                     {listLoading ? "Chargement..." : "Aucun paiement chargé"}
                   </td>
                 </tr>
               ) : (
-                items.map((p) => {
+                sortedRows.map((p) => {
                   const allocLabel =
                     p.allocations && p.allocations.length > 0
                       ? p.allocations

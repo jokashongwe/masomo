@@ -5,7 +5,7 @@ import AdminPageHeader from "../../components/AdminPageHeader";
 import { adminPage } from "../../components/admin-ui";
 
 export default async function AdminFinanceTranchesPage() {
-  await requireRoles((role) => canReadFinance(role));
+  await requireRoles(canReadFinance);
   const [modules, tranches] = await Promise.all([
     prisma.billingModule.findMany({ orderBy: { id: "asc" } }),
     prisma.moduleTranche.findMany({ orderBy: { id: "asc" }, include: { module: true } }),

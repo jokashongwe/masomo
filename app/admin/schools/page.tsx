@@ -5,7 +5,7 @@ import AdminPageHeader from "../components/AdminPageHeader";
 import { adminPage } from "../components/admin-ui";
 
 export default async function AdminSchoolsPage() {
-  await requireRoles((role) => canManageSchool(role));
+  await requireRoles(canManageSchool);
   const schools = await prisma.school.findMany({ orderBy: { id: "asc" } });
   return (
     <div className={adminPage}>

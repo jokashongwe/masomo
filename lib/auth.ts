@@ -60,7 +60,7 @@ export type CurrentUser = {
   username: string;
   email: string | null;
   name: string;
-  role: UserRole;
+  roles: UserRole[];
 };
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -86,7 +86,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       username: session.user.username,
       email: session.user.email,
       name: session.user.name,
-      role: session.user.role,
+      roles: session.user.roles,
     };
   }
   catch (error) {
@@ -95,35 +95,37 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   }
 }
 
-export function canReadFinance(role: UserRole) {
-  return role === "SYSTEM_ADMIN" || role === "FINANCE_MANAGER" || role === "FINANCE_VIEWER";
+export function canReadFinance(roles: UserRole[]) {
+  return roles.some(
+    (role) => role === "SYSTEM_ADMIN" || role === "FINANCE_MANAGER" || role === "FINANCE_VIEWER",
+  );
 }
 
-export function canWriteFinance(role: UserRole) {
-  return role === "SYSTEM_ADMIN" || role === "FINANCE_MANAGER";
+export function canWriteFinance(roles: UserRole[]) {
+  return roles.some((role) => role === "SYSTEM_ADMIN" || role === "FINANCE_MANAGER");
 }
 
-export function canManageSchool(role: UserRole) {
-  return role === "SYSTEM_ADMIN" || role === "SCHOOL_MANAGER";
+export function canManageSchool(roles: UserRole[]) {
+  return roles.some((role) => role === "SYSTEM_ADMIN" || role === "SCHOOL_MANAGER");
 }
 
-export function isSystemAdmin(role: UserRole) {
-  return role === "SYSTEM_ADMIN";
+export function isSystemAdmin(roles: UserRole[]) {
+  return roles.includes("SYSTEM_ADMIN");
 }
 
 /** Modification complète des fiches élèves (y compris statut). */
-export function canEditStudents(role: UserRole) {
-  return role === "SYSTEM_ADMIN";
+export function canEditStudents(roles: UserRole[]) {
+  return roles.includes("SYSTEM_ADMIN");
 }
 
 /** Modification du profil élève (identité, classe, tuteurs) — sans le statut. */
-export function canEditStudentProfile(role: UserRole) {
-  return role === "SYSTEM_ADMIN" || role === "SCHOOL_MANAGER";
+export function canEditStudentProfile(roles: UserRole[]) {
+  return roles.some((role) => role === "SYSTEM_ADMIN" || role === "SCHOOL_MANAGER");
 }
 
 /** Modification du statut scolaire (inscrit, quitté, etc.). */
-export function canEditStudentStatus(role: UserRole) {
-  return role === "SYSTEM_ADMIN";
+export function canEditStudentStatus(roles: UserRole[]) {
+  return roles.includes("SYSTEM_ADMIN");
 }
 
 export async function requireUser() {
@@ -132,9 +134,9 @@ export async function requireUser() {
   return user;
 }
 
-export async function requireRoles(check: (role: UserRole) => boolean) {
+export async function requireRoles(check: (roles: UserRole[]) => boolean) {
   const user = await requireUser();
-  if (!check(user.role)) redirect("/login");
+  if (!check(user.roles)) redirect("/login");
   return user;
 }
 
