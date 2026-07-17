@@ -17,6 +17,7 @@ async function main() {
   const prisma = new PrismaClient({ adapter });
 
   const systemAdminEmail = getEnv("SEED_SYSTEM_ADMIN_EMAIL", "admin@kelaapp.local");
+  const systemAdminUsername = getEnv("SEED_SYSTEM_ADMIN_USERNAME", "admin");
   const systemAdminPassword = getEnv("SEED_SYSTEM_ADMIN_PASSWORD", "admin123456");
   const systemAdminName = getEnv("SEED_SYSTEM_ADMIN_NAME", "System Administrator");
 
@@ -54,16 +55,18 @@ async function main() {
     : (await prisma.school.create({ data: { name: schoolName, logo: null, address: `${schoolName} HQ`, city: schoolCity, contacts: null, email: null } })).id;
 
 
-  // Create SYSTEM_ADMIN user (upsert by email)
+  // Create SYSTEM_ADMIN user (upsert by username)
   const passwordHash = await bcrypt.hash(systemAdminPassword, await bcrypt.genSalt(12));
   await prisma.user.upsert({
-    where: { email: systemAdminEmail },
+    where: { username: systemAdminUsername.toLowerCase() },
     update: {
       name: systemAdminName,
       role: "SYSTEM_ADMIN",
       passwordHash,
+      email: systemAdminEmail,
     },
     create: {
+      username: systemAdminUsername.toLowerCase(),
       email: systemAdminEmail,
       name: systemAdminName,
       role: "SYSTEM_ADMIN",

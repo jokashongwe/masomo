@@ -11,7 +11,7 @@ import {
 
 export default function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +24,7 @@ export default function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -43,18 +43,18 @@ export default function LoginForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
-        <label htmlFor="login-email" className={`block ${adminLabel}`}>
-          Adresse e-mail
+        <label htmlFor="login-username" className={`block ${adminLabel}`}>
+          Nom d&apos;utilisateur
         </label>
         <input
-          id="login-email"
+          id="login-username"
           required
-          type="email"
-          autoComplete="email"
-          placeholder="vous@exemple.com"
+          type="text"
+          autoComplete="username"
+          placeholder="ex. jdupont"
           className={`mt-2 ${adminInput}`}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
         />
       </div>
       <div>
@@ -74,7 +74,7 @@ export default function LoginForm() {
       </div>
       {error ? <div className={adminErrorBox}>{error}</div> : null}
       <button type="submit" disabled={submitting} className={adminPrimaryButtonBlock}>
-        {submitting ? "Connexion..." : "Se connecter"}
+        {submitting ? "Connexion…" : "Se connecter"}
       </button>
     </form>
   );

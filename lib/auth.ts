@@ -55,7 +55,13 @@ export async function destroySession() {
   store.delete(SESSION_COOKIE);
 }
 
-export type CurrentUser = { id: number; email: string; name: string; role: UserRole };
+export type CurrentUser = {
+  id: number;
+  username: string;
+  email: string | null;
+  name: string;
+  role: UserRole;
+};
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   try {
@@ -77,6 +83,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
     return {
       id: session.user.id,
+      username: session.user.username,
       email: session.user.email,
       name: session.user.name,
       role: session.user.role,

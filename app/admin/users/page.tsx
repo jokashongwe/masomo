@@ -8,7 +8,7 @@ export default async function AdminUsersPage() {
   await requireRoles((role) => isSystemAdmin(role));
   const users = await prisma.user.findMany({
     orderBy: { id: "asc" },
-    select: { id: true, email: true, name: true, role: true, createdAt: true },
+    select: { id: true, username: true, email: true, name: true, role: true, createdAt: true },
   });
 
   return (

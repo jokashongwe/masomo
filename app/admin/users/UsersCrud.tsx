@@ -25,7 +25,14 @@ import {
 } from "../components/admin-ui";
 
 type UserRole = "SYSTEM_ADMIN" | "FINANCE_MANAGER" | "FINANCE_VIEWER" | "SCHOOL_MANAGER";
-type UserRow = { id: number; email: string; name: string; role: UserRole; createdAt: string | Date };
+type UserRow = {
+  id: number;
+  username: string;
+  email: string | null;
+  name: string;
+  role: UserRole;
+  createdAt: string | Date;
+};
 
 const ROLES: { value: UserRole; label: string }[] = [
   { value: "SYSTEM_ADMIN", label: "Administrateur système" },
@@ -39,6 +46,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
   const [users] = useState(initialUsers);
 
   const [create, setCreate] = useState({
+    username: "",
     email: "",
     name: "",
     password: "",
@@ -49,6 +57,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
   const editing = useMemo(() => users.find((u) => u.id === editingId) ?? null, [users, editingId]);
 
   const [update, setUpdate] = useState({
+    username: "",
     email: "",
     name: "",
     password: "",
@@ -59,7 +68,13 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
   const [submitting, setSubmitting] = useState(false);
 
   function resetUpdateFromEditing(u: UserRow) {
-    setUpdate({ email: u.email, name: u.name, role: u.role, password: "" });
+    setUpdate({
+      username: u.username,
+      email: u.email ?? "",
+      name: u.name,
+      role: u.role,
+      password: "",
+    });
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -77,7 +92,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
         setError(data?.error?.formErrors ? String(data.error.formErrors) : data?.error ?? "Échec de création");
         return;
       }
-      setCreate({ email: "", name: "", password: "", role: "SCHOOL_MANAGER" });
+      setCreate({ username: "", email: "", name: "", password: "", role: "SCHOOL_MANAGER" });
       router.refresh();
     } finally {
       setSubmitting(false);
@@ -133,15 +148,21 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
         <form onSubmit={handleCreate} className="mt-3 space-y-3">
           <input
             required
+            placeholder="Nom d'utilisateur (connexion)"
+            className={adminInput}
+            value={create.username}
+            onChange={(e) => setCreate((c) => ({ ...c, username: e.target.value }))}
+          />
+          <input
+            placeholder="E-mail (optionnel)"
             type="email"
-            placeholder="Email"
             className={adminInput}
             value={create.email}
             onChange={(e) => setCreate((c) => ({ ...c, email: e.target.value }))}
           />
           <input
             required
-            placeholder="Nom"
+            placeholder="Nom affiché"
             className={adminInput}
             value={create.name}
             onChange={(e) => setCreate((c) => ({ ...c, name: e.target.value }))}
@@ -166,12 +187,8 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
             ))}
           </select>
 
-          <button
-            disabled={submitting}
-            type="submit"
-            className={adminPrimaryButtonBlock}
-          >
-            {submitting ? "Enregistrement..." : "Créer"}
+          <button disabled={submitting} type="submit" className={adminPrimaryButtonBlock}>
+            {submitting ? "Enregistrement…" : "Créer"}
           </button>
         </form>
       </div>
@@ -182,8 +199,9 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>
-                <th className={adminTh}>Email</th>
-                <th className={adminTh}>Nom</th>
+                <th className={adminTh}>Nom d&apos;utilisateur</th>
+                <th className={adminTh}>E-mail</th>
+                <th className={adminTh}>Nom affiché</th>
                 <th className={adminTh}>Rôle</th>
                 <th className={adminTh}>Actions</th>
               </tr>
@@ -191,14 +209,15 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
             <tbody>
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className={adminTableEmpty}>
+                  <td colSpan={5} className={adminTableEmpty}>
                     Aucun utilisateur.
                   </td>
                 </tr>
               ) : (
                 users.map((u) => (
                   <tr key={u.id} className={adminTr}>
-                    <td className={adminTdStrong}>{u.email}</td>
+                    <td className={adminTdStrong}>{u.username}</td>
+                    <td className={adminTd}>{u.email ?? "—"}</td>
                     <td className={adminTd}>{u.name}</td>
                     <td className={adminTd}>{u.role}</td>
                     <td className={adminTd}>
@@ -232,19 +251,25 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
 
         {editing ? (
           <div className={adminNestedCard}>
-            <h3 className={`font-semibold ${adminSectionTitle}`}>Modifier : {editing.email}</h3>
+            <h3 className={`font-semibold ${adminSectionTitle}`}>Modifier : {editing.username}</h3>
             <form onSubmit={handleUpdate} className="mt-3 space-y-3">
               <input
                 required
+                placeholder="Nom d'utilisateur"
+                className={adminInput}
+                value={update.username}
+                onChange={(e) => setUpdate((x) => ({ ...x, username: e.target.value }))}
+              />
+              <input
                 type="email"
-                placeholder="Email"
+                placeholder="E-mail (optionnel)"
                 className={adminInput}
                 value={update.email}
                 onChange={(e) => setUpdate((x) => ({ ...x, email: e.target.value }))}
               />
               <input
                 required
-                placeholder="Nom"
+                placeholder="Nom affiché"
                 className={adminInput}
                 value={update.name}
                 onChange={(e) => setUpdate((x) => ({ ...x, name: e.target.value }))}
@@ -269,12 +294,8 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
               </select>
 
               <div className="flex items-center justify-between gap-3">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className={adminPrimaryButton}
-                >
-                  {submitting ? "Enregistrement..." : "Enregistrer"}
+                <button type="submit" disabled={submitting} className={adminPrimaryButton}>
+                  {submitting ? "Enregistrement…" : "Enregistrer"}
                 </button>
                 <button
                   type="button"
@@ -294,4 +315,3 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
     </div>
   );
 }
-

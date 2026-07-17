@@ -3,13 +3,24 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireSystemAdminApi } from "@/lib/rbac";
 import { hashPassword } from "@/lib/auth";
+import { optionalEmailFieldSchema, usernameFieldSchema } from "@/lib/user-username";
 
 const createUserSchema = z.object({
-  email: z.string().email(),
+  username: usernameFieldSchema,
+  email: optionalEmailFieldSchema,
   name: z.string().min(1),
   password: z.string().min(6),
   role: z.enum(["SYSTEM_ADMIN", "FINANCE_MANAGER", "FINANCE_VIEWER", "SCHOOL_MANAGER"]),
 });
+
+const userSelect = {
+  id: true,
+  username: true,
+  email: true,
+  name: true,
+  role: true,
+  createdAt: true,
+} as const;
 
 export async function GET() {
   const auth = await requireSystemAdminApi();
@@ -17,7 +28,7 @@ export async function GET() {
 
   const users = await prisma.user.findMany({
     orderBy: { id: "asc" },
-    select: { id: true, email: true, name: true, role: true, createdAt: true },
+    select: userSelect,
   });
   return NextResponse.json({ users });
 }
@@ -27,7 +38,7 @@ export async function POST(req: Request) {
   if (!auth.ok) return auth.response;
 
   const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Corps JSON invalide" }, { status: 400 });
 
   const parsed = createUserSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -37,16 +48,19 @@ export async function POST(req: Request) {
   try {
     const created = await prisma.user.create({
       data: {
+        username: parsed.data.username,
         email: parsed.data.email,
         name: parsed.data.name,
         passwordHash,
         role: parsed.data.role,
       },
-      select: { id: true, email: true, name: true, role: true, createdAt: true },
+      select: userSelect,
     });
     return NextResponse.json({ user: created }, { status: 201 });
   } catch {
-    return NextResponse.json({ error: "Failed to create user (email must be unique)" }, { status: 409 });
+    return NextResponse.json(
+      { error: "Échec de création (nom d'utilisateur ou e-mail déjà utilisé)" },
+      { status: 409 },
+    );
   }
 }
-
