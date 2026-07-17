@@ -104,8 +104,18 @@ export function isSystemAdmin(role: UserRole) {
   return role === "SYSTEM_ADMIN";
 }
 
-/** Modification des fiches élèves (identité, classe, statut, tuteurs). */
+/** Modification complète des fiches élèves (y compris statut). */
 export function canEditStudents(role: UserRole) {
+  return role === "SYSTEM_ADMIN";
+}
+
+/** Modification du profil élève (identité, classe, tuteurs) — sans le statut. */
+export function canEditStudentProfile(role: UserRole) {
+  return role === "SYSTEM_ADMIN" || role === "SCHOOL_MANAGER";
+}
+
+/** Modification du statut scolaire (inscrit, quitté, etc.). */
+export function canEditStudentStatus(role: UserRole) {
   return role === "SYSTEM_ADMIN";
 }
 

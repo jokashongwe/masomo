@@ -156,6 +156,7 @@ model AcademicYear {
   expenses Expense[]
   walletTransactions WalletTransaction[]
   financeAccounts FinanceAccount[]
+  studentFeeSupports StudentFeeSupport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -184,6 +185,7 @@ model Student {
 
   studentTutors StudentTutor[]
   feePayments FeePayment[]
+  feeSupports StudentFeeSupport[]
 
   @@index([classId])
   @@index([status])
@@ -237,6 +239,7 @@ model Fee {
 
   feeLevels FeeLevel[]
   payments FeePayment[]
+  supportReductions StudentFeeSupportReduction[]
 
   // Compte d'encaissement crédité lors des paiements de ce frais (optionnel).
   accountId Int?
@@ -541,5 +544,45 @@ model FinanceAccountTransaction {
   @@index([accountId])
   @@index([type])
   @@index([createdById])
+}
+
+// ----------------------------
+// Prise en charge (réductions par frais)
+// ----------------------------
+
+model StudentFeeSupport {
+  id Int @id @default(autoincrement())
+
+  studentId Int
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  academicYearId Int
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+
+  note String?
+
+  feeReductions StudentFeeSupportReduction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, academicYearId])
+  @@index([academicYearId])
+}
+
+model StudentFeeSupportReduction {
+  id Int @id @default(autoincrement())
+
+  supportId Int
+  support StudentFeeSupport @relation(fields: [supportId], references: [id], onDelete: Cascade)
+
+  feeId Int
+  fee Fee @relation(fields: [feeId], references: [id], onDelete: Cascade)
+
+  // Pourcentage de réduction sur le montant dû (0–100). 100 = prise en charge totale.
+  reductionPercent Decimal @db.Decimal(5, 2)
+
+  @@unique([supportId, feeId])
+  @@index([feeId])
 }
 

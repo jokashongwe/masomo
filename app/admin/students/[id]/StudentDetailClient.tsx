@@ -58,11 +58,13 @@ export default function StudentDetailClient({
   initialStudent,
   classOptions,
   canEdit,
+  canEditStatus,
   backHref,
 }: {
   initialStudent: StudentDetail;
   classOptions: ClassOption[];
   canEdit: boolean;
+  canEditStatus: boolean;
   backHref: string;
 }) {
   const router = useRouter();
@@ -112,7 +114,7 @@ export default function StudentDetailClient({
           name: form.name,
           postnom: form.postnom,
           sex: form.sex,
-          status: form.status,
+          status: canEditStatus ? form.status : student.status,
           birthDate: form.birthDate,
           classId: Number(form.classId),
           tutors: form.tutors,
@@ -254,19 +256,28 @@ export default function StudentDetailClient({
             </div>
             <div>
               <label className={adminLabel}>Statut</label>
-              <select
-                className={`mt-2 ${adminInput}`}
-                value={form.status}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, status: e.target.value as StudentDetail["status"] }))
-                }
-              >
-                {STUDENT_STATUS_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+              {canEditStatus ? (
+                <select
+                  className={`mt-2 ${adminInput}`}
+                  value={form.status}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, status: e.target.value as StudentDetail["status"] }))
+                  }
+                >
+                  {STUDENT_STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">
+                  {studentStatusLabel(student.status)}
+                  <span className="mt-1 block text-xs text-zinc-500">
+                    Modification réservée à l&apos;administrateur système.
+                  </span>
+                </p>
+              )}
             </div>
           </div>
 

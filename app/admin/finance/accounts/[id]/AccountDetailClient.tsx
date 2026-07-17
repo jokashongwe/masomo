@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import {
   adminCard,
   adminErrorBox,
+  adminFormGrid,
   adminInput,
+  adminLabel,
   adminPrimaryButton,
   adminSectionTitle,
   adminSoftCard,
@@ -38,9 +40,13 @@ type TransactionRow = {
 };
 
 type FeeLink = { id: number; code: string; name: string };
+type AccountOpt = { id: number; name: string };
+
+type WithdrawDestination = "EXTERNAL" | "ACCOUNT" | "WALLET";
 
 export default function AccountDetailClient({
   account,
+  otherAccounts,
   initialTransactions,
   canWithdraw,
 }: {
@@ -53,11 +59,18 @@ export default function AccountDetailClient({
     academicYear: { id: number; name: string; isCurrent: boolean };
     fees: FeeLink[];
   };
+  otherAccounts: AccountOpt[];
   initialTransactions: TransactionRow[];
   canWithdraw: boolean;
 }) {
   const router = useRouter();
-  const [withdraw, setWithdraw] = useState({ currency: "USD" as "USD" | "CDF", amount: "", note: "" });
+  const [withdraw, setWithdraw] = useState({
+    currency: "USD" as "USD" | "CDF",
+    amount: "",
+    note: "",
+    destinationType: "WALLET" as WithdrawDestination,
+    targetAccountId: otherAccounts[0]?.id ? String(otherAccounts[0].id) : "",
+  });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -67,21 +80,30 @@ export default function AccountDetailClient({
     setError(null);
     setSubmitting(true);
     try {
+      const body: Record<string, unknown> = {
+        currency: withdraw.currency,
+        amount: Number(withdraw.amount),
+        note: withdraw.note,
+        destinationType: withdraw.destinationType,
+      };
+      if (withdraw.destinationType === "ACCOUNT") {
+        body.targetAccountId = Number(withdraw.targetAccountId);
+      }
+      if (withdraw.destinationType === "WALLET") {
+        body.academicYearId = account.academicYear.id;
+      }
+
       const res = await fetch(`/api/admin/finance/accounts/${account.id}/withdraw`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          currency: withdraw.currency,
-          amount: Number(withdraw.amount),
-          note: withdraw.note,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setError(typeof data?.error === "string" ? data.error : "Échec du retrait");
         return;
       }
-      setWithdraw({ currency: withdraw.currency, amount: "", note: "" });
+      setWithdraw((w) => ({ ...w, amount: "", note: "" }));
       router.refresh();
     } finally {
       setSubmitting(false);
@@ -89,7 +111,7 @@ export default function AccountDetailClient({
   }
 
   function typeLabel(t: TransactionRow["type"]) {
-    return t === "DEPOSIT" ? "Dépôt (paiement)" : "Retrait";
+    return t === "DEPOSIT" ? "Crédit" : "Retrait / transfert";
   }
 
   function movementDetail(t: TransactionRow) {
@@ -97,11 +119,18 @@ export default function AccountDetailClient({
       const s = t.feePayment.student;
       return `${t.feePayment.receiptNumber} — ${s.firstName} ${s.name} ${s.postnom} (${t.feePayment.fee.name})`;
     }
+    if (t.note) return t.note;
     if (t.type === "WITHDRAWAL" && t.createdBy) {
       return `Par ${t.createdBy.name}`;
     }
-    return t.note ?? "—";
+    return "—";
   }
+
+  const destinationHelp: Record<WithdrawDestination, string> = {
+    EXTERNAL: "Sortie du système (aucun crédit sur un autre compte ou la caution).",
+    ACCOUNT: "Transfert vers un autre compte de la même année scolaire.",
+    WALLET: "Transfert vers la caution (wallet) pour l'année de ce compte.",
+  };
 
   return (
     <div className="mt-6 space-y-6">
@@ -111,67 +140,130 @@ export default function AccountDetailClient({
         <div className={adminSoftCard}>{account.description}</div>
       ) : null}
 
-      {account.fees.length > 0 ? (
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className={adminCard}>
-          <div className={adminSectionTitle}>Frais rattachés à ce compte</div>
-          <ul className="mt-3 list-inside list-disc text-sm text-zinc-700 dark:text-zinc-200">
-            {account.fees.map((f) => (
-              <li key={f.id}>
-                {f.code} — {f.name}
-              </li>
-            ))}
-          </ul>
+          <div className={adminSectionTitle}>Frais rattachés</div>
+          {account.fees.length > 0 ? (
+            <ul className="mt-3 space-y-1 text-sm text-zinc-700 dark:text-zinc-200">
+              {account.fees.map((f) => (
+                <li key={f.id}>
+                  <span className="font-mono text-xs">{f.code}</span> — {f.name}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
+              Aucun frais lié. Associez des frais depuis la page <strong>Frais</strong> pour créditer ce compte
+              automatiquement.
+            </p>
+          )}
         </div>
-      ) : (
-        <div className={adminSoftCard}>
-          Aucun frais n’est encore lié à ce compte. Associez des frais depuis la page{" "}
-          <strong>Frais</strong> pour que les paiements créditent ce compte.
-        </div>
-      )}
 
-      {canWithdraw ? (
-        <div className={adminCard}>
-          <div className={adminSectionTitle}>Retrait (administrateur système)</div>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-            Les dépôts sont créés automatiquement lors des paiements de frais liés. Seul l’administrateur système peut
-            effectuer un retrait manuel.
-          </p>
-          <form onSubmit={handleWithdraw} className="mt-4 grid max-w-md gap-3">
-            <select
-              className={adminInput}
-              value={withdraw.currency}
-              onChange={(e) => setWithdraw((w) => ({ ...w, currency: e.target.value as "USD" | "CDF" }))}
-            >
-              <option value="USD">USD</option>
-              <option value="CDF">CDF</option>
-            </select>
-            <input
-              required
-              type="number"
-              min="0.01"
-              step="0.01"
-              placeholder="Montant"
-              className={adminInput}
-              value={withdraw.amount}
-              onChange={(e) => setWithdraw((w) => ({ ...w, amount: e.target.value }))}
-            />
-            <input
-              placeholder="Motif (optionnel)"
-              className={adminInput}
-              value={withdraw.note}
-              onChange={(e) => setWithdraw((w) => ({ ...w, note: e.target.value }))}
-            />
-            {error ? <div className={adminErrorBox}>{error}</div> : null}
-            <button type="submit" disabled={submitting} className={adminPrimaryButton}>
-              {submitting ? "Retrait…" : "Enregistrer le retrait"}
-            </button>
-          </form>
-        </div>
-      ) : null}
+        {canWithdraw ? (
+          <div className={adminCard}>
+            <div className={adminSectionTitle}>Retrait / transfert</div>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+              Réservé à l&apos;administrateur système. Les crédits proviennent des paiements de frais liés.
+            </p>
+            <form onSubmit={handleWithdraw} className="mt-4 space-y-4">
+              <div>
+                <label className={adminLabel}>Destination</label>
+                <select
+                  className={`mt-2 ${adminInput}`}
+                  value={withdraw.destinationType}
+                  onChange={(e) =>
+                    setWithdraw((w) => ({
+                      ...w,
+                      destinationType: e.target.value as WithdrawDestination,
+                    }))
+                  }
+                >
+                  <option value="WALLET">Vers la caution (wallet)</option>
+                  <option value="ACCOUNT">Vers un autre compte</option>
+                  <option value="EXTERNAL">Sortie (hors système)</option>
+                </select>
+                <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                  {destinationHelp[withdraw.destinationType]}
+                </p>
+              </div>
+
+              {withdraw.destinationType === "ACCOUNT" ? (
+                <div>
+                  <label className={adminLabel}>Compte destinataire</label>
+                  <select
+                    required
+                    className={`mt-2 ${adminInput}`}
+                    value={withdraw.targetAccountId}
+                    onChange={(e) => setWithdraw((w) => ({ ...w, targetAccountId: e.target.value }))}
+                  >
+                    {otherAccounts.length === 0 ? (
+                      <option value="">Aucun autre compte pour cette année</option>
+                    ) : (
+                      otherAccounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              ) : null}
+
+              <div className={adminFormGrid}>
+                <div>
+                  <label className={adminLabel}>Devise</label>
+                  <select
+                    className={`mt-2 ${adminInput}`}
+                    value={withdraw.currency}
+                    onChange={(e) => setWithdraw((w) => ({ ...w, currency: e.target.value as "USD" | "CDF" }))}
+                  >
+                    <option value="USD">USD</option>
+                    <option value="CDF">CDF</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={adminLabel}>Montant</label>
+                  <input
+                    required
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    placeholder="0.00"
+                    className={`mt-2 ${adminInput}`}
+                    value={withdraw.amount}
+                    onChange={(e) => setWithdraw((w) => ({ ...w, amount: e.target.value }))}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={adminLabel}>Motif (optionnel)</label>
+                  <input
+                    placeholder="ex. Versement caution"
+                    className={`mt-2 ${adminInput}`}
+                    value={withdraw.note}
+                    onChange={(e) => setWithdraw((w) => ({ ...w, note: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              {error ? <div className={adminErrorBox}>{error}</div> : null}
+              <button
+                type="submit"
+                disabled={
+                  submitting ||
+                  (withdraw.destinationType === "ACCOUNT" && otherAccounts.length === 0)
+                }
+                className={adminPrimaryButton}
+              >
+                {submitting ? "Traitement…" : "Confirmer le retrait"}
+              </button>
+            </form>
+          </div>
+        ) : null}
+      </div>
 
       <div className={adminCard}>
         <div className={adminSectionTitle}>Historique des mouvements</div>
-        <div className={adminTableWrap}>
+        <div className={`${adminTableWrap} mt-4`}>
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>
@@ -185,15 +277,13 @@ export default function AccountDetailClient({
               {initialTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={4} className={adminTableEmpty}>
-                    Aucun mouvement pour l’instant.
+                    Aucun mouvement pour l&apos;instant.
                   </td>
                 </tr>
               ) : (
                 initialTransactions.map((t) => (
                   <tr key={t.id} className={adminTr}>
-                    <td className={adminTdSm}>
-                      {new Date(t.createdAt).toLocaleString("fr-FR")}
-                    </td>
+                    <td className={adminTdSm}>{new Date(t.createdAt).toLocaleString("fr-FR")}</td>
                     <td className={adminTd}>{typeLabel(t.type)}</td>
                     <td className={adminTdStrong}>
                       {t.type === "WITHDRAWAL" ? "−" : "+"}

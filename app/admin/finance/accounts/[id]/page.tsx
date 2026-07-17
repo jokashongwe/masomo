@@ -24,29 +24,39 @@ export default async function AdminFinanceAccountDetailPage({
   });
   if (!account) notFound();
 
-  const transactions = await prisma.financeAccountTransaction.findMany({
-    where: { accountId: account.id },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: 100,
-    include: {
-      feePayment: {
-        select: {
-          id: true,
-          receiptNumber: true,
-          student: { select: { id: true, firstName: true, name: true, postnom: true } },
-          fee: { select: { code: true, name: true } },
+  const [transactions, otherAccounts] = await Promise.all([
+    prisma.financeAccountTransaction.findMany({
+      where: { accountId: account.id },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 100,
+      include: {
+        feePayment: {
+          select: {
+            id: true,
+            receiptNumber: true,
+            student: { select: { id: true, firstName: true, name: true, postnom: true } },
+            fee: { select: { code: true, name: true } },
+          },
         },
+        createdBy: { select: { id: true, name: true } },
       },
-      createdBy: { select: { id: true, name: true } },
-    },
-  });
+    }),
+    prisma.financeAccount.findMany({
+      where: {
+        academicYearId: account.academicYearId,
+        id: { not: account.id },
+      },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
 
   return (
     <div className={adminPage}>
       <AdminPageHeader
         kicker="Finances"
         title={account.name}
-        subtitle={`Compte d’encaissement — année ${account.academicYear.name}`}
+        subtitle={`Compte d'encaissement — année ${account.academicYear.name}`}
         backHref="/admin/finance/accounts"
         backLabel="Comptes"
       />
@@ -60,6 +70,7 @@ export default async function AdminFinanceAccountDetailPage({
           academicYear: account.academicYear,
           fees: account.fees,
         }}
+        otherAccounts={otherAccounts}
         initialTransactions={transactions.map((t) => ({
           id: t.id,
           type: t.type,

@@ -2,7 +2,7 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 import type { UserRole } from "@/generated/prisma/client";
-import { getCurrentUser, canManageSchool, canReadFinance, canWriteFinance, isSystemAdmin, canEditStudents } from "@/lib/auth";
+import { getCurrentUser, canManageSchool, canReadFinance, canWriteFinance, isSystemAdmin, canEditStudents, canEditStudentProfile } from "@/lib/auth";
 
 export async function requireApiAuth() {
   const user = await getCurrentUser();
@@ -48,6 +48,13 @@ export async function requireStudentEditApi() {
   const auth = await requireApiAuth();
   if (!auth.ok) return auth;
   if (!canEditStudents(auth.user.role)) return { ok: false as const, response: forbidden() };
+  return auth;
+}
+
+export async function requireStudentProfileEditApi() {
+  const auth = await requireApiAuth();
+  if (!auth.ok) return auth;
+  if (!canEditStudentProfile(auth.user.role)) return { ok: false as const, response: forbidden() };
   return auth;
 }
 

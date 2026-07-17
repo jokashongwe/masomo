@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import type { Prisma, StudentStatus } from "@/generated/prisma/client";
-import { requireRoles, canManageSchool, canEditStudents } from "@/lib/auth";
+import { requireRoles, canManageSchool, canEditStudentProfile } from "@/lib/auth";
 import { studentSexLabel, studentStatusBadgeClass, studentStatusLabel, STUDENT_STATUS_OPTIONS } from "@/lib/student-labels";
 import AdminPageHeader from "../components/AdminPageHeader";
 import {
@@ -33,7 +33,7 @@ export default async function AdminStudentsPage({
   searchParams?: Promise<Record<string, string | string[] | undefined> | undefined>;
 }) {
   const user = await requireRoles((role) => canManageSchool(role));
-  const canEdit = canEditStudents(user.role);
+  const canEdit = canEditStudentProfile(user.role);
   const sp = (await searchParams) ?? {};
 
   const currentYear = await prisma.academicYear.findFirst({

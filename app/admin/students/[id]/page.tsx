@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { canEditStudents, canManageSchool, requireRoles } from "@/lib/auth";
+import { canEditStudentProfile, canEditStudentStatus, canManageSchool, requireRoles } from "@/lib/auth";
 import AdminPageHeader from "../../components/AdminPageHeader";
 import { adminPage } from "../../components/admin-ui";
 import StudentDetailClient from "./StudentDetailClient";
@@ -13,7 +13,8 @@ export default async function AdminStudentDetailPage({
   searchParams?: Promise<Record<string, string | string[] | undefined> | undefined>;
 }) {
   const user = await requireRoles((role) => canManageSchool(role));
-  const canEdit = canEditStudents(user.role);
+  const canEdit = canEditStudentProfile(user.role);
+  const canEditStatus = canEditStudentStatus(user.role);
   const { id } = await params;
   const studentId = Number(id);
   if (!Number.isFinite(studentId)) notFound();
@@ -80,6 +81,7 @@ export default async function AdminStudentDetailPage({
       />
       <StudentDetailClient
         canEdit={canEdit}
+        canEditStatus={canEditStatus}
         backHref={backHref}
         classOptions={classOptions}
         initialStudent={{

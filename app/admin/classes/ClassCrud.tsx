@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   adminCard,
-  adminCardGrid,
+  adminCrudLayout,
   adminDangerButton,
   adminErrorBox,
   adminGhostButton,
@@ -189,7 +189,7 @@ export default function ClassCrud({
   }
 
   return (
-    <div className={adminCardGrid}>
+    <div className={adminCrudLayout}>
       <div className={adminCard}>
         <h2 className={adminSectionTitle}>Créer une classe</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">

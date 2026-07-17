@@ -21,6 +21,12 @@ export const adminCard =
 
 export const adminCardGrid = "grid grid-cols-1 gap-6 lg:grid-cols-2";
 
+/** Formulaire de création au-dessus, tableau en pleine largeur en dessous. */
+export const adminCrudLayout = "flex flex-col gap-6";
+
+/** Champs de formulaire CRUD sur une ou plusieurs colonnes. */
+export const adminFormGrid = "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4";
+
 export const adminInput =
   "w-full rounded-xl border border-sky-100 bg-white px-3 py-2.5 text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-[#2D9CDB] focus:ring-2 focus:ring-sky-300/40 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white dark:focus:border-sky-500 dark:focus:ring-sky-500/20";
 

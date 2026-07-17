@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser, isSystemAdmin, canReadFinance, canManageSchool } from "@/lib/auth";
 import type { UserRole } from "@/generated/prisma/client";
 import { getAdminDashboardStats } from "@/lib/admin-dashboard-stats";
+import { getEnrollmentsByOption, getWalletBalanceSummary } from "@/lib/school-dashboard-stats";
 import { IconFinance, IconPayments, IconPlus, IconReports, IconStudents, IconWallet } from "./components/AdminIcons";
 
 function formatMoney(amount: number, currency: "USD" | "CDF") {
@@ -277,43 +278,16 @@ async function SchoolManagerHome({ name }: { name: string }) {
     );
   }
 
-  const [sexCounts, studentTotal, byClass] = await Promise.all([
+  const [sexCounts, studentTotal, byOption, walletBalance] = await Promise.all([
     prisma.student.groupBy({
       by: ["sex"],
-      where: { academicYearId: currentYear.id },
+      where: { academicYearId: currentYear.id, status: "ENROLLED" },
       _count: { _all: true },
     }),
-    prisma.student.count({ where: { academicYearId: currentYear.id } }),
-    prisma.student.groupBy({
-      by: ["classId"],
-      where: { academicYearId: currentYear.id },
-      _count: { _all: true },
-    }),
+    prisma.student.count({ where: { academicYearId: currentYear.id, status: "ENROLLED" } }),
+    getEnrollmentsByOption(currentYear.id),
+    getWalletBalanceSummary(),
   ]);
-
-  const classIds = byClass.map((g) => g.classId);
-  const classRows = await prisma.schoolClass.findMany({
-    where: { id: { in: classIds } },
-    select: {
-      id: true,
-      codeClass: true,
-      level: { select: { codeLevel: true, option: { select: { section: { select: { codeSection: true } } } } } },
-    },
-  });
-  const classLabel = new Map(
-    classRows.map((c) => [
-      c.id,
-      `${c.codeClass} — ${c.level.codeLevel} (${c.level.option.section.codeSection})`,
-    ]),
-  );
-
-  const classRanking = byClass
-    .map((g) => ({
-      classId: g.classId,
-      count: g._count._all,
-      label: classLabel.get(g.classId) ?? `Classe #${g.classId}`,
-    }))
-    .sort((a, b) => b.count - a.count);
 
   const totalMale = sexCounts.find((x) => x.sex === "MALE")?._count._all ?? 0;
   const totalFemale = sexCounts.find((x) => x.sex === "FEMALE")?._count._all ?? 0;
@@ -340,49 +314,79 @@ async function SchoolManagerHome({ name }: { name: string }) {
         className={`${cardBase} mb-8 bg-gradient-to-br from-white via-violet-50/40 to-sky-50/30 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900`}
       >
         <p className="text-zinc-600 dark:text-zinc-300">
-          Effectifs et répartition pour l’année scolaire en cours. Les totaux par classe comptent uniquement les élèves
-          rattachés à cette année.
+          Effectifs inscrits et répartition par option pour l&apos;année scolaire en cours, ainsi que le solde de la
+          caution.
         </p>
       </section>
 
-      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <div className={cardBase}>
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
             <IconStudents className="h-6 w-6" />
           </div>
-          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Élèves inscrits</p>
+          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Inscrits</p>
           <p className="mt-1 text-3xl font-bold text-zinc-900 dark:text-white">{studentTotal}</p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Sur l’année en cours</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Statut « Inscrit » — année en cours</p>
         </div>
         <div className={cardBase}>
-          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Garçons</p>
-          <p className="mt-1 text-3xl font-bold text-[#2D9CDB]">{totalMale}</p>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+            <IconWallet className="h-6 w-6" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde caution</p>
+          {walletBalance ? (
+            <>
+              <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
+                {formatMoney(walletBalance.usd, "USD")}
+              </p>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(walletBalance.cdf, "CDF")}</p>
+            </>
+          ) : (
+            <p className="mt-2 text-sm text-zinc-500">Caution non configurée</p>
+          )}
         </div>
-        <div className={cardBase}>
-          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Filles</p>
-          <p className="mt-1 text-3xl font-bold text-pink-600 dark:text-pink-400">{totalFemale}</p>
-        </div>
-        <div className={cardBase}>
-          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Autre</p>
-          <p className="mt-1 text-3xl font-bold text-zinc-800 dark:text-zinc-200">{totalOther}</p>
+        <div className={`${cardBase} sm:col-span-2 lg:col-span-1`}>
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Répartition par sexe (inscrits)</p>
+          <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+            <div>
+              <p className="text-xs text-zinc-500">Garçons</p>
+              <p className="text-xl font-bold text-[#2D9CDB]">{totalMale}</p>
+            </div>
+            <div>
+              <p className="text-xs text-zinc-500">Filles</p>
+              <p className="text-xl font-bold text-pink-600 dark:text-pink-400">{totalFemale}</p>
+            </div>
+            <div>
+              <p className="text-xs text-zinc-500">Autre</p>
+              <p className="text-xl font-bold text-zinc-800 dark:text-zinc-200">{totalOther}</p>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className={cardBase}>
-          <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Effectif par classe</h3>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Trié par nombre d’élèves (décroissant).</p>
-          <ul className="mt-4 max-h-72 space-y-2 overflow-auto text-sm">
-            {classRanking.length === 0 ? (
-              <li className="text-zinc-500">Aucun élève pour cette année.</li>
+          <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Inscriptions par option</h3>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+            Total des élèves inscrits, regroupés par option et section.
+          </p>
+          <ul className="mt-4 max-h-80 space-y-2 overflow-auto text-sm">
+            {byOption.length === 0 ? (
+              <li className="text-zinc-500">Aucun élève inscrit pour cette année.</li>
             ) : (
-              classRanking.map((row) => (
+              byOption.map((row) => (
                 <li
-                  key={row.classId}
-                  className="flex items-center justify-between rounded-xl bg-zinc-50 px-3 py-2 dark:bg-zinc-800/50"
+                  key={row.optionId}
+                  className="flex items-center justify-between gap-3 rounded-xl bg-zinc-50 px-3 py-2 dark:bg-zinc-800/50"
                 >
-                  <span className="text-zinc-700 dark:text-zinc-200">{row.label}</span>
-                  <span className="font-semibold text-zinc-900 dark:text-white">{row.count}</span>
+                  <div>
+                    <span className="font-medium text-zinc-800 dark:text-zinc-100">
+                      {row.codeOption} — {row.nameOption}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">
+                      Section {row.codeSection} ({row.nameSection})
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-lg font-bold text-zinc-900 dark:text-white">{row.count}</span>
                 </li>
               ))
             )}

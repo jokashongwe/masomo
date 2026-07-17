@@ -1,0 +1,119 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { requireFinanceReadApi, requireFinanceWriteApi } from "@/lib/rbac";
+import { normalizeReductions, validateFeeSupportReductions } from "@/lib/fee-support-admin";
+
+const reductionSchema = z.object({
+  feeId: z.number().int().positive(),
+  reductionPercent: z.coerce.number().min(0).max(100),
+});
+
+const createSchema = z.object({
+  studentId: z.number().int().positive(),
+  academicYearId: z.number().int().positive(),
+  note: z.string().optional().nullable(),
+  reductions: z.array(reductionSchema).min(1),
+});
+
+export async function GET(req: Request) {
+  const auth = await requireFinanceReadApi();
+  if (!auth.ok) return auth.response;
+
+  const url = new URL(req.url);
+  const academicYearIdRaw = url.searchParams.get("academicYearId");
+  const academicYearId = academicYearIdRaw ? Number(academicYearIdRaw) : null;
+
+  const supports = await prisma.studentFeeSupport.findMany({
+    where: academicYearId ? { academicYearId } : undefined,
+    orderBy: [{ academicYearId: "desc" }, { id: "desc" }],
+    include: {
+      student: {
+        select: {
+          id: true,
+          matricule: true,
+          firstName: true,
+          name: true,
+          postnom: true,
+          schoolClass: { select: { codeClass: true } },
+        },
+      },
+      academicYear: { select: { id: true, name: true, isCurrent: true } },
+      feeReductions: {
+        include: { fee: { select: { id: true, code: true, name: true } } },
+        orderBy: { feeId: "asc" },
+      },
+    },
+  });
+
+  return NextResponse.json({
+    supports: supports.map((s) => ({
+      id: s.id,
+      studentId: s.studentId,
+      academicYearId: s.academicYearId,
+      note: s.note,
+      student: s.student,
+      academicYear: s.academicYear,
+      reductions: s.feeReductions.map((r) => ({
+        id: r.id,
+        feeId: r.feeId,
+        feeCode: r.fee.code,
+        feeName: r.fee.name,
+        reductionPercent: Number(r.reductionPercent),
+      })),
+    })),
+  });
+}
+
+export async function POST(req: Request) {
+  const auth = await requireFinanceWriteApi();
+  if (!auth.ok) return auth.response;
+
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ error: "Corps JSON invalide" }, { status: 400 });
+
+  const parsed = createSchema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+
+  const student = await prisma.student.findUnique({
+    where: { id: parsed.data.studentId },
+    select: { id: true, academicYearId: true },
+  });
+  if (!student) return NextResponse.json({ error: "Élève introuvable" }, { status: 404 });
+  if (student.academicYearId !== parsed.data.academicYearId) {
+    return NextResponse.json({ error: "L'élève n'appartient pas à cette année scolaire" }, { status: 400 });
+  }
+
+  const existing = await prisma.studentFeeSupport.findUnique({
+    where: {
+      studentId_academicYearId: {
+        studentId: parsed.data.studentId,
+        academicYearId: parsed.data.academicYearId,
+      },
+    },
+  });
+  if (existing) {
+    return NextResponse.json({ error: "Cet élève a déjà une prise en charge pour cette année" }, { status: 409 });
+  }
+
+  const reductions = normalizeReductions(parsed.data.reductions);
+  const validation = await validateFeeSupportReductions(parsed.data.studentId, reductions);
+  if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 400 });
+
+  const created = await prisma.studentFeeSupport.create({
+    data: {
+      studentId: parsed.data.studentId,
+      academicYearId: parsed.data.academicYearId,
+      note: parsed.data.note?.trim() || null,
+      feeReductions: {
+        create: reductions.map((r) => ({
+          feeId: r.feeId,
+          reductionPercent: r.reductionPercent,
+        })),
+      },
+    },
+    select: { id: true },
+  });
+
+  return NextResponse.json({ id: created.id }, { status: 201 });
+}

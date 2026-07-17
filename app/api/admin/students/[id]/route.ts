@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireSchoolManageApi, requireStudentEditApi } from "@/lib/rbac";
+import { requireSchoolManageApi, requireStudentProfileEditApi } from "@/lib/rbac";
+import { canEditStudentStatus } from "@/lib/auth";
 
 const idSchema = z.object({ id: z.coerce.number().int().positive() });
 
@@ -91,7 +92,7 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
 }
 
 export async function PUT(req: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireStudentEditApi();
+  const auth = await requireStudentProfileEditApi();
   if (!auth.ok) return auth.response;
 
   const { id } = await context.params;
@@ -106,9 +107,18 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
 
   const existing = await prisma.student.findUnique({
     where: { id: parsedId.data.id },
-    select: { id: true, academicYearId: true },
+    select: { id: true, academicYearId: true, status: true },
   });
   if (!existing) return NextResponse.json({ error: "Élève introuvable" }, { status: 404 });
+
+  const mayChangeStatus = canEditStudentStatus(auth.user.role);
+  const nextStatus = mayChangeStatus ? parsed.data.status : existing.status;
+  if (!mayChangeStatus && parsed.data.status !== existing.status) {
+    return NextResponse.json(
+      { error: "Seul l'administrateur système peut modifier le statut de l'élève" },
+      { status: 403 },
+    );
+  }
 
   const schoolClass = await prisma.schoolClass.findUnique({
     where: { id: parsed.data.classId },
@@ -156,7 +166,7 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
           sex: parsed.data.sex,
           birthDate: parsed.data.birthDate,
           classId: parsed.data.classId,
-          status: parsed.data.status,
+          status: nextStatus,
           studentTutors: {
             create: upsertedTutors.map((t) => ({ tutorId: t.id })),
           },

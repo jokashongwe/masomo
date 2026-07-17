@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   adminCard,
-  adminCardGrid,
+  adminCrudLayout,
   adminDangerButton,
   adminErrorBox,
   adminGhostButton,
@@ -127,7 +127,7 @@ export default function UsersCrud({ initialUsers }: { initialUsers: UserRow[] })
   }
 
   return (
-    <div className={adminCardGrid}>
+    <div className={adminCrudLayout}>
       <div className={adminCard}>
         <h2 className={adminSectionTitle}>Créer un utilisateur</h2>
         <form onSubmit={handleCreate} className="mt-3 space-y-3">

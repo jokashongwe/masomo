@@ -5,12 +5,14 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   adminCard,
-  adminCardGrid,
+  adminCrudLayout,
   adminDangerButton,
   adminErrorBox,
+  adminFormGrid,
   adminGhostButton,
   adminInput,
-  adminPrimaryButtonBlock,
+  adminLabel,
+  adminPrimaryButton,
   adminSectionTitle,
   adminStatFees,
   adminStatWalletCDF,
@@ -115,7 +117,7 @@ export default function AccountsCrud({
   }
 
   return (
-    <div className={adminCardGrid}>
+    <div className={adminCrudLayout}>
       {canWrite ? (
         <div className={adminCard}>
           <h2 className={adminSectionTitle}>Créer un compte</h2>
@@ -123,46 +125,57 @@ export default function AccountsCrud({
             Un compte par année scolaire (ex. Encaissement École, Encaissement État). Les paiements de frais liés
             créditent automatiquement le compte.
           </p>
-          <form onSubmit={handleCreate} className="mt-3 space-y-3">
-            <input
-              required
-              placeholder="Nom du compte"
-              className={adminInput}
-              value={create.name}
-              onChange={(e) => setCreate((c) => ({ ...c, name: e.target.value }))}
-            />
-            <input
-              placeholder="Description (optionnel)"
-              className={adminInput}
-              value={create.description}
-              onChange={(e) => setCreate((c) => ({ ...c, description: e.target.value }))}
-            />
-            <select
-              required
-              className={adminInput}
-              value={create.academicYearId}
-              onChange={(e) => setCreate((c) => ({ ...c, academicYearId: e.target.value }))}
-            >
-              <option value="" disabled>
-                Année scolaire
-              </option>
-              {academicYears.map((y) => (
-                <option key={y.id} value={y.id}>
-                  {y.name}
-                  {y.isCurrent ? " (en cours)" : ""}
-                </option>
-              ))}
-            </select>
-            <button disabled={submitting} type="submit" className={adminPrimaryButtonBlock}>
+          <form onSubmit={handleCreate} className="mt-4 space-y-4">
+            <div className={adminFormGrid}>
+              <div>
+                <label className={adminLabel}>Nom</label>
+                <input
+                  required
+                  placeholder="Nom du compte"
+                  className={`mt-2 ${adminInput}`}
+                  value={create.name}
+                  onChange={(e) => setCreate((c) => ({ ...c, name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className={adminLabel}>Année scolaire</label>
+                <select
+                  required
+                  className={`mt-2 ${adminInput}`}
+                  value={create.academicYearId}
+                  onChange={(e) => setCreate((c) => ({ ...c, academicYearId: e.target.value }))}
+                >
+                  <option value="" disabled>
+                    Choisir…
+                  </option>
+                  {academicYears.map((y) => (
+                    <option key={y.id} value={y.id}>
+                      {y.name}
+                      {y.isCurrent ? " (en cours)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className={adminLabel}>Description (optionnel)</label>
+                <input
+                  placeholder="Description"
+                  className={`mt-2 ${adminInput}`}
+                  value={create.description}
+                  onChange={(e) => setCreate((c) => ({ ...c, description: e.target.value }))}
+                />
+              </div>
+            </div>
+            <button disabled={submitting} type="submit" className={adminPrimaryButton}>
               {submitting ? "Enregistrement…" : "Créer le compte"}
             </button>
           </form>
         </div>
       ) : null}
 
-      <div className={`${adminCard} ${canWrite ? "" : "col-span-full"}`}>
+      <div className={adminCard}>
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className={adminSectionTitle}>Comptes d’encaissement</h2>
+          <h2 className={adminSectionTitle}>Comptes d'encaissement</h2>
           <select
             className={adminInput}
             value={yearFilter}
@@ -181,7 +194,7 @@ export default function AccountsCrud({
 
         {error ? <div className={`${adminErrorBox} mt-3`}>{error}</div> : null}
 
-        <div className={adminTableWrap}>
+        <div className={`${adminTableWrap} mt-4`}>
           <table className={adminTable}>
             <thead className={adminThead}>
               <tr>

@@ -2,6 +2,7 @@ import "server-only";
 
 import { creditFinanceAccountOnFeePayment } from "@/lib/finance-accounts";
 import { prisma } from "@/lib/prisma";
+import { applyFeeReduction, getStudentFeeReductionPercent } from "@/lib/student-fee-support";
 import type { Currency, FeePaymentSource, Prisma } from "@/generated/prisma/client";
 
 type AllocationMode = "AUTO" | "MODULE" | "TRANCHE" | "TOTAL_DIRECT" | "TRANSHES_MULTI";
@@ -172,6 +173,12 @@ export async function getTrancheOutstandingsForStudent(input: {
       }
     }
 
+    const reductionPercent = await getStudentFeeReductionPercent(tx, {
+      studentId: student.id,
+      academicYearId: student.academicYearId,
+      feeId: fee.id,
+    });
+
     const trancheMeta = await tx.moduleTranche.findMany({
       where: { id: { in: withTranche.map((l) => l.trancheId!) } },
       select: {
@@ -188,14 +195,15 @@ export async function getTrancheOutstandingsForStudent(input: {
       const tid = l.trancheId!;
       const key = `t:${tid}`;
       const paid = alreadyPaid.get(key) ?? 0;
-      const outstanding = Math.max(0, l.due - paid);
+      const due = applyFeeReduction(l.due, reductionPercent);
+      const outstanding = Math.max(0, due - paid);
       const meta = metaById.get(tid);
       rows.push({
         trancheId: tid,
         moduleId: l.moduleId,
         codeTranche: meta?.codeTranche ?? `T${tid}`,
         moduleName: meta?.module.name ?? "",
-        due: l.due,
+        due,
         paid,
         outstanding,
       });
@@ -251,13 +259,20 @@ export async function createFeePayment(input: CreateFeePaymentInput) {
       }
     }
 
+    const reductionPercent = await getStudentFeeReductionPercent(tx, {
+      studentId: student.id,
+      academicYearId: student.academicYearId,
+      feeId: fee.id,
+    });
+
     let allocationsToCreate: { moduleId: number | null; trancheId: number | null; amount: number }[] = [];
 
     if (fee.chargeType === "TOTAL") {
       if (input.allocationMode !== "TOTAL_DIRECT" && input.allocationMode !== "AUTO") {
         throw new Error("Ce frais n'est pas payable par module/tranche");
       }
-      const due = Number(fee.totalAmounts.find((t) => t.currency === input.currency)?.amount ?? 0);
+      const baseDue = Number(fee.totalAmounts.find((t) => t.currency === input.currency)?.amount ?? 0);
+      const due = applyFeeReduction(baseDue, reductionPercent);
       const paid = alreadyPaid.get("total") ?? 0;
       const outstanding = Math.max(0, due - paid);
       if (input.amount > outstanding + 0.00001) {
@@ -265,8 +280,12 @@ export async function createFeePayment(input: CreateFeePaymentInput) {
       }
       allocationsToCreate = [{ moduleId: null, trancheId: null, amount: input.amount }];
     } else {
-      const dueLines = await buildDueLinesForByModule(tx, fee.id, input.currency);
-      if (dueLines.length === 0) throw new Error("Aucun montant configuré pour ce frais/devise");
+      const dueLinesRaw = await buildDueLinesForByModule(tx, fee.id, input.currency);
+      if (dueLinesRaw.length === 0) throw new Error("Aucun montant configuré pour ce frais/devise");
+      const dueLines = dueLinesRaw.map((l) => ({
+        ...l,
+        due: applyFeeReduction(l.due, reductionPercent),
+      }));
 
       if (input.allocationMode === "TRANSHES_MULTI") {
         const raw = input.tranchePayments ?? [];
