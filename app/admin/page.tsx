@@ -45,24 +45,28 @@ function DashboardKpiGrid({
   stats,
   showStudents,
   showMainAccount = true,
+  showTotalEncaisse = true,
   cardBase,
 }: {
   stats: Awaited<ReturnType<typeof getAdminDashboardStats>>;
   showStudents: boolean;
   showMainAccount?: boolean;
+  showTotalEncaisse?: boolean;
   cardBase: string;
 }) {
   return (
     <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-      <div className={cardBase}>
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-[#2D9CDB] dark:bg-sky-900/40 dark:text-sky-300">
-          <IconFinance className="h-6 w-6" />
+      {showTotalEncaisse ? (
+        <div className={cardBase}>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-[#2D9CDB] dark:bg-sky-900/40 dark:text-sky-300">
+            <IconFinance className="h-6 w-6" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total encaissé</p>
+          <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">{formatMoney(stats.totalEncaisse.usd, "USD")}</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(stats.totalEncaisse.cdf, "CDF")}</p>
+          <p className="mt-2 text-xs text-zinc-500">Paiements de frais — année en cours</p>
         </div>
-        <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total encaissé</p>
-        <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">{formatMoney(stats.totalEncaisse.usd, "USD")}</p>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(stats.totalEncaisse.cdf, "CDF")}</p>
-        <p className="mt-2 text-xs text-zinc-500">Paiements de frais — année en cours</p>
-      </div>
+      ) : null}
 
       {showMainAccount ? (
         <>
@@ -216,11 +220,17 @@ async function FinanceManagerHome({ name, roles }: { name: string; roles: UserRo
         className={`${cardBase} mb-8 bg-gradient-to-br from-white via-sky-50/40 to-emerald-50/20 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900`}
       >
         <p className="text-zinc-600 dark:text-zinc-300">
-          Synthèse financière pour l’année scolaire en cours : encaissements, caution et dépenses.
+          Synthèse financière pour l’année scolaire en cours : caution et dépenses.
         </p>
       </section>
 
-      <DashboardKpiGrid stats={stats} showStudents={false} showMainAccount={false} cardBase={cardBase} />
+      <DashboardKpiGrid
+        stats={stats}
+        showStudents={false}
+        showMainAccount={false}
+        showTotalEncaisse={false}
+        cardBase={cardBase}
+      />
 
       <div className={`${cardBase}`}>
         <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Raccourcis</h3>
