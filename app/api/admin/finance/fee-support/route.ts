@@ -10,6 +10,11 @@ import {
 } from "@/lib/fee-support-admin";
 import { formatFeeSupportRule } from "@/lib/student-fee-support";
 
+const optionalAmount = z.preprocess((v) => {
+  if (v === "" || v === undefined) return null;
+  return v;
+}, z.coerce.number().min(0).nullable());
+
 const reductionSchema = z.discriminatedUnion("mode", [
   z.object({
     feeId: z.number().int().positive(),
@@ -19,8 +24,8 @@ const reductionSchema = z.discriminatedUnion("mode", [
   z.object({
     feeId: z.number().int().positive(),
     mode: z.literal("FIXED_AMOUNT"),
-    amountToPayUSD: z.coerce.number().min(0).nullable().optional(),
-    amountToPayCDF: z.coerce.number().min(0).nullable().optional(),
+    amountToPayUSD: optionalAmount.optional(),
+    amountToPayCDF: optionalAmount.optional(),
   }),
 ]);
 

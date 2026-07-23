@@ -30,7 +30,10 @@ type StudentOpt = {
   label: string;
   classLabel: string;
   matricule: string | null;
-  schoolClass: { codeClass: string; levelId: number };
+  firstName: string;
+  name: string;
+  postnom: string;
+  schoolClass: { id: number; codeClass: string; levelId: number };
 };
 type ReductionMode = "PERCENT" | "FIXED_AMOUNT";
 type ReductionRow = {
@@ -61,9 +64,9 @@ type SupportRow = {
   reductions: SupportReduction[];
 };
 
-function emptyReduction(fees: FeeOpt[]): ReductionRow {
+function emptyReduction(_fees?: FeeOpt[]): ReductionRow {
   return {
-    feeId: fees[0]?.id ?? 0,
+    feeId: 0,
     mode: "PERCENT",
     reductionPercent: "0",
     amountToPayUSD: "",
@@ -103,6 +106,14 @@ function parseApiError(data: unknown): string {
   if (typeof data === "object" && data && "error" in data) {
     const err = (data as { error: unknown }).error;
     if (typeof err === "string") return err;
+    if (typeof err === "object" && err) {
+      const flat = err as { formErrors?: string[]; fieldErrors?: Record<string, string[]> };
+      const parts = [
+        ...(flat.formErrors ?? []),
+        ...Object.values(flat.fieldErrors ?? {}).flat(),
+      ].filter(Boolean);
+      if (parts.length) return parts.join(" · ");
+    }
   }
   return "Erreur";
 }
@@ -137,15 +148,18 @@ export default function FeeSupportCrud({
   const [editingId, setEditingId] = useState<number | null>(null);
 
   const [createForm, setCreateForm] = useState({
-    studentId: students[0]?.id ? String(students[0].id) : "",
+    studentId: "",
     note: "",
-    reductions: [emptyReduction(fees)] as ReductionRow[],
+    reductions: [emptyReduction()] as ReductionRow[],
   });
 
   const [editForm, setEditForm] = useState({
     note: "",
     reductions: [] as ReductionRow[],
   });
+
+  const [studentQuery, setStudentQuery] = useState("");
+  const [studentClassFilter, setStudentClassFilter] = useState("");
 
   const filtered = useMemo(() => {
     if (!yearFilter) return initialSupports;
@@ -167,13 +181,46 @@ export default function FeeSupportCrud({
     [filtered],
   );
 
-  const availableStudents = useMemo(
-    () => students.filter((s) => !supportedStudentIds.has(s.id)),
-    [students, supportedStudentIds],
-  );
+  const classOptions = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const s of students) {
+      map.set(s.schoolClass.id, s.classLabel);
+    }
+    return [...map.entries()]
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "fr"));
+  }, [students]);
+
+  const availableStudents = useMemo(() => {
+    const q = studentQuery.trim().toLocaleLowerCase("fr");
+    return students.filter((s) => {
+      if (supportedStudentIds.has(s.id)) return false;
+      if (studentClassFilter && String(s.schoolClass.id) !== studentClassFilter) return false;
+      if (!q) return true;
+      const hay = [s.firstName, s.name, s.postnom, s.matricule ?? "", s.label, s.classLabel]
+        .join(" ")
+        .toLocaleLowerCase("fr");
+      return hay.includes(q);
+    });
+  }, [students, supportedStudentIds, studentQuery, studentClassFilter]);
 
   function feesForStudent(levelId: number) {
     return fees.filter((f) => f.feeLevels.some((fl) => fl.levelId === levelId));
+  }
+
+  function selectStudent(studentId: string) {
+    const student = students.find((s) => String(s.id) === studentId);
+    const applicable = student ? feesForStudent(student.schoolClass.levelId) : [];
+    setCreateForm({
+      studentId,
+      note: createForm.note,
+      reductions: [
+        {
+          ...emptyReduction(),
+          feeId: applicable[0]?.id ?? 0,
+        },
+      ],
+    });
   }
 
   function startEdit(row: SupportRow) {
@@ -198,9 +245,17 @@ export default function FeeSupportCrud({
     e.preventDefault();
     if (!canWrite || !yearFilter) return;
     setError(null);
+    if (!createForm.studentId) {
+      setError("Sélectionnez un élève");
+      return;
+    }
+    const reductions = createForm.reductions.filter((r) => r.feeId > 0).map(toApiReduction);
+    if (!reductions.length) {
+      setError("Sélectionnez au moins un frais");
+      return;
+    }
     setSubmitting(true);
     try {
-      const reductions = createForm.reductions.filter((r) => r.feeId > 0).map(toApiReduction);
       const res = await fetch("/api/admin/finance/fee-support", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -217,10 +272,12 @@ export default function FeeSupportCrud({
         return;
       }
       setCreateForm({
-        studentId: availableStudents[0]?.id ? String(availableStudents[0].id) : "",
+        studentId: "",
         note: "",
-        reductions: [emptyReduction(fees)],
+        reductions: [emptyReduction()],
       });
+      setStudentQuery("");
+      setStudentClassFilter("");
       await reloadYear();
     } finally {
       setSubmitting(false);
@@ -230,9 +287,13 @@ export default function FeeSupportCrud({
   async function handleUpdate(id: number) {
     if (!canWrite) return;
     setError(null);
+    const reductions = editForm.reductions.filter((r) => r.feeId > 0).map(toApiReduction);
+    if (!reductions.length) {
+      setError("Sélectionnez au moins un frais");
+      return;
+    }
     setSubmitting(true);
     try {
-      const reductions = editForm.reductions.filter((r) => r.feeId > 0).map(toApiReduction);
       const res = await fetch(`/api/admin/finance/fee-support/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -286,13 +347,14 @@ export default function FeeSupportCrud({
               <span className="mb-1 block text-xs text-zinc-500">Frais</span>
               <select
                 className={adminInput}
-                value={row.feeId}
+                value={row.feeId || ""}
                 onChange={(e) => {
                   const next = [...rows];
-                  next[idx] = { ...next[idx], feeId: Number(e.target.value) };
+                  next[idx] = { ...next[idx], feeId: Number(e.target.value) || 0 };
                   setRows(next);
                 }}
               >
+                <option value="">Choisir un frais…</option>
                 {applicableFees.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.code} — {f.name}
@@ -382,7 +444,7 @@ export default function FeeSupportCrud({
         <button
           type="button"
           className={adminGhostButton}
-          onClick={() => setRows([...rows, emptyReduction(applicableFees.length ? applicableFees : fees)])}
+          onClick={() => setRows([...rows, emptyReduction()])}
           disabled={!applicableFees.length}
         >
           + Frais
@@ -528,22 +590,45 @@ export default function FeeSupportCrud({
         <div className={adminCard}>
           <div className={adminSectionTitle}>Nouvelle prise en charge</div>
           <form onSubmit={handleCreate} className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs text-zinc-500">Rechercher (nom / matricule)</span>
+                <input
+                  className={adminInput}
+                  value={studentQuery}
+                  onChange={(e) => setStudentQuery(e.target.value)}
+                  placeholder="Ex. Dupont, MAT-…"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-zinc-500">Filtrer par classe</span>
+                <select
+                  className={adminInput}
+                  value={studentClassFilter}
+                  onChange={(e) => setStudentClassFilter(e.target.value)}
+                >
+                  <option value="">Toutes les classes</option>
+                  {classOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <label className="block">
               <span className="mb-1 block text-xs text-zinc-500">Élève</span>
               <select
                 className={adminInput}
                 value={createForm.studentId}
-                onChange={(e) =>
-                  setCreateForm((f) => ({
-                    ...f,
-                    studentId: e.target.value,
-                    reductions: [emptyReduction(fees)],
-                  }))
-                }
+                onChange={(e) => selectStudent(e.target.value)}
                 required
               >
+                <option value="">Choisir un élève…</option>
                 {availableStudents.length === 0 ? (
-                  <option value="">Aucun élève disponible</option>
+                  <option value="" disabled>
+                    Aucun élève trouvé
+                  </option>
                 ) : (
                   availableStudents.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -552,6 +637,10 @@ export default function FeeSupportCrud({
                   ))
                 )}
               </select>
+              <span className="mt-1 block text-xs text-zinc-500">
+                {availableStudents.length} élève{availableStudents.length > 1 ? "s" : ""} disponible
+                {availableStudents.length > 1 ? "s" : ""}
+              </span>
             </label>
             <label className="block">
               <span className="mb-1 block text-xs text-zinc-500">Note (optionnel)</span>
@@ -569,7 +658,7 @@ export default function FeeSupportCrud({
             <button
               type="submit"
               className={adminPrimaryButton}
-              disabled={submitting || !availableStudents.length || !yearFilter}
+              disabled={submitting || !createForm.studentId || !yearFilter}
             >
               {submitting ? "Enregistrement…" : "Ajouter"}
             </button>

@@ -6,6 +6,7 @@ import { adminPage } from "../../components/admin-ui";
 import FeeSupportCrud from "./FeeSupportCrud";
 
 const schoolClassSelect = {
+  id: true,
   codeClass: true,
   levelId: true,
   level: {
