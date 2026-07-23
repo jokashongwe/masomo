@@ -41,6 +41,8 @@ type StudentDetail = {
   status: "ENROLLED" | "LEFT" | "EXPELLED" | "GRADUATED";
   birthDate: string;
   classId: number;
+  levelId: number;
+  levelLabel: string;
   classLabel: string;
   academicYear: { id: number; name: string; isCurrent: boolean };
   tutors: TutorRow[];
@@ -48,7 +50,13 @@ type StudentDetail = {
   updatedAt: string;
 };
 
-type ClassOption = { id: number; label: string };
+type ClassOption = {
+  id: number;
+  levelId: number;
+  levelLabel: string;
+  label: string;
+  codeClass: string;
+};
 
 function emptyTutor(): TutorRow {
   return { firstName: "", name: "", postnom: "", address: "", contact: "" };
@@ -77,6 +85,7 @@ export default function StudentDetailClient({
     sex: initialStudent.sex,
     status: initialStudent.status,
     birthDate: initialStudent.birthDate,
+    levelId: String(initialStudent.levelId),
     classId: String(initialStudent.classId),
     tutors: initialStudent.tutors.map((t) => ({ ...t })),
   });
@@ -88,6 +97,21 @@ export default function StudentDetailClient({
     [student],
   );
 
+  const levelOptions = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const c of classOptions) {
+      if (!map.has(c.levelId)) map.set(c.levelId, c.levelLabel);
+    }
+    return [...map.entries()]
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "fr"));
+  }, [classOptions]);
+
+  const classesForLevel = useMemo(
+    () => classOptions.filter((c) => String(c.levelId) === form.levelId),
+    [classOptions, form.levelId],
+  );
+
   function resetForm() {
     setForm({
       firstName: student.firstName,
@@ -96,6 +120,7 @@ export default function StudentDetailClient({
       sex: student.sex,
       status: student.status,
       birthDate: student.birthDate,
+      levelId: String(student.levelId),
       classId: String(student.classId),
       tutors: student.tutors.map((t) => ({ ...t })),
     });
@@ -281,20 +306,49 @@ export default function StudentDetailClient({
             </div>
           </div>
 
-          <div>
-            <label className={adminLabel}>Classe</label>
-            <select
-              required
-              className={`mt-2 ${adminInput}`}
-              value={form.classId}
-              onChange={(e) => setForm((f) => ({ ...f, classId: e.target.value }))}
-            >
-              {classOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className={adminLabel}>Niveau</label>
+              <select
+                required
+                className={`mt-2 ${adminInput}`}
+                value={form.levelId}
+                onChange={(e) => {
+                  const levelId = e.target.value;
+                  const firstClass = classOptions.find((c) => String(c.levelId) === levelId);
+                  setForm((f) => ({
+                    ...f,
+                    levelId,
+                    classId: firstClass ? String(firstClass.id) : "",
+                  }));
+                }}
+              >
+                {levelOptions.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={adminLabel}>Classe</label>
+              <select
+                required
+                className={`mt-2 ${adminInput}`}
+                value={form.classId}
+                onChange={(e) => setForm((f) => ({ ...f, classId: e.target.value }))}
+              >
+                {classesForLevel.length === 0 ? (
+                  <option value="">Aucune classe pour ce niveau</option>
+                ) : (
+                  classesForLevel.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.codeClass}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
           </div>
 
           <div>
@@ -410,6 +464,10 @@ export default function StudentDetailClient({
               <div>
                 <dt className="text-zinc-500 dark:text-zinc-400">Année scolaire</dt>
                 <dd className="font-medium text-zinc-900 dark:text-white">{student.academicYear.name}</dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500 dark:text-zinc-400">Niveau</dt>
+                <dd className="font-medium text-zinc-900 dark:text-white">{student.levelLabel}</dd>
               </div>
               <div>
                 <dt className="text-zinc-500 dark:text-zinc-400">Classe</dt>

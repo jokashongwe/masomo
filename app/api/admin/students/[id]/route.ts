@@ -45,6 +45,9 @@ const studentInclude = {
 
 function serializeStudent(student: Awaited<ReturnType<typeof loadStudent>>) {
   if (!student) return null;
+  const { codeLevel } = student.schoolClass.level;
+  const ordinal = codeLevel === "1" ? "ère" : "ème";
+  const levelLabel = `${codeLevel}${ordinal} ${student.schoolClass.level.option.nameOption}`;
   return {
     id: student.id,
     firstName: student.firstName,
@@ -54,11 +57,13 @@ function serializeStudent(student: Awaited<ReturnType<typeof loadStudent>>) {
     status: student.status,
     birthDate: student.birthDate.toISOString().slice(0, 10),
     classId: student.classId,
+    levelId: student.schoolClass.levelId,
+    levelLabel,
     academicYearId: student.academicYearId,
     createdAt: student.createdAt.toISOString(),
     updatedAt: student.updatedAt.toISOString(),
     academicYear: student.academicYear,
-    classLabel: `${student.schoolClass.codeClass} — ${student.schoolClass.level.codeLevel} (${student.schoolClass.level.option.section.codeSection}) — ${student.schoolClass.level.option.section.school.name}`,
+    classLabel: `${levelLabel} ${student.schoolClass.codeClass}`,
     tutors: student.studentTutors.map((st) => ({
       id: st.tutor.id,
       firstName: st.tutor.firstName,

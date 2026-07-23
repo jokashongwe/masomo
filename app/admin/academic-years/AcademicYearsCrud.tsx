@@ -31,10 +31,18 @@ function toInputDate(d: string | Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+type CloseResult = {
+  promoted: number;
+  graduated: number;
+  skippedNoPayment: number;
+  skippedNoClass: number;
+  errors: string[];
+};
+
 export default function AcademicYearsCrud({ initialYears }: { initialYears: AcademicYear[] }) {
   const router = useRouter();
 
-  const [years] = useState(initialYears);
+  const years = initialYears;
   const [create, setCreate] = useState({
     name: "",
     startDate: "",
@@ -51,6 +59,11 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
     endDate: "",
     isCurrent: false,
   });
+
+  const currentYear = useMemo(() => years.find((y) => y.isCurrent) ?? null, [years]);
+  const [closing, setClosing] = useState(false);
+  const [targetYearId, setTargetYearId] = useState("");
+  const [closeResult, setCloseResult] = useState<CloseResult | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -137,6 +150,40 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
     }
   }
 
+  async function handleCloseYear(e: React.FormEvent) {
+    e.preventDefault();
+    if (!currentYear || !targetYearId) return;
+    const target = years.find((y) => y.id === Number(targetYearId));
+    const ok = window.confirm(
+      `Clôturer « ${currentYear.name} » et passer à « ${target?.name ?? "année cible"} » ?\n\n` +
+        `Les élèves inscrits ayant au moins un paiement de frais seront promus au niveau supérieur ` +
+        `(ou diplômés s’il n’y a pas de niveau suivant) et rattachés à l’année cible.`,
+    );
+    if (!ok) return;
+
+    setError(null);
+    setCloseResult(null);
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/academic-years/${currentYear.id}/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetAcademicYearId: Number(targetYearId) }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(typeof data?.error === "string" ? data.error : "Échec de la clôture");
+        return;
+      }
+      setCloseResult(data.result as CloseResult);
+      setClosing(false);
+      setTargetYearId("");
+      router.refresh();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className={adminCrudLayout}>
       <div className={adminCard}>
@@ -205,7 +252,23 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    {y.isCurrent ? (
+                      <button
+                        type="button"
+                        disabled={submitting || years.length < 2}
+                        onClick={() => {
+                          setClosing(true);
+                          setCloseResult(null);
+                          setError(null);
+                          const other = years.find((x) => x.id !== y.id);
+                          setTargetYearId(other ? String(other.id) : "");
+                        }}
+                        className={adminPrimaryButton}
+                      >
+                        Clôturer l&apos;année
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => {
@@ -283,6 +346,73 @@ export default function AcademicYearsCrud({ initialYears }: { initialYears: Acad
               </button>
             </div>
           </form>
+        ) : null}
+
+        {closing && currentYear ? (
+          <form onSubmit={handleCloseYear} className={`${adminNestedCard} mt-4 space-y-3`}>
+            <h3 className={`font-semibold ${adminSectionTitle}`}>
+              Clôturer l&apos;année : {currentYear.name}
+            </h3>
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              Les élèves inscrits avec au moins un paiement de frais passent au niveau supérieur
+              (selon le champ « niveau suivant » de chaque niveau) et sont rattachés à l&apos;année
+              cible, qui devient l&apos;année en cours. Sans niveau suivant, l&apos;élève est marqué
+              diplômé. Les élèves sans paiement restent sur l&apos;année clôturée.
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200 mb-1">
+                Année scolaire cible
+              </label>
+              <select
+                required
+                className={adminInput}
+                value={targetYearId}
+                onChange={(e) => setTargetYearId(e.target.value)}
+              >
+                <option value="">Choisir…</option>
+                {years
+                  .filter((y) => y.id !== currentYear.id)
+                  .map((y) => (
+                    <option key={y.id} value={y.id}>
+                      {y.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <button type="submit" disabled={submitting || !targetYearId} className={adminPrimaryButton}>
+                {submitting ? "Clôture en cours…" : "Confirmer la clôture"}
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => {
+                  setClosing(false);
+                  setTargetYearId("");
+                }}
+                className={adminSecondaryButton}
+              >
+                Annuler
+              </button>
+            </div>
+          </form>
+        ) : null}
+
+        {closeResult ? (
+          <div className={`${adminSoftCard} mt-4 text-sm space-y-1`}>
+            <div className="font-medium text-zinc-900 dark:text-white">Résultat de la clôture</div>
+            <div>Promus : {closeResult.promoted}</div>
+            <div>Diplômés : {closeResult.graduated}</div>
+            <div>Sans paiement (non déplacés) : {closeResult.skippedNoPayment}</div>
+            <div>Sans classe cible : {closeResult.skippedNoClass}</div>
+            {closeResult.errors.length > 0 ? (
+              <ul className="mt-2 list-disc pl-5 text-rose-700 dark:text-rose-300">
+                {closeResult.errors.map((err) => (
+                  <li key={err}>{err}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         ) : null}
 
         {error ? <div className={adminErrorBox}>{error}</div> : null}

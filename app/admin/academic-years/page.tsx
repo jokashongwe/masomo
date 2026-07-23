@@ -16,7 +16,7 @@ export default async function AdminAcademicYearsPage() {
       <AdminPageHeader
         kicker="Configuration"
         title="Années scolaires"
-        subtitle="Gérer les années scolaires. Exactement une année doit être marquée « en cours »."
+        subtitle="Gérer les années scolaires, marquer l’année en cours, et clôturer l’année pour promouvoir les élèves."
       />
       <div className="mt-6">
         <AcademicYearsCrud initialYears={years} />

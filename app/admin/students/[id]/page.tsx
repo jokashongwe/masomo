@@ -65,10 +65,23 @@ export default async function AdminStudentDetailPage({
     },
   });
 
-  const classOptions = classes.map((c) => ({
-    id: c.id,
-    label: `${c.codeClass} — ${c.level.codeLevel} (${c.level.option.section.codeSection}) — ${c.level.option.section.school.name}`,
-  }));
+  const classOptions = classes.map((c) => {
+    const ordinal = c.level.codeLevel === "1" ? "ère" : "ème";
+    const levelLabel = `${c.level.codeLevel}${ordinal} ${c.level.option.nameOption}`;
+    return {
+      id: c.id,
+      levelId: c.levelId,
+      levelLabel,
+      label: `${levelLabel} ${c.codeClass}`,
+      codeClass: c.codeClass,
+    };
+  });
+
+  const levelLabel = (() => {
+    const { codeLevel } = student.schoolClass.level;
+    const ordinal = codeLevel === "1" ? "ère" : "ème";
+    return `${codeLevel}${ordinal} ${student.schoolClass.level.option.nameOption}`;
+  })();
 
   return (
     <div className={adminPage}>
@@ -93,7 +106,9 @@ export default async function AdminStudentDetailPage({
           status: student.status,
           birthDate: student.birthDate.toISOString().slice(0, 10),
           classId: student.classId,
-          classLabel: `${student.schoolClass.codeClass} — ${student.schoolClass.level.codeLevel} (${student.schoolClass.level.option.section.codeSection}) — ${student.schoolClass.level.option.section.school.name}`,
+          levelId: student.schoolClass.levelId,
+          levelLabel,
+          classLabel: `${levelLabel} ${student.schoolClass.codeClass}`,
           academicYear: student.academicYear,
           tutors: student.studentTutors.map((st) => ({
             id: st.tutor.id,
