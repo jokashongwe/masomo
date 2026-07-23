@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { isSystemAdmin } from "@/lib/auth";
+import { isMainFinanceAccountName } from "@/lib/finance-account-labels";
 import { requireFinanceReadApi, requireFinanceWriteApi } from "@/lib/rbac";
 
 const idSchema = z.object({ id: z.coerce.number().int().positive() });
@@ -27,6 +29,10 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
     },
   });
   if (!account) return NextResponse.json({ error: "Compte introuvable" }, { status: 404 });
+
+  if (isMainFinanceAccountName(account.name) && !isSystemAdmin(auth.user.roles)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   return NextResponse.json({
     account: {

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { isSystemAdmin } from "@/lib/auth";
+import { isMainFinanceAccountName } from "@/lib/finance-account-labels";
 import { requireFinanceReadApi, requireFinanceWriteApi } from "@/lib/rbac";
 
 const createSchema = z.object({
@@ -17,7 +19,7 @@ export async function GET(req: Request) {
   const academicYearIdRaw = url.searchParams.get("academicYearId");
   const academicYearId = academicYearIdRaw ? Number(academicYearIdRaw) : null;
 
-  const accounts = await prisma.financeAccount.findMany({
+  const accountsRaw = await prisma.financeAccount.findMany({
     where: academicYearId && Number.isFinite(academicYearId) ? { academicYearId } : undefined,
     orderBy: [{ academicYearId: "desc" }, { name: "asc" }],
     include: {
@@ -25,6 +27,10 @@ export async function GET(req: Request) {
       _count: { select: { fees: true, transactions: true } },
     },
   });
+
+  const accounts = isSystemAdmin(auth.user.roles)
+    ? accountsRaw
+    : accountsRaw.filter((a) => !isMainFinanceAccountName(a.name));
 
   return NextResponse.json({
     accounts: accounts.map((a) => ({
@@ -51,10 +57,18 @@ export async function POST(req: Request) {
   });
   if (!year) return NextResponse.json({ error: "Année scolaire introuvable" }, { status: 400 });
 
+  const name = parsed.data.name.trim();
+  if (isMainFinanceAccountName(name) && !isSystemAdmin(auth.user.roles)) {
+    return NextResponse.json(
+      { error: "Seul l’administrateur système peut gérer le compte principal" },
+      { status: 403 },
+    );
+  }
+
   try {
     const created = await prisma.financeAccount.create({
       data: {
-        name: parsed.data.name.trim(),
+        name,
         description: parsed.data.description,
         academicYearId: parsed.data.academicYearId,
       },

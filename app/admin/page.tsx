@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
 import { requireUser, isSystemAdmin, canReadFinance, canManageSchool } from "@/lib/auth";
 import type { UserRole } from "@/generated/prisma/client";
-import { getAdminDashboardStats, MAIN_FINANCE_ACCOUNT_NAME } from "@/lib/admin-dashboard-stats";
+import { getAdminDashboardStats } from "@/lib/admin-dashboard-stats";
 import { getEnrollmentsByOption, getWalletBalanceSummary } from "@/lib/school-dashboard-stats";
 import { IconFinance, IconPayments, IconPlus, IconReports, IconStudents, IconWallet } from "./components/AdminIcons";
 
@@ -44,10 +44,12 @@ function GenericRoleWelcome({ name }: { name: string }) {
 function DashboardKpiGrid({
   stats,
   showStudents,
+  showMainAccount = true,
   cardBase,
 }: {
   stats: Awaited<ReturnType<typeof getAdminDashboardStats>>;
   showStudents: boolean;
+  showMainAccount?: boolean;
   cardBase: string;
 }) {
   return (
@@ -62,51 +64,55 @@ function DashboardKpiGrid({
         <p className="mt-2 text-xs text-zinc-500">Paiements de frais — année en cours</p>
       </div>
 
-      <div className={cardBase}>
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-          <IconFinance className="h-6 w-6" />
-        </div>
-        <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde du compte principal</p>
-        {stats.mainAccount ? (
-          <>
-            <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
-              {formatMoney(stats.mainAccount.balanceUSD, "USD")}
-            </p>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              {formatMoney(stats.mainAccount.balanceCDF, "CDF")}
-            </p>
-            <p className="mt-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">{stats.mainAccount.name}</p>
-            <Link
-              href={`/admin/finance/accounts/${stats.mainAccount.id}`}
-              className="mt-3 inline-flex text-sm font-semibold text-[#2D9CDB] hover:underline"
-            >
-              Voir le compte →
-            </Link>
-          </>
-        ) : (
-          <>
-            <p className="mt-2 text-sm text-zinc-500">Aucun compte pour cette année</p>
-            <Link
-              href="/admin/finance/accounts"
-              className="mt-3 inline-flex text-sm font-semibold text-[#2D9CDB] hover:underline"
-            >
-              Gérer les comptes →
-            </Link>
-          </>
-        )}
-      </div>
+      {showMainAccount ? (
+        <>
+          <div className={cardBase}>
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+              <IconFinance className="h-6 w-6" />
+            </div>
+            <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde du compte principal</p>
+            {stats.mainAccount ? (
+              <>
+                <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
+                  {formatMoney(stats.mainAccount.balanceUSD, "USD")}
+                </p>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  {formatMoney(stats.mainAccount.balanceCDF, "CDF")}
+                </p>
+                <p className="mt-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">{stats.mainAccount.name}</p>
+                <Link
+                  href={`/admin/finance/accounts/${stats.mainAccount.id}`}
+                  className="mt-3 inline-flex text-sm font-semibold text-[#2D9CDB] hover:underline"
+                >
+                  Voir le compte →
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="mt-2 text-sm text-zinc-500">Aucun compte pour cette année</p>
+                <Link
+                  href="/admin/finance/accounts"
+                  className="mt-3 inline-flex text-sm font-semibold text-[#2D9CDB] hover:underline"
+                >
+                  Gérer les comptes →
+                </Link>
+              </>
+            )}
+          </div>
 
-      <div className={cardBase}>
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-          <IconFinance className="h-6 w-6" />
-        </div>
-        <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Retraits (compte principal)</p>
-        <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
-          {formatMoney(stats.mainAccountWithdrawals.usd, "USD")}
-        </p>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(stats.mainAccountWithdrawals.cdf, "CDF")}</p>
-        <p className="mt-2 text-xs text-zinc-500">Année en cours</p>
-      </div>
+          <div className={cardBase}>
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+              <IconFinance className="h-6 w-6" />
+            </div>
+            <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Retraits (compte principal)</p>
+            <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
+              {formatMoney(stats.mainAccountWithdrawals.usd, "USD")}
+            </p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(stats.mainAccountWithdrawals.cdf, "CDF")}</p>
+            <p className="mt-2 text-xs text-zinc-500">Année en cours</p>
+          </div>
+        </>
+      ) : null}
 
       <div className={cardBase}>
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
@@ -210,56 +216,15 @@ async function FinanceManagerHome({ name, roles }: { name: string; roles: UserRo
         className={`${cardBase} mb-8 bg-gradient-to-br from-white via-sky-50/40 to-emerald-50/20 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900`}
       >
         <p className="text-zinc-600 dark:text-zinc-300">
-          Synthèse financière pour l’année scolaire en cours : encaissements, compte principal, caution et dépenses.
+          Synthèse financière pour l’année scolaire en cours : encaissements, caution et dépenses.
         </p>
       </section>
 
-      <DashboardKpiGrid stats={stats} showStudents={false} cardBase={cardBase} />
-
-      {stats.mainAccount ? (
-        <section className={`${cardBase} mb-8 border-emerald-100/80 bg-gradient-to-br from-emerald-50/50 via-white to-sky-50/30 dark:border-emerald-900/40 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-900`}>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Compte principal</p>
-              <h2 className="mt-1 text-xl font-bold text-zinc-900 dark:text-white">{stats.mainAccount.name}</h2>
-              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-                {formatMoney(stats.mainAccount.balanceUSD, "USD")} · {formatMoney(stats.mainAccount.balanceCDF, "CDF")}
-              </p>
-            </div>
-            <Link
-              href={`/admin/finance/accounts/${stats.mainAccount.id}`}
-              className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-300/30 hover:bg-emerald-700"
-            >
-              Ouvrir le compte
-            </Link>
-          </div>
-        </section>
-      ) : (
-        <section className={`${cardBase} mb-8 border-amber-100 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/20`}>
-          <p className="font-semibold text-zinc-900 dark:text-white">Compte principal introuvable</p>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-            Aucun compte d’encaissement pour l’année {currentYear.name}. Créez « {MAIN_FINANCE_ACCOUNT_NAME} » dans Comptes.
-          </p>
-          <Link href="/admin/finance/accounts" className={`${btnPrimary} mt-4 w-auto`}>
-            Aller aux comptes
-          </Link>
-        </section>
-      )}
+      <DashboardKpiGrid stats={stats} showStudents={false} showMainAccount={false} cardBase={cardBase} />
 
       <div className={`${cardBase}`}>
         <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Raccourcis</h3>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.mainAccount ? (
-            <div className="flex flex-col rounded-2xl border border-emerald-100/80 bg-emerald-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-                <IconFinance className="h-6 w-6" />
-              </div>
-              <p className="mt-2 text-center text-sm font-semibold text-zinc-900 dark:text-white">Compte principal</p>
-              <Link href={`/admin/finance/accounts/${stats.mainAccount.id}`} className={`${btnPrimary} mt-3`}>
-                Ouvrir
-              </Link>
-            </div>
-          ) : null}
           <div className="flex flex-col rounded-2xl border border-sky-100/80 bg-sky-50/30 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#2D9CDB]/15 text-[#2D9CDB]">
               <IconPayments className="h-6 w-6" />

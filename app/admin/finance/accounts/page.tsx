@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { canReadFinance, canWriteFinance, requireRoles } from "@/lib/auth";
+import { canReadFinance, canWriteFinance, isSystemAdmin, requireRoles } from "@/lib/auth";
+import { isMainFinanceAccountName } from "@/lib/finance-account-labels";
 import AdminPageHeader from "../../components/AdminPageHeader";
 import { adminPage } from "../../components/admin-ui";
 import AccountsCrud from "./AccountsCrud";
@@ -7,6 +8,7 @@ import AccountsCrud from "./AccountsCrud";
 export default async function AdminFinanceAccountsPage() {
   const user = await requireRoles(canReadFinance);
   const canWrite = canWriteFinance(user.roles);
+  const canSeeMainAccount = isSystemAdmin(user.roles);
 
   const academicYears = await prisma.academicYear.findMany({
     orderBy: [{ startDate: "desc" }, { id: "desc" }],
@@ -15,7 +17,7 @@ export default async function AdminFinanceAccountsPage() {
   const defaultAcademicYearId =
     academicYears.find((y) => y.isCurrent)?.id ?? academicYears[0]?.id ?? null;
 
-  const accounts = await prisma.financeAccount.findMany({
+  const accountsRaw = await prisma.financeAccount.findMany({
     orderBy: [{ academicYearId: "desc" }, { name: "asc" }],
     include: {
       academicYear: { select: { id: true, name: true, isCurrent: true } },
@@ -23,12 +25,20 @@ export default async function AdminFinanceAccountsPage() {
     },
   });
 
+  const accounts = canSeeMainAccount
+    ? accountsRaw
+    : accountsRaw.filter((a) => !isMainFinanceAccountName(a.name));
+
   return (
     <div className={adminPage}>
       <AdminPageHeader
         kicker="Finances"
         title="Comptes"
-        subtitle="Comptes d’encaissement par année scolaire. Crédités par les paiements de frais liés ; retraits réservés à l’administrateur système."
+        subtitle={
+          canSeeMainAccount
+            ? "Comptes d’encaissement par année scolaire. Crédités par les paiements de frais liés ; retraits réservés à l’administrateur système."
+            : "Comptes d’encaissement par année scolaire (hors compte principal). Crédités par les paiements de frais liés."
+        }
         backHref="/admin/finance"
       />
       <div className="mt-6">

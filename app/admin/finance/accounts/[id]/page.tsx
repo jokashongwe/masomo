@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { canReadFinance, isSystemAdmin, requireRoles } from "@/lib/auth";
+import { isMainFinanceAccountName } from "@/lib/finance-account-labels";
 import AdminPageHeader from "../../../components/AdminPageHeader";
 import { adminPage } from "../../../components/admin-ui";
 import AccountDetailClient from "./AccountDetailClient";
@@ -24,7 +25,11 @@ export default async function AdminFinanceAccountDetailPage({
   });
   if (!account) notFound();
 
-  const [transactions, otherAccounts] = await Promise.all([
+  if (isMainFinanceAccountName(account.name) && !isSystemAdmin(user.roles)) {
+    notFound();
+  }
+
+  const [transactions, otherAccountsRaw] = await Promise.all([
     prisma.financeAccountTransaction.findMany({
       where: { accountId: account.id },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -50,6 +55,10 @@ export default async function AdminFinanceAccountDetailPage({
       select: { id: true, name: true },
     }),
   ]);
+
+  const otherAccounts = isSystemAdmin(user.roles)
+    ? otherAccountsRaw
+    : otherAccountsRaw.filter((a) => !isMainFinanceAccountName(a.name));
 
   return (
     <div className={adminPage}>
