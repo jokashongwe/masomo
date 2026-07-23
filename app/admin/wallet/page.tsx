@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireRoles, canReadFinance, canWriteFinance } from "@/lib/auth";
-import DepositForm from "./DepositForm";
+import CautionClient from "./CautionClient";
 import AdminPageHeader from "../components/AdminPageHeader";
 import {
   adminCard,
@@ -27,12 +27,29 @@ export default async function AdminWalletPage() {
     select: { id: true, balanceUSD: true, balanceCDF: true },
   });
 
+  const transactions = wallet
+    ? await prisma.walletTransaction.findMany({
+        where: { walletId: wallet.id },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 50,
+        select: {
+          id: true,
+          type: true,
+          currency: true,
+          amount: true,
+          note: true,
+          createdAt: true,
+          academicYear: { select: { name: true } },
+        },
+      })
+    : [];
+
   return (
     <div className={adminPage}>
       <AdminPageHeader
         kicker="Trésorerie"
-        title="caution"
-        subtitle="Gérer les soldes USD/CDF et les dépenses."
+        title="Caution"
+        subtitle="Dépôts et retraits sur le compte de caution (soldes USD / CDF)."
         actions={
           <Link href="/admin/wallet/expenses" className={adminSecondaryButton}>
             Dépenses
@@ -44,27 +61,36 @@ export default async function AdminWalletPage() {
       {wallet ? (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className={adminStatFees}>
-            <div className="text-sm font-medium opacity-95">Balance USD</div>
+            <div className="text-sm font-medium opacity-95">Solde USD</div>
             <div className="mt-2 text-2xl font-bold">{wallet.balanceUSD.toString()} USD</div>
           </div>
           <div className={adminStatWalletCDF}>
-            <div className="text-sm font-medium opacity-95">Balance CDF</div>
+            <div className="text-sm font-medium opacity-95">Solde CDF</div>
             <div className="mt-2 text-2xl font-bold">{wallet.balanceCDF.toString()} CDF</div>
           </div>
         </div>
       ) : (
         <div className={`${adminCard} mt-6`}>
-          caution introuvable. Lancez le seed ou créez-en un via l’administrateur système.
+          Compte de caution introuvable. Lancez le seed ou créez-en un via l’administrateur système.
         </div>
       )}
 
-      <div className="mt-6">
-        <DepositForm
+      {wallet ? (
+        <CautionClient
           canWrite={canWrite}
           academicYears={academicYears.map(({ id, name }) => ({ id, name }))}
           defaultAcademicYearId={defaultAcademicYearId}
+          transactions={transactions.map((t) => ({
+            id: t.id,
+            type: t.type,
+            currency: t.currency,
+            amount: t.amount.toString(),
+            note: t.note,
+            createdAt: t.createdAt.toISOString(),
+            academicYearName: t.academicYear.name,
+          }))}
         />
-      </div>
+      ) : null}
     </div>
   );
 }

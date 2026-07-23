@@ -146,7 +146,7 @@ export default function AdminSidebar({
             { href: "/admin/finance/payments", label: "Paiements", icon: <IconPayments /> },
             { href: "/admin/finance/fee-support", label: "Prise en charge", icon: <IconEnroll /> },
             { href: "/admin/finance/accounts", label: "Comptes", icon: <IconWallet /> },
-            { href: "/admin/wallet", label: "caution", icon: <IconWallet /> },
+            { href: "/admin/wallet", label: "Caution", icon: <IconWallet /> },
           ]
         : [],
     [showFinance],
