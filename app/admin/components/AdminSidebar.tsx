@@ -16,6 +16,7 @@ import {
   IconSchools,
   IconSections,
   IconStudents,
+  IconUser,
   IconUsers,
   IconWallet,
   IconEnroll,
@@ -228,6 +229,10 @@ export default function AdminSidebar({
         </nav>
 
         <div className="relative z-10 mt-auto flex flex-col items-center gap-3 border-t border-white/20 px-2 py-4">
+          <NavLink
+            item={{ href: "/admin/account", label: "Mon compte", icon: <IconUser /> }}
+            pathname={pathname}
+          />
           <div
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20 text-sm font-bold text-white ring-2 ring-white/30"
             title={userName}
