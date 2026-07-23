@@ -1,19 +1,52 @@
 import { prisma } from "@/lib/prisma";
 import { canReadFinance, canWriteFinance, requireRoles } from "@/lib/auth";
+import { formatFeeSupportRule } from "@/lib/student-fee-support";
 import AdminPageHeader from "../../components/AdminPageHeader";
 import { adminPage } from "../../components/admin-ui";
 import FeeSupportCrud from "./FeeSupportCrud";
+
+const schoolClassSelect = {
+  codeClass: true,
+  levelId: true,
+  level: {
+    select: {
+      codeLevel: true,
+      option: { select: { nameOption: true } },
+    },
+  },
+} as const;
+
+type SchoolClassLabel = {
+  codeClass: string;
+  level: { codeLevel: string; option: { nameOption: string } };
+};
+
+/** Format : Code niveau + Option + Classe (ex. « 3ème Sciences A »). */
+function formatFeeSupportClassLabel(schoolClass: SchoolClassLabel) {
+  const { codeLevel } = schoolClass.level;
+  const ordinal = codeLevel === "1" ? "ère" : "ème";
+  return `${codeLevel}${ordinal} ${schoolClass.level.option.nameOption} ${schoolClass.codeClass}`;
+}
+
+function studentDisplayName(s: {
+  matricule: string | null;
+  firstName: string;
+  name: string;
+  postnom: string;
+}) {
+  const name = [s.firstName, s.name, s.postnom].filter(Boolean).join(" ");
+  const mat = s.matricule ? ` (${s.matricule})` : "";
+  return `${name}${mat}`;
+}
 
 function studentLabel(s: {
   matricule: string | null;
   firstName: string;
   name: string;
   postnom: string;
-  schoolClass: { codeClass: string };
+  schoolClass: SchoolClassLabel;
 }) {
-  const name = [s.firstName, s.name, s.postnom].filter(Boolean).join(" ");
-  const mat = s.matricule ? ` (${s.matricule})` : "";
-  return `${name}${mat} — ${s.schoolClass.codeClass}`;
+  return `${studentDisplayName(s)} — ${formatFeeSupportClassLabel(s.schoolClass)}`;
 }
 
 export default async function AdminFeeSupportPage({
@@ -58,7 +91,7 @@ export default async function AdminFeeSupportPage({
             firstName: true,
             name: true,
             postnom: true,
-            schoolClass: { select: { codeClass: true, levelId: true } },
+            schoolClass: { select: schoolClassSelect },
           },
         })
       : Promise.resolve([]),
@@ -74,7 +107,7 @@ export default async function AdminFeeSupportPage({
                 firstName: true,
                 name: true,
                 postnom: true,
-                schoolClass: { select: { codeClass: true } },
+                schoolClass: { select: schoolClassSelect },
               },
             },
             academicYear: { select: { id: true, name: true, isCurrent: true } },
@@ -92,7 +125,7 @@ export default async function AdminFeeSupportPage({
       <AdminPageHeader
         kicker="Finances"
         title="Prise en charge"
-        subtitle="Élèves bénéficiant d'une réduction configurable (jusqu'à 100 %) sur certains frais, par année scolaire."
+        subtitle="Élèves bénéficiant d'une réduction (pourcentage) ou d'un montant fixe à payer sur certains frais, par année scolaire."
         backHref="/admin/finance"
       />
       <div className="mt-6">
@@ -102,20 +135,40 @@ export default async function AdminFeeSupportPage({
           defaultAcademicYearId={defaultAcademicYearId}
           selectedAcademicYearId={selectedAcademicYearId}
           fees={fees}
-          students={students.map((s) => ({ ...s, label: studentLabel(s) }))}
+          students={students.map((s) => ({
+            ...s,
+            label: studentLabel(s),
+            classLabel: formatFeeSupportClassLabel(s.schoolClass),
+          }))}
           initialSupports={supports.map((s) => ({
             id: s.id,
             studentId: s.studentId,
             academicYearId: s.academicYearId,
             note: s.note,
-            studentLabel: studentLabel(s.student),
+            studentLabel: studentDisplayName(s.student),
+            classLabel: formatFeeSupportClassLabel(s.student.schoolClass),
             matricule: s.student.matricule,
-            reductions: s.feeReductions.map((r) => ({
-              feeId: r.feeId,
-              feeCode: r.fee.code,
-              feeName: r.fee.name,
-              reductionPercent: Number(r.reductionPercent),
-            })),
+            reductions: s.feeReductions.map((r) => {
+              const reductionPercent = r.reductionPercent != null ? Number(r.reductionPercent) : null;
+              const amountToPayUSD = r.amountToPayUSD != null ? Number(r.amountToPayUSD) : null;
+              const amountToPayCDF = r.amountToPayCDF != null ? Number(r.amountToPayCDF) : null;
+              const mode = r.mode as "PERCENT" | "FIXED_AMOUNT";
+              return {
+                feeId: r.feeId,
+                feeCode: r.fee.code,
+                feeName: r.fee.name,
+                mode,
+                reductionPercent,
+                amountToPayUSD,
+                amountToPayCDF,
+                label: formatFeeSupportRule({
+                  mode,
+                  reductionPercent,
+                  amountToPayUSD,
+                  amountToPayCDF,
+                }),
+              };
+            }),
           }))}
         />
       </div>

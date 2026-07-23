@@ -572,6 +572,11 @@ model StudentFeeSupport {
   @@index([academicYearId])
 }
 
+enum FeeSupportReductionMode {
+  PERCENT
+  FIXED_AMOUNT
+}
+
 model StudentFeeSupportReduction {
   id Int @id @default(autoincrement())
 
@@ -581,8 +586,14 @@ model StudentFeeSupportReduction {
   feeId Int
   fee Fee @relation(fields: [feeId], references: [id], onDelete: Cascade)
 
-  // Pourcentage de réduction sur le montant dû (0–100). 100 = prise en charge totale.
-  reductionPercent Decimal @db.Decimal(5, 2)
+  mode FeeSupportReductionMode @default(PERCENT)
+
+  // PERCENT : pourcentage de réduction sur le montant dû (0–100). 100 = prise en charge totale.
+  reductionPercent Decimal? @db.Decimal(5, 2)
+
+  // FIXED_AMOUNT : montant total restant à charge de l’élève (par devise).
+  amountToPayUSD Decimal? @db.Decimal(18, 2)
+  amountToPayCDF Decimal? @db.Decimal(18, 2)
 
   @@unique([supportId, feeId])
   @@index([feeId])

@@ -2,12 +2,27 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireFinanceReadApi, requireFinanceWriteApi } from "@/lib/rbac";
-import { normalizeReductions, validateFeeSupportReductions } from "@/lib/fee-support-admin";
+import {
+  normalizeReductions,
+  reductionCreateData,
+  validateFeeSupportReductions,
+  type FeeSupportReductionInput,
+} from "@/lib/fee-support-admin";
+import { formatFeeSupportRule } from "@/lib/student-fee-support";
 
-const reductionSchema = z.object({
-  feeId: z.number().int().positive(),
-  reductionPercent: z.coerce.number().min(0).max(100),
-});
+const reductionSchema = z.discriminatedUnion("mode", [
+  z.object({
+    feeId: z.number().int().positive(),
+    mode: z.literal("PERCENT"),
+    reductionPercent: z.coerce.number().min(0).max(100),
+  }),
+  z.object({
+    feeId: z.number().int().positive(),
+    mode: z.literal("FIXED_AMOUNT"),
+    amountToPayUSD: z.coerce.number().min(0).nullable().optional(),
+    amountToPayCDF: z.coerce.number().min(0).nullable().optional(),
+  }),
+]);
 
 const createSchema = z.object({
   studentId: z.number().int().positive(),
@@ -15,6 +30,52 @@ const createSchema = z.object({
   note: z.string().optional().nullable(),
   reductions: z.array(reductionSchema).min(1),
 });
+
+function mapReduction(r: {
+  id?: number;
+  feeId: number;
+  mode: string;
+  reductionPercent: unknown;
+  amountToPayUSD: unknown;
+  amountToPayCDF: unknown;
+  fee: { code: string; name: string };
+}) {
+  const reductionPercent = r.reductionPercent != null ? Number(r.reductionPercent) : null;
+  const amountToPayUSD = r.amountToPayUSD != null ? Number(r.amountToPayUSD) : null;
+  const amountToPayCDF = r.amountToPayCDF != null ? Number(r.amountToPayCDF) : null;
+  return {
+    id: r.id,
+    feeId: r.feeId,
+    feeCode: r.fee.code,
+    feeName: r.fee.name,
+    mode: r.mode as "PERCENT" | "FIXED_AMOUNT",
+    reductionPercent,
+    amountToPayUSD,
+    amountToPayCDF,
+    label: formatFeeSupportRule({
+      mode: r.mode,
+      reductionPercent,
+      amountToPayUSD,
+      amountToPayCDF,
+    }),
+  };
+}
+
+function toInputs(
+  reductions: z.infer<typeof reductionSchema>[],
+): FeeSupportReductionInput[] {
+  return reductions.map((r) => {
+    if (r.mode === "PERCENT") {
+      return { feeId: r.feeId, mode: "PERCENT", reductionPercent: r.reductionPercent };
+    }
+    return {
+      feeId: r.feeId,
+      mode: "FIXED_AMOUNT",
+      amountToPayUSD: r.amountToPayUSD ?? null,
+      amountToPayCDF: r.amountToPayCDF ?? null,
+    };
+  });
+}
 
 export async function GET(req: Request) {
   const auth = await requireFinanceReadApi();
@@ -54,13 +115,7 @@ export async function GET(req: Request) {
       note: s.note,
       student: s.student,
       academicYear: s.academicYear,
-      reductions: s.feeReductions.map((r) => ({
-        id: r.id,
-        feeId: r.feeId,
-        feeCode: r.fee.code,
-        feeName: r.fee.name,
-        reductionPercent: Number(r.reductionPercent),
-      })),
+      reductions: s.feeReductions.map(mapReduction),
     })),
   });
 }
@@ -96,7 +151,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Cet élève a déjà une prise en charge pour cette année" }, { status: 409 });
   }
 
-  const reductions = normalizeReductions(parsed.data.reductions);
+  const reductions = normalizeReductions(toInputs(parsed.data.reductions));
   const validation = await validateFeeSupportReductions(parsed.data.studentId, reductions);
   if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 400 });
 
@@ -106,10 +161,7 @@ export async function POST(req: Request) {
       academicYearId: parsed.data.academicYearId,
       note: parsed.data.note?.trim() || null,
       feeReductions: {
-        create: reductions.map((r) => ({
-          feeId: r.feeId,
-          reductionPercent: r.reductionPercent,
-        })),
+        create: reductions.map(reductionCreateData),
       },
     },
     select: { id: true },

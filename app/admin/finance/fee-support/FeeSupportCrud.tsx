@@ -28,22 +28,75 @@ type FeeOpt = { id: number; code: string; name: string; feeLevels: { levelId: nu
 type StudentOpt = {
   id: number;
   label: string;
+  classLabel: string;
   matricule: string | null;
   schoolClass: { codeClass: string; levelId: number };
 };
-type ReductionRow = { feeId: number; reductionPercent: string };
+type ReductionMode = "PERCENT" | "FIXED_AMOUNT";
+type ReductionRow = {
+  feeId: number;
+  mode: ReductionMode;
+  reductionPercent: string;
+  amountToPayUSD: string;
+  amountToPayCDF: string;
+};
+type SupportReduction = {
+  feeId: number;
+  feeCode: string;
+  feeName: string;
+  mode: ReductionMode;
+  reductionPercent: number | null;
+  amountToPayUSD: number | null;
+  amountToPayCDF: number | null;
+  label: string;
+};
 type SupportRow = {
   id: number;
   studentId: number;
   academicYearId: number;
   note: string | null;
   studentLabel: string;
+  classLabel: string;
   matricule: string | null;
-  reductions: { feeId: number; feeCode: string; feeName: string; reductionPercent: number }[];
+  reductions: SupportReduction[];
 };
 
 function emptyReduction(fees: FeeOpt[]): ReductionRow {
-  return { feeId: fees[0]?.id ?? 0, reductionPercent: "0" };
+  return {
+    feeId: fees[0]?.id ?? 0,
+    mode: "PERCENT",
+    reductionPercent: "0",
+    amountToPayUSD: "",
+    amountToPayCDF: "",
+  };
+}
+
+function toApiReduction(r: ReductionRow) {
+  if (r.mode === "PERCENT") {
+    return {
+      feeId: r.feeId,
+      mode: "PERCENT" as const,
+      reductionPercent: Number(r.reductionPercent),
+    };
+  }
+  const usd = r.amountToPayUSD.trim() === "" ? null : Number(r.amountToPayUSD);
+  const cdf = r.amountToPayCDF.trim() === "" ? null : Number(r.amountToPayCDF);
+  return {
+    feeId: r.feeId,
+    mode: "FIXED_AMOUNT" as const,
+    amountToPayUSD: usd,
+    amountToPayCDF: cdf,
+  };
+}
+
+function fromSupportReduction(r: SupportReduction): ReductionRow {
+  return {
+    feeId: r.feeId,
+    mode: r.mode,
+    reductionPercent: String(r.reductionPercent ?? 0),
+    amountToPayUSD: r.amountToPayUSD != null ? String(r.amountToPayUSD) : "",
+    amountToPayCDF: r.amountToPayCDF != null ? String(r.amountToPayCDF) : "",
+  };
 }
 
 function parseApiError(data: unknown): string {
@@ -103,8 +156,8 @@ export default function FeeSupportCrud({
     defaultKey: "student",
     getters: {
       student: (r) => r.studentLabel,
-      reductions: (r) =>
-        r.reductions.map((x) => `${x.feeCode} ${x.reductionPercent}`).join(", "),
+      classLabel: (r) => r.classLabel,
+      reductions: (r) => r.reductions.map((x) => `${x.feeCode} ${x.label}`).join(", "),
       note: (r) => r.note,
     },
   });
@@ -127,10 +180,7 @@ export default function FeeSupportCrud({
     setEditingId(row.id);
     setEditForm({
       note: row.note ?? "",
-      reductions: row.reductions.map((r) => ({
-        feeId: r.feeId,
-        reductionPercent: String(r.reductionPercent),
-      })),
+      reductions: row.reductions.map(fromSupportReduction),
     });
     setError(null);
   }
@@ -150,9 +200,7 @@ export default function FeeSupportCrud({
     setError(null);
     setSubmitting(true);
     try {
-      const reductions = createForm.reductions
-        .filter((r) => r.feeId > 0)
-        .map((r) => ({ feeId: r.feeId, reductionPercent: Number(r.reductionPercent) }));
+      const reductions = createForm.reductions.filter((r) => r.feeId > 0).map(toApiReduction);
       const res = await fetch("/api/admin/finance/fee-support", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -184,9 +232,7 @@ export default function FeeSupportCrud({
     setError(null);
     setSubmitting(true);
     try {
-      const reductions = editForm.reductions
-        .filter((r) => r.feeId > 0)
-        .map((r) => ({ feeId: r.feeId, reductionPercent: Number(r.reductionPercent) }));
+      const reductions = editForm.reductions.filter((r) => r.feeId > 0).map(toApiReduction);
       const res = await fetch(`/api/admin/finance/fee-support/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -230,9 +276,12 @@ export default function FeeSupportCrud({
   ) {
     const applicableFees = levelId != null ? feesForStudent(levelId) : fees;
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         {rows.map((row, idx) => (
-          <div key={idx} className="flex flex-wrap items-end gap-2">
+          <div
+            key={idx}
+            className="flex flex-wrap items-end gap-2 rounded-xl border border-sky-100/80 bg-sky-50/40 p-3 dark:border-zinc-700 dark:bg-zinc-900/40"
+          >
             <label className="min-w-[12rem] flex-1">
               <span className="mb-1 block text-xs text-zinc-500">Frais</span>
               <select
@@ -251,22 +300,74 @@ export default function FeeSupportCrud({
                 ))}
               </select>
             </label>
-            <label className="w-28">
-              <span className="mb-1 block text-xs text-zinc-500">Réduction %</span>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step={0.01}
+            <label className="min-w-[10rem]">
+              <span className="mb-1 block text-xs text-zinc-500">Mode</span>
+              <select
                 className={adminInput}
-                value={row.reductionPercent}
+                value={row.mode}
                 onChange={(e) => {
                   const next = [...rows];
-                  next[idx] = { ...next[idx], reductionPercent: e.target.value };
+                  next[idx] = { ...next[idx], mode: e.target.value as ReductionMode };
                   setRows(next);
                 }}
-              />
+              >
+                <option value="PERCENT">Pourcentage</option>
+                <option value="FIXED_AMOUNT">Montant à payer</option>
+              </select>
             </label>
+            {row.mode === "PERCENT" ? (
+              <label className="w-28">
+                <span className="mb-1 block text-xs text-zinc-500">Réduction %</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.01}
+                  className={adminInput}
+                  value={row.reductionPercent}
+                  onChange={(e) => {
+                    const next = [...rows];
+                    next[idx] = { ...next[idx], reductionPercent: e.target.value };
+                    setRows(next);
+                  }}
+                />
+              </label>
+            ) : (
+              <>
+                <label className="w-32">
+                  <span className="mb-1 block text-xs text-zinc-500">À payer USD</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    className={adminInput}
+                    value={row.amountToPayUSD}
+                    placeholder="—"
+                    onChange={(e) => {
+                      const next = [...rows];
+                      next[idx] = { ...next[idx], amountToPayUSD: e.target.value };
+                      setRows(next);
+                    }}
+                  />
+                </label>
+                <label className="w-32">
+                  <span className="mb-1 block text-xs text-zinc-500">À payer CDF</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    className={adminInput}
+                    value={row.amountToPayCDF}
+                    placeholder="—"
+                    onChange={(e) => {
+                      const next = [...rows];
+                      next[idx] = { ...next[idx], amountToPayCDF: e.target.value };
+                      setRows(next);
+                    }}
+                  />
+                </label>
+              </>
+            )}
             {rows.length > 1 ? (
               <button
                 type="button"
@@ -281,7 +382,7 @@ export default function FeeSupportCrud({
         <button
           type="button"
           className={adminGhostButton}
-          onClick={() => setRows([...rows, { feeId: applicableFees[0]?.id ?? 0, reductionPercent: "0" }])}
+          onClick={() => setRows([...rows, emptyReduction(applicableFees.length ? applicableFees : fees)])}
           disabled={!applicableFees.length}
         >
           + Frais
@@ -325,6 +426,7 @@ export default function FeeSupportCrud({
             <thead className={adminThead}>
               <tr>
                 <SortableTh column="student" label="Élève" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh column="classLabel" label="Classe" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortableTh column="reductions" label="Réductions" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortableTh column="note" label="Note" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 {canWrite ? <th className={adminTh}>Actions</th> : null}
@@ -333,7 +435,7 @@ export default function FeeSupportCrud({
             <tbody>
               {sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={canWrite ? 4 : 3} className={adminTableEmpty}>
+                  <td colSpan={canWrite ? 5 : 4} className={adminTableEmpty}>
                     Aucune prise en charge pour cette année.
                   </td>
                 </tr>
@@ -347,11 +449,12 @@ export default function FeeSupportCrud({
                           <div className="text-xs text-zinc-500">{row.matricule}</div>
                         ) : null}
                       </td>
+                      <td className={adminTd}>{row.classLabel}</td>
                       <td className={adminTd}>
                         <ul className="space-y-0.5 text-sm">
                           {row.reductions.map((r) => (
                             <li key={r.feeId}>
-                              <span className="font-mono text-xs">{r.feeCode}</span> — {r.reductionPercent}%
+                              <span className="font-mono text-xs">{r.feeCode}</span> — {r.label}
                             </li>
                           ))}
                         </ul>
@@ -375,9 +478,14 @@ export default function FeeSupportCrud({
                     </tr>
                     {editingId === row.id ? (
                       <tr className={adminTr}>
-                        <td colSpan={canWrite ? 4 : 3} className={adminTd}>
+                        <td colSpan={canWrite ? 5 : 4} className={adminTd}>
                           <div className="space-y-3 rounded-lg border border-sky-200 bg-sky-50/50 p-4 dark:border-sky-900/40 dark:bg-sky-950/20">
-                            <div className={adminSectionTitle}>Modifier — {row.studentLabel}</div>
+                            <div className={adminSectionTitle}>
+                              Modifier — {row.studentLabel}
+                              <span className="mt-1 block text-sm font-normal text-zinc-600 dark:text-zinc-300">
+                                Classe : {row.classLabel}
+                              </span>
+                            </div>
                             <label className="block">
                               <span className="mb-1 block text-xs text-zinc-500">Note</span>
                               <input

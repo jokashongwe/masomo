@@ -2,21 +2,50 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireFinanceReadApi, requireFinanceWriteApi } from "@/lib/rbac";
-import { normalizeReductions, validateFeeSupportReductions } from "@/lib/fee-support-admin";
+import {
+  normalizeReductions,
+  reductionCreateData,
+  validateFeeSupportReductions,
+  type FeeSupportReductionInput,
+} from "@/lib/fee-support-admin";
+import { formatFeeSupportRule } from "@/lib/student-fee-support";
 
 const idSchema = z.object({ id: z.coerce.number().int().positive() });
 
+const reductionSchema = z.discriminatedUnion("mode", [
+  z.object({
+    feeId: z.number().int().positive(),
+    mode: z.literal("PERCENT"),
+    reductionPercent: z.coerce.number().min(0).max(100),
+  }),
+  z.object({
+    feeId: z.number().int().positive(),
+    mode: z.literal("FIXED_AMOUNT"),
+    amountToPayUSD: z.coerce.number().min(0).nullable().optional(),
+    amountToPayCDF: z.coerce.number().min(0).nullable().optional(),
+  }),
+]);
+
 const updateSchema = z.object({
   note: z.string().optional().nullable(),
-  reductions: z
-    .array(
-      z.object({
-        feeId: z.number().int().positive(),
-        reductionPercent: z.coerce.number().min(0).max(100),
-      }),
-    )
-    .min(1),
+  reductions: z.array(reductionSchema).min(1),
 });
+
+function toInputs(
+  reductions: z.infer<typeof reductionSchema>[],
+): FeeSupportReductionInput[] {
+  return reductions.map((r) => {
+    if (r.mode === "PERCENT") {
+      return { feeId: r.feeId, mode: "PERCENT", reductionPercent: r.reductionPercent };
+    }
+    return {
+      feeId: r.feeId,
+      mode: "FIXED_AMOUNT",
+      amountToPayUSD: r.amountToPayUSD ?? null,
+      amountToPayCDF: r.amountToPayCDF ?? null,
+    };
+  });
+}
 
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
   const auth = await requireFinanceReadApi();
@@ -54,12 +83,26 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
       note: support.note,
       student: support.student,
       academicYear: support.academicYear,
-      reductions: support.feeReductions.map((r) => ({
-        feeId: r.feeId,
-        feeCode: r.fee.code,
-        feeName: r.fee.name,
-        reductionPercent: Number(r.reductionPercent),
-      })),
+      reductions: support.feeReductions.map((r) => {
+        const reductionPercent = r.reductionPercent != null ? Number(r.reductionPercent) : null;
+        const amountToPayUSD = r.amountToPayUSD != null ? Number(r.amountToPayUSD) : null;
+        const amountToPayCDF = r.amountToPayCDF != null ? Number(r.amountToPayCDF) : null;
+        return {
+          feeId: r.feeId,
+          feeCode: r.fee.code,
+          feeName: r.fee.name,
+          mode: r.mode,
+          reductionPercent,
+          amountToPayUSD,
+          amountToPayCDF,
+          label: formatFeeSupportRule({
+            mode: r.mode,
+            reductionPercent,
+            amountToPayUSD,
+            amountToPayCDF,
+          }),
+        };
+      }),
     },
   });
 }
@@ -84,7 +127,7 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
   });
   if (!support) return NextResponse.json({ error: "Prise en charge introuvable" }, { status: 404 });
 
-  const reductions = normalizeReductions(parsed.data.reductions);
+  const reductions = normalizeReductions(toInputs(parsed.data.reductions));
   const validation = await validateFeeSupportReductions(support.studentId, reductions);
   if (!validation.ok) return NextResponse.json({ error: validation.error }, { status: 400 });
 
@@ -95,10 +138,7 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
       data: {
         note: parsed.data.note?.trim() || null,
         feeReductions: {
-          create: reductions.map((r) => ({
-            feeId: r.feeId,
-            reductionPercent: r.reductionPercent,
-          })),
+          create: reductions.map(reductionCreateData),
         },
       },
     });
