@@ -44,20 +44,29 @@ export default async function AdminEnrollPage() {
         },
       },
     },
-    orderBy: { codeClass: "asc" },
+    orderBy: [{ level: { option: { nameOption: "asc" } } }, { level: { codeLevel: "asc" } }, { codeClass: "asc" }],
   });
 
-  const classOptions = classes.map((c) => ({
-    id: c.id,
-    label: `${c.codeClass} - ${c.level.codeLevel} (${c.level.option.section.codeSection}) - ${c.level.option.section.school.name}`,
-  }));
+  const classOptions = classes.map((c) => {
+    const { codeLevel } = c.level;
+    const ordinal = codeLevel === "1" ? "ère" : "ème";
+    const levelLabel = `${codeLevel}${ordinal} ${c.level.name}`;
+    return {
+      id: c.id,
+      codeClass: c.codeClass,
+      levelId: c.levelId,
+      levelLabel,
+      optionId: c.level.optionId,
+      optionLabel: c.level.option.nameOption,
+    };
+  });
 
   return (
     <div className={adminPage}>
       <AdminPageHeader
         kicker="Scolarité"
         title="Inscription d’un élève"
-        subtitle="Renseignez les informations de l’élève et de ses tuteurs, puis assignez-le à une classe."
+        subtitle="Choisissez l’option et le niveau, puis assignez l’élève à une classe."
         actions={
           <Link href="/admin/students" className={adminGhostButton}>
             Liste des élèves

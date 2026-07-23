@@ -2,7 +2,14 @@
 
 import { FormEvent, useMemo, useState } from "react";
 
-type ClassOption = { id: number; label: string };
+type ClassOption = {
+  id: number;
+  codeClass: string;
+  levelId: number;
+  levelLabel: string;
+  optionId: number;
+  optionLabel: string;
+};
 
 type Sex = "MALE" | "FEMALE" | "OTHER";
 
@@ -13,6 +20,11 @@ type TutorInput = {
   address: string;
   contact: string;
 };
+
+const selectClass =
+  "mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white";
+const inputClass =
+  "rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white";
 
 export default function EnrollmentForm({ classOptions }: { classOptions: ClassOption[] }) {
   const defaultTutor: TutorInput = useMemo(
@@ -26,6 +38,8 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
     [],
   );
 
+  const [optionId, setOptionId] = useState("");
+  const [levelId, setLevelId] = useState("");
   const [classId, setClassId] = useState<number | "">("");
 
   const [student, setStudent] = useState({
@@ -41,6 +55,41 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const optionChoices = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const c of classOptions) {
+      if (!map.has(c.optionId)) map.set(c.optionId, c.optionLabel);
+    }
+    return [...map.entries()]
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "fr"));
+  }, [classOptions]);
+
+  const levelChoices = useMemo(() => {
+    if (!optionId) return [];
+    const map = new Map<number, string>();
+    for (const c of classOptions) {
+      if (String(c.optionId) !== optionId) continue;
+      if (!map.has(c.levelId)) map.set(c.levelId, c.levelLabel);
+    }
+    return [...map.entries()]
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "fr", { numeric: true }));
+  }, [classOptions, optionId]);
+
+  const classChoices = useMemo(() => {
+    if (!levelId) return [];
+    return classOptions
+      .filter((c) => String(c.levelId) === levelId)
+      .sort((a, b) => a.codeClass.localeCompare(b.codeClass, "fr"));
+  }, [classOptions, levelId]);
+
+  function resetClassSelection() {
+    setOptionId("");
+    setLevelId("");
+    setClassId("");
+  }
 
   function updateTutor(index: number, patch: Partial<TutorInput>) {
     setTutors((prev) => prev.map((t, i) => (i === index ? { ...t, ...patch } : t)));
@@ -62,7 +111,7 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
     setSuccess(null);
 
     if (classId === "") {
-      setError("Veuillez sélectionner une classe.");
+      setError("Veuillez sélectionner une option, un niveau et une classe.");
       return;
     }
 
@@ -71,7 +120,6 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
       return;
     }
 
-    // Basic client-side check (server will validate again).
     const tutorMissing = tutors.some((t) =>
       [t.name, t.postnom, t.firstName, t.address, t.contact].some((v) => v.trim().length === 0),
     );
@@ -118,7 +166,7 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
 
       setSuccess(`Élève inscrit avec succès (ID : ${data?.studentId ?? "inconnu"}).`);
 
-      setClassId("");
+      resetClassSelection();
       setStudent({ name: "", postnom: "", firstName: "", sex: "MALE", birthDate: "" });
       setTutors([{ ...defaultTutor }, { ...defaultTutor }]);
     } catch {
@@ -132,19 +180,69 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
     <form onSubmit={onSubmit} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-black/40 p-6">
       <div className="space-y-6">
         <div>
-          <label className="block text-sm font-medium text-black dark:text-white">Classe</label>
-          <select
-            className="mt-2 w-full rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
-            value={classId}
-            onChange={(e) => setClassId(e.target.value === "" ? "" : Number(e.target.value))}
-          >
-            <option value="">Sélectionner une classe...</option>
-            {classOptions.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+          <h2 className="text-lg font-semibold text-black dark:text-white">Classe</h2>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label className="block text-sm font-medium text-black dark:text-white">Option</label>
+              <select
+                required
+                className={selectClass}
+                value={optionId}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setOptionId(next);
+                  setLevelId("");
+                  setClassId("");
+                }}
+              >
+                <option value="">Choisir une option…</option>
+                {optionChoices.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-black dark:text-white">Niveau</label>
+              <select
+                required
+                className={selectClass}
+                value={levelId}
+                disabled={!optionId}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setLevelId(next);
+                  const first = classOptions.find((c) => String(c.levelId) === next);
+                  setClassId(first ? first.id : "");
+                }}
+              >
+                <option value="">{optionId ? "Choisir un niveau…" : "Choisir d’abord l’option"}</option>
+                {levelChoices.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-black dark:text-white">Classe</label>
+              <select
+                required
+                className={selectClass}
+                value={classId}
+                disabled={!levelId}
+                onChange={(e) => setClassId(e.target.value === "" ? "" : Number(e.target.value))}
+              >
+                <option value="">{levelId ? "Choisir une classe…" : "Choisir d’abord le niveau"}</option>
+                {classChoices.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.codeClass}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
         <div>
@@ -152,27 +250,27 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input
               required
-              className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+              className={inputClass}
               placeholder="Nom"
               value={student.name}
               onChange={(e) => setStudent((s) => ({ ...s, name: e.target.value }))}
             />
             <input
               required
-              className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+              className={inputClass}
               placeholder="Postnom"
               value={student.postnom}
               onChange={(e) => setStudent((s) => ({ ...s, postnom: e.target.value }))}
             />
             <input
               required
-              className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+              className={inputClass}
               placeholder="Prénom"
               value={student.firstName}
               onChange={(e) => setStudent((s) => ({ ...s, firstName: e.target.value }))}
             />
             <select
-              className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+              className={inputClass}
               value={student.sex}
               onChange={(e) => setStudent((s) => ({ ...s, sex: e.target.value as Sex }))}
             >
@@ -183,7 +281,7 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
             <input
               required
               type="date"
-              className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+              className={inputClass}
               value={student.birthDate}
               onChange={(e) => setStudent((s) => ({ ...s, birthDate: e.target.value }))}
             />
@@ -221,35 +319,35 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
                 <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
                     required
-                    className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                    className={inputClass}
                     placeholder="Nom"
                     value={t.name}
                     onChange={(e) => updateTutor(index, { name: e.target.value })}
                   />
                   <input
                     required
-                    className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                    className={inputClass}
                     placeholder="Postnom"
                     value={t.postnom}
                     onChange={(e) => updateTutor(index, { postnom: e.target.value })}
                   />
                   <input
                     required
-                    className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                    className={inputClass}
                     placeholder="Prénom"
                     value={t.firstName}
                     onChange={(e) => updateTutor(index, { firstName: e.target.value })}
                   />
                   <input
                     required
-                    className="rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                    className={inputClass}
                     placeholder="Contact"
                     value={t.contact}
                     onChange={(e) => updateTutor(index, { contact: e.target.value })}
                   />
                   <input
                     required
-                    className="sm:col-span-2 rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-black px-3 py-2 text-black dark:text-white"
+                    className={`sm:col-span-2 ${inputClass}`}
                     placeholder="Adresse"
                     value={t.address}
                     onChange={(e) => updateTutor(index, { address: e.target.value })}
