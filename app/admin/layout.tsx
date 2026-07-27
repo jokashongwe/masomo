@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { canManageSchool, canReadFinance, getCurrentUser, isSystemAdmin } from "@/lib/auth";
+import { canManageAnnouncements } from "@/lib/parent-rbac";
 import { rolesLabelFr } from "@/lib/user-roles";
 import { prisma } from "@/lib/prisma";
 import AdminSidebar from "./components/AdminSidebar";
@@ -14,6 +15,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const showSchool = canManageSchool(user.roles);
   const showFinance = canReadFinance(user.roles);
   const showUsers = isSystemAdmin(user.roles);
+  const showAnnouncements = canManageAnnouncements(user.roles);
 
   const school = await prisma.school.findFirst({
     orderBy: { id: "asc" },
@@ -30,6 +32,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         showSchool={showSchool}
         showFinance={showFinance}
         showUsers={showUsers}
+        showAnnouncements={showAnnouncements}
       />
       <main className="min-h-screen flex-1 overflow-x-hidden">{children}</main>
     </div>

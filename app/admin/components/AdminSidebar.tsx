@@ -20,6 +20,7 @@ import {
   IconUsers,
   IconWallet,
   IconEnroll,
+  IconMegaphone,
 } from "./AdminIcons";
 
 type NavItem = { href: string; label: string; icon: ReactNode };
@@ -112,6 +113,7 @@ export default function AdminSidebar({
   showSchool,
   showFinance,
   showUsers,
+  showAnnouncements,
 }: {
   userName: string;
   userRole: string;
@@ -119,6 +121,7 @@ export default function AdminSidebar({
   showSchool: boolean;
   showFinance: boolean;
   showUsers: boolean;
+  showAnnouncements: boolean;
 }) {
   const pathname = usePathname() ?? "/admin";
 
@@ -153,16 +156,19 @@ export default function AdminSidebar({
     [showFinance],
   );
 
-  const schoolStandalone: NavItem[] = useMemo(
-    () =>
-      showSchool
-        ? [
-            { href: "/admin/students", label: "Élèves", icon: <IconStudents /> },
-            { href: "/admin/enroll", label: "Inscription", icon: <IconEnroll /> },
-          ]
-        : [],
-    [showSchool],
-  );
+  const schoolStandalone: NavItem[] = useMemo(() => {
+    const out: NavItem[] = [];
+    if (showSchool) {
+      out.push(
+        { href: "/admin/students", label: "Élèves", icon: <IconStudents /> },
+        { href: "/admin/enroll", label: "Inscription", icon: <IconEnroll /> },
+      );
+    }
+    if (showAnnouncements) {
+      out.push({ href: "/admin/announcements", label: "Communiqués", icon: <IconMegaphone /> });
+    }
+    return out;
+  }, [showSchool, showAnnouncements]);
 
   const usersOnly: NavItem[] = useMemo(
     () => (showUsers ? [{ href: "/admin/users", label: "Utilisateurs", icon: <IconUsers /> }] : []),

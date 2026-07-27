@@ -50,6 +50,7 @@ model User {
   sessions Session[]
   expensesCreated Expense[]
   financeAccountWithdrawals FinanceAccountTransaction[]
+  announcementsCreated Announcement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -202,9 +203,48 @@ model Tutor {
   address  String
   contact  String @unique
 
+  /// Hash bcrypt du PIN mobile. null = jamais activé (accepte 0000 à la 1ère connexion).
+  pinHash String?
+  mustChangePin Boolean @default(true)
+  pinUpdatedAt DateTime?
+
   createdAt DateTime @default(now())
 
   studentTutors StudentTutor[]
+  sessions TutorSession[]
+}
+
+model TutorSession {
+  id Int @id @default(autoincrement())
+
+  tokenHash String @unique
+  expiresAt DateTime
+
+  tutorId Int
+  tutor   Tutor @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([tutorId])
+}
+
+model Announcement {
+  id Int @id @default(autoincrement())
+
+  title String
+  body  String
+
+  /// null = brouillon ; non-null = publié
+  publishedAt DateTime?
+
+  createdById Int
+  createdBy   User @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([publishedAt])
+  @@index([createdById])
 }
 
 model StudentTutor {

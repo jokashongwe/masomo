@@ -1,0 +1,244 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-parent-mobile-api",
+    "name": "KelaApp — API Mobile Parents",
+    "description": "API pour l'application mobile des tuteurs/parents.\n\n## Authentification\n1. Appeler **Login** avec le téléphone (`Tutor.contact`) et le PIN.\n2. PIN par défaut à la première connexion : `0000`.\n3. Copier le `token` renvoyé dans la variable de collection `parentToken` (ou header `Authorization: Bearer <token>`).\n4. Si `mustChangePin` est `true`, appeler **Change PIN** avant le reste.\n\n## Variables\n- `baseUrl` : URL de l'API (ex. `http://localhost:3000`)\n- `parentToken` : Bearer token après login\n- `studentId` : ID d'un élève lié au tuteur\n\n## Notes\n- Le téléphone doit correspondre exactement au champ `contact` du tuteur (tel qu'enregistré à l'inscription).\n- Les communiqués admin (création/publication) sont en cookie session staff — collection séparée en bas.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "parentToken", "value": "" },
+    { "key": "studentId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Parent — Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.token) {",
+                  "    pm.collectionVariables.set('parentToken', data.token);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+243900000000\",\n  \"pin\": \"0000\"\n}"
+            },
+            "url": "{{baseUrl}}/api/parent/auth/login",
+            "description": "Connexion tuteur.\n\n**Body**\n- `phone` (string) : numéro = `Tutor.contact`\n- `pin` (string) : PIN (défaut `0000` si jamais activé)\n\n**Réponse 200**\n```json\n{\n  \"token\": \"...\",\n  \"tutor\": {\n    \"id\": 1,\n    \"name\": \"...\",\n    \"postnom\": \"...\",\n    \"firstName\": \"...\",\n    \"contact\": \"...\",\n    \"mustChangePin\": true\n  },\n  \"mustChangePin\": true\n}\n```\n\nLe script de test enregistre automatiquement `token` dans `parentToken`.\n\n**Erreurs**\n- `400` / `401` : Identifiants invalides"
+          },
+          "response": []
+        },
+        {
+          "name": "Change PIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{parentToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPin\": \"0000\",\n  \"newPin\": \"1234\"\n}"
+            },
+            "url": "{{baseUrl}}/api/parent/auth/change-pin",
+            "description": "Modifier le PIN après connexion.\n\n**Body**\n- `currentPin` (string)\n- `newPin` (string) : 4 à 6 chiffres, **différent de `0000`**\n\n**Réponse 200**\n```json\n{ \"ok\": true, \"mustChangePin\": false }\n```\n\n**Erreurs**\n- `400` : PIN actuel incorrect / format invalide / nouveau PIN = 0000\n- `401` : Non authentifié"
+          },
+          "response": []
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{parentToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/parent/me",
+            "description": "Profil du tuteur connecté.\n\n**Réponse 200**\n```json\n{\n  \"tutor\": { \"id\": 1, \"name\": \"...\", \"mustChangePin\": false, ... },\n  \"mustChangePin\": false\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{parentToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/parent/auth/logout",
+            "description": "Invalide la session Bearer courante.\n\n**Réponse 200**\n```json\n{ \"ok\": true }\n```"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Parent — Élèves",
+      "item": [
+        {
+          "name": "Liste des élèves",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{parentToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/parent/students?academicYearId=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "parent", "students"],
+              "query": [
+                {
+                  "key": "academicYearId",
+                  "value": "",
+                  "description": "Optionnel. Par défaut = année scolaire en cours.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Élèves attachés au tuteur.\n\n**Query**\n- `academicYearId` (optionnel) : filtre par année ; sinon année `isCurrent`.\n\n**Réponse 200**\n```json\n{\n  \"students\": [\n    {\n      \"id\": 1,\n      \"firstName\": \"...\",\n      \"name\": \"...\",\n      \"postnom\": \"...\",\n      \"matricule\": \"...\",\n      \"status\": \"ENROLLED\",\n      \"classLabel\": \"3ème Sciences A\",\n      \"academicYear\": { \"id\": 1, \"name\": \"2025-2026\", \"isCurrent\": true },\n      \"class\": { ... }\n    }\n  ]\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Rapport frais (modules / tranches)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{parentToken}}" }
+            ],
+            "url": "{{baseUrl}}/api/parent/students/{{studentId}}/fees",
+            "description": "Rapport des frais pour un enfant du tuteur.\n\n- Modules ≈ trimestres (`BillingModule`)\n- Tranches ≈ échéances (`ModuleTranche`)\n- `totals` : frais de type TOTAL (hors modules)\n- `recentPayments` : derniers paiements\n\n**Réponse 200** (extrait)\n```json\n{\n  \"student\": { \"id\": 1, \"classLabel\": \"...\", \"academicYear\": { ... } },\n  \"modules\": [\n    {\n      \"moduleId\": 1,\n      \"moduleName\": \"Term 1\",\n      \"tranches\": [\n        {\n          \"trancheId\": 1,\n          \"codeTranche\": \"T1\",\n          \"fees\": [\n            {\n              \"feeId\": 1,\n              \"feeCode\": \"...\",\n              \"feeName\": \"...\",\n              \"currency\": \"USD\",\n              \"due\": 100,\n              \"paid\": 50,\n              \"outstanding\": 50\n            }\n          ]\n        }\n      ]\n    }\n  ],\n  \"totals\": [],\n  \"recentPayments\": []\n}\n```\n\n**Erreurs**\n- `404` : élève inexistant ou non lié au tuteur"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Parent — Communiqués",
+      "item": [
+        {
+          "name": "Liste des communiqués publiés",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{parentToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/parent/announcements?take=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "parent", "announcements"],
+              "query": [
+                {
+                  "key": "take",
+                  "value": "20",
+                  "description": "Nombre d'éléments (1–50), défaut 20"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "description": "Pagination : id du dernier élément reçu (charge les plus anciens)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Communiqués **publiés** uniquement (lecture).\n\n**Query**\n- `take` (1–50, défaut 20)\n- `cursor` (optionnel) : id pour page suivante\n\n**Réponse 200**\n```json\n{\n  \"announcements\": [\n    {\n      \"id\": 1,\n      \"title\": \"...\",\n      \"body\": \"...\",\n      \"publishedAt\": \"2026-07-27T12:00:00.000Z\",\n      \"createdAt\": \"...\",\n      \"authorName\": \"Admin\"\n    }\n  ],\n  \"nextCursor\": null\n}\n```"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin — Communiqués (cookie session staff)",
+      "description": "Nécessite d'être connecté en tant que staff (SYSTEM_ADMIN, SCHOOL_MANAGER ou FINANCE_MANAGER) via `/api/auth/login` — cookie `kela.session`. Dans Postman : activer l'envoi des cookies après login staff, ou coller le cookie manuellement.",
+      "item": [
+        {
+          "name": "Staff Login (cookie)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"changeme\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/login",
+            "description": "Login staff. Postman doit conserver le cookie `kela.session` pour les requêtes suivantes."
+          },
+          "response": []
+        },
+        {
+          "name": "Lister communiqués",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/announcements",
+            "description": "Tous les communiqués (brouillons + publiés)."
+          },
+          "response": []
+        },
+        {
+          "name": "Créer communiqué",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Réunion parents\",\n  \"body\": \"Réunion le vendredi à 10h.\",\n  \"publish\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/announcements",
+            "description": "**Body**\n- `title` (string)\n- `body` (string)\n- `publish` (boolean, défaut false) : publier immédiatement"
+          },
+          "response": []
+        },
+        {
+          "name": "Modifier / publier communiqué",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Réunion parents (MAJ)\",\n  \"body\": \"Réunion reportée à 14h.\",\n  \"publish\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/announcements/1",
+            "description": "**Body** (tous optionnels)\n- `title`, `body`\n- `publish` : `true` publier, `false` dépublier"
+          },
+          "response": []
+        },
+        {
+          "name": "Supprimer communiqué",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/announcements/1",
+            "description": "Suppression définitive."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
