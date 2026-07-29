@@ -86,10 +86,11 @@ export async function closeAcademicYear(input: {
     for (const student of students) {
       const label = `${student.firstName} ${student.name} ${student.postnom}`.trim();
 
-      if (student._count.feePayments < 1) {
+      // Élève sans paiement de frais - 
+      /*if (student._count.feePayments < 1) {
         skippedNoPayment += 1;
         continue;
-      }
+      }*/
 
       const nextLevel = await resolveNextLevel(tx, student.schoolClass.level);
       if (!nextLevel) {
