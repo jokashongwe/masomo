@@ -172,7 +172,7 @@ export default async function AdminStudentsPage({
 
   const classOptions = classes.map((c) => ({
     id: c.id,
-    label: `${c.codeClass} - ${c.level.codeLevel} (${c.level.option.section.codeSection}) - ${c.level.option.section.school.name}`,
+    label: `${c.level.codeLevel} ${c.level.option.nameOption} ${c.codeClass} `,
   }));
 
   const pageCount = Math.max(1, Math.ceil(total / take));
