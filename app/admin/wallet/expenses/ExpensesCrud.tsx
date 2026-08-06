@@ -1,5 +1,6 @@
 "use client";
 
+import { queueOperation } from "@/lib/offline-queue";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -146,6 +147,20 @@ export default function ExpensesCrud({
       return;
     }
 
+    const payload = {
+      currency: create.currency,
+      amount,
+      description: create.description || undefined,
+      occurredAt: create.occurredAt ? new Date(create.occurredAt) : undefined,
+      academicYearId: selectedAcademicYearId,
+    };
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      queueOperation({ method: "POST", url: "/api/admin/wallet/expenses", body: payload });
+      setError("Dépense enregistrée hors ligne. Elle sera synchronisée au retour de la connexion.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch("/api/admin/wallet/expenses", {
@@ -166,6 +181,9 @@ export default function ExpensesCrud({
       }
       setCreate({ currency: "USD", amount: "", description: "", occurredAt: "" });
       router.refresh();
+    } catch (err) {
+      queueOperation({ method: "POST", url: "/api/admin/wallet/expenses", body: payload });
+      setError("Dépense enregistrée hors ligne. Elle sera synchronisée au retour de la connexion.");
     } finally {
       setSubmitting(false);
     }
@@ -178,6 +196,20 @@ export default function ExpensesCrud({
     const amount = Number(update.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
       setError("Le montant doit être > 0");
+      return;
+    }
+
+    const payload = {
+      currency: update.currency,
+      amount,
+      description: update.description || undefined,
+      occurredAt: update.occurredAt ? new Date(update.occurredAt) : undefined,
+      academicYearId: update.academicYearId,
+    };
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      queueOperation({ method: "PUT", url: `/api/admin/wallet/expenses/${editing.id}`, body: payload });
+      setError("Modification enregistrée hors ligne. Elle sera synchronisée au retour de la connexion.");
       return;
     }
 
@@ -201,6 +233,9 @@ export default function ExpensesCrud({
       }
       setEditingId(null);
       router.refresh();
+    } catch (err) {
+      queueOperation({ method: "PUT", url: `/api/admin/wallet/expenses/${editing.id}`, body: payload });
+      setError("Modification enregistrée hors ligne. Elle sera synchronisée au retour de la connexion.");
     } finally {
       setSubmitting(false);
     }
@@ -212,6 +247,13 @@ export default function ExpensesCrud({
     const ok = window.confirm("Supprimer cette dépense ?");
     if (!ok) return;
     setSubmitting(true);
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      queueOperation({ method: "DELETE", url: `/api/admin/wallet/expenses/${id}`, body: {} });
+      setError("Suppression enregistrée hors ligne. Elle sera synchronisée au retour de la connexion.");
+      return;
+    }
+
     try {
       const res = await fetch(`/api/admin/wallet/expenses/${id}`, { method: "DELETE" });
       const data = await res.json().catch(() => null);
@@ -220,6 +262,9 @@ export default function ExpensesCrud({
         return;
       }
       router.refresh();
+    } catch (err) {
+      queueOperation({ method: "DELETE", url: `/api/admin/wallet/expenses/${id}`, body: {} });
+      setError("Suppression enregistrée hors ligne. Elle sera synchronisée au retour de la connexion.");
     } finally {
       setSubmitting(false);
     }
@@ -480,4 +525,3 @@ export default function ExpensesCrud({
     </div>
   );
 }
-
