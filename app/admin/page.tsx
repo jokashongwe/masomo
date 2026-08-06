@@ -123,7 +123,7 @@ function DashboardKpiGrid({
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">
             <IconFinance className="h-6 w-6" />
           </div>
-          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde du compte secondaire</p>
+          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde Caution Yves</p>
           <>
             <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
               {formatMoney(stats.secondaryAccount.balanceUSD, "USD")}
