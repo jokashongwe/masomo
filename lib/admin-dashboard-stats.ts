@@ -62,6 +62,12 @@ export type AdminDashboardStats = {
     balanceUSD: number;
     balanceCDF: number;
   } | null;
+  secondaryAccount: {
+    id: number;
+    name: string;
+    balanceUSD: number;
+    balanceCDF: number;
+  } | null;
   mainAccountWithdrawals: { usd: number; cdf: number };
   walletBalance: { usd: number; cdf: number } | null;
   walletExpenses: { usd: number; cdf: number };
@@ -91,6 +97,17 @@ export async function getAdminDashboardStats(input: {
       ? prisma.student.count({ where: { academicYearId } })
       : Promise.resolve(0),
   ]);
+
+  const secondaryAccountRow = mainAccountRow
+    ? await prisma.financeAccount.findFirst({
+        where: {
+          academicYearId,
+          id: { not: mainAccountRow.id },
+        },
+        orderBy: { id: "asc" },
+        select: mainAccountSelect,
+      })
+    : null;
 
   const [withdrawalAgg, expenseAgg] = await Promise.all([
     mainAccountRow
@@ -126,9 +143,19 @@ export async function getAdminDashboardStats(input: {
       }
     : null;
 
+  const secondaryAccount = secondaryAccountRow
+    ? {
+        id: secondaryAccountRow.id,
+        name: secondaryAccountRow.name,
+        balanceUSD: Number(secondaryAccountRow.balanceUSD),
+        balanceCDF: Number(secondaryAccountRow.balanceCDF),
+      }
+    : null;
+
   return {
     totalEncaisse: sumsFromAgg(paymentsYearAgg),
     mainAccount,
+    secondaryAccount,
     mainAccountWithdrawals: sumsFromAgg(withdrawalAgg),
     walletBalance: wallet
       ? { usd: Number(wallet.balanceUSD), cdf: Number(wallet.balanceCDF) }

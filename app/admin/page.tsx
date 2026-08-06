@@ -118,6 +118,30 @@ function DashboardKpiGrid({
         </>
       ) : null}
 
+      {stats.secondaryAccount ? (
+        <div className={cardBase}>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">
+            <IconFinance className="h-6 w-6" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde du compte secondaire</p>
+          <>
+            <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
+              {formatMoney(stats.secondaryAccount.balanceUSD, "USD")}
+            </p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              {formatMoney(stats.secondaryAccount.balanceCDF, "CDF")}
+            </p>
+            <p className="mt-2 text-xs font-medium text-teal-700 dark:text-teal-400">{stats.secondaryAccount.name}</p>
+            <Link
+              href={`/admin/finance/accounts/${stats.secondaryAccount.id}`}
+              className="mt-3 inline-flex text-sm font-semibold text-[#2D9CDB] hover:underline"
+            >
+              Voir le compte →
+            </Link>
+          </>
+        </div>
+      ) : null}
+
       <div className={cardBase}>
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
           <IconWallet className="h-6 w-6" />
