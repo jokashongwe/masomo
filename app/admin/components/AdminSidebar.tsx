@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import AdminLogoutButton from "./AdminLogoutButton";
+import StudentSyncButton from "./StudentSyncButton";
 import {
   IconCalendar,
   IconClasses,
@@ -220,6 +221,8 @@ export default function AdminSidebar({
           {schoolStandalone.map((item) => (
             <NavLink key={item.href} item={item} pathname={pathname} />
           ))}
+
+          {showSchool ? <StudentSyncButton /> : null}
 
           {financeGroupItems.length > 0 ? (
             <NavGroup label="Finances" items={financeGroupItems} pathname={pathname} />

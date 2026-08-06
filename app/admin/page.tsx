@@ -61,7 +61,7 @@ function DashboardKpiGrid({
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-[#2D9CDB] dark:bg-sky-900/40 dark:text-sky-300">
             <IconFinance className="h-6 w-6" />
           </div>
-          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total encaissé</p>
+          <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total encaissé banque</p>
           <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">{formatMoney(stats.totalEncaisse.usd, "USD")}</p>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(stats.totalEncaisse.cdf, "CDF")}</p>
           <p className="mt-2 text-xs text-zinc-500">Paiements de frais — année en cours</p>
@@ -74,7 +74,7 @@ function DashboardKpiGrid({
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
               <IconFinance className="h-6 w-6" />
             </div>
-            <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde du compte principal</p>
+            <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde du compte bancaire</p>
             {stats.mainAccount ? (
               <>
                 <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
@@ -108,7 +108,7 @@ function DashboardKpiGrid({
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
               <IconFinance className="h-6 w-6" />
             </div>
-            <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Retraits (compte principal)</p>
+            <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Retraits Banque</p>
             <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
               {formatMoney(stats.mainAccountWithdrawals.usd, "USD")}
             </p>
@@ -122,7 +122,7 @@ function DashboardKpiGrid({
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
           <IconWallet className="h-6 w-6" />
         </div>
-        <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde caution</p>
+        <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Solde caution financier</p>
         {stats.walletBalance ? (
           <>
             <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">
@@ -139,7 +139,7 @@ function DashboardKpiGrid({
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
           <IconWallet className="h-6 w-6" />
         </div>
-        <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total dépenses (caution)</p>
+        <p className="mt-4 text-sm font-medium text-zinc-500 dark:text-zinc-400">Total dépenses financier</p>
         <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">{formatMoney(stats.walletExpenses.usd, "USD")}</p>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">{formatMoney(stats.walletExpenses.cdf, "CDF")}</p>
         <p className="mt-2 text-xs text-zinc-500">Année en cours</p>

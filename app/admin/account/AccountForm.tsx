@@ -1,5 +1,6 @@
 "use client";
 
+import { queueOperation } from "@/lib/offline-queue";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { UserRole } from "@/generated/prisma/client";
@@ -59,22 +60,31 @@ export default function AccountForm({ initialUser }: { initialUser: MeUser }) {
       }
     }
 
+    const payload = {
+      username: profile.username,
+      email: profile.email,
+      name: profile.name,
+      ...(changingPassword
+        ? {
+            currentPassword: passwords.currentPassword,
+            newPassword: passwords.newPassword,
+          }
+        : {}),
+    };
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      // Utiliser une file d'attente générique
+      queueOperation({ method: "PUT", url: "/api/me", body: payload });
+      setSuccess("Modification enregistrée hors ligne. Elle sera synchronisée au retour de la connexion.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch("/api/me", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: profile.username,
-          email: profile.email,
-          name: profile.name,
-          ...(changingPassword
-            ? {
-                currentPassword: passwords.currentPassword,
-                newPassword: passwords.newPassword,
-              }
-            : {}),
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -96,6 +106,9 @@ export default function AccountForm({ initialUser }: { initialUser: MeUser }) {
           : "Profil mis à jour.",
       );
       router.refresh();
+    } catch (err) {
+      queueOperation({ method: "PUT", url: "/api/me", body: payload });
+      setSuccess("Modification enregistrée hors ligne. Elle sera synchronisée au retour de la connexion.");
     } finally {
       setSubmitting(false);
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import { queueOperation } from "@/lib/offline-queue";
 
 type ClassOption = {
   id: number;
@@ -134,28 +135,30 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
       return;
     }
 
+    const payload = {
+      classId,
+      student: {
+        name: student.name.trim(), postnom: student.postnom.trim(), firstName: student.firstName.trim(), sex: student.sex, birthDate: student.birthDate,
+      },
+      tutors: tutors.map((t) => ({ name: t.name.trim(), postnom: t.postnom.trim(), firstName: t.firstName.trim(), address: t.address.trim(), contact: t.contact.trim() })),
+    };
+    const saveOffline = () => {
+      queueOperation({ method: "POST", url: "/api/enrollments", body: payload });
+      setSuccess("Inscription enregistrée hors ligne. Utilisez « Synchroniser » dès le retour de la connexion.");
+      resetClassSelection();
+      setStudent({ name: "", postnom: "", firstName: "", sex: "MALE", birthDate: "" });
+      setTutors([{ ...defaultTutor }, { ...defaultTutor }]);
+    };
+    if (!navigator.onLine) {
+      saveOffline();
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/enrollments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          classId,
-          student: {
-            name: student.name.trim(),
-            postnom: student.postnom.trim(),
-            firstName: student.firstName.trim(),
-            sex: student.sex,
-            birthDate: student.birthDate,
-          },
-          tutors: tutors.map((t) => ({
-            name: t.name.trim(),
-            postnom: t.postnom.trim(),
-            firstName: t.firstName.trim(),
-            address: t.address.trim(),
-            contact: t.contact.trim(),
-          })),
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json().catch(() => null);
@@ -170,6 +173,7 @@ export default function EnrollmentForm({ classOptions }: { classOptions: ClassOp
       setStudent({ name: "", postnom: "", firstName: "", sex: "MALE", birthDate: "" });
       setTutors([{ ...defaultTutor }, { ...defaultTutor }]);
     } catch {
+      saveOffline();
       setError("Erreur réseau pendant l’inscription.");
     } finally {
       setSubmitting(false);

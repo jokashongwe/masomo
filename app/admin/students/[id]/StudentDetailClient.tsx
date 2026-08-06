@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { queueStudentOperation } from "@/lib/student-offline-queue";
 import {
   adminCard,
   adminErrorBox,
@@ -129,21 +130,23 @@ export default function StudentDetailClient({
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    const payload = {
+      firstName: form.firstName, name: form.name, postnom: form.postnom, sex: form.sex,
+      status: canEditStatus ? form.status : student.status, birthDate: form.birthDate,
+      classId: Number(form.classId), tutors: form.tutors,
+    };
+    if (!navigator.onLine) {
+      queueStudentOperation({ method: "PUT", url: `/api/admin/students/${student.id}`, body: payload });
+      setEditing(false);
+      setError("Modification enregistrée hors ligne. Utilisez « Synchroniser » dès le retour de la connexion.");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch(`/api/admin/students/${student.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName: form.firstName,
-          name: form.name,
-          postnom: form.postnom,
-          sex: form.sex,
-          status: canEditStatus ? form.status : student.status,
-          birthDate: form.birthDate,
-          classId: Number(form.classId),
-          tutors: form.tutors,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -153,6 +156,10 @@ export default function StudentDetailClient({
       setStudent(data.student);
       setEditing(false);
       router.refresh();
+    } catch {
+      queueStudentOperation({ method: "PUT", url: `/api/admin/students/${student.id}`, body: payload });
+      setEditing(false);
+      setError("Modification enregistrée hors ligne. Utilisez « Synchroniser » dès le retour de la connexion.");
     } finally {
       setSubmitting(false);
     }
