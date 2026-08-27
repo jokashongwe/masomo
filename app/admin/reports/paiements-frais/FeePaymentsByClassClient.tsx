@@ -25,6 +25,8 @@ import {
 import { SortableTh } from "../../components/SortableTh";
 import { useClientSort } from "../../components/useClientSort";
 
+type ClassOption = { id: number; label: string };
+
 type ModuleRow = {
   id: number;
   name: string;
@@ -69,8 +71,9 @@ function downloadCsv(filename: string, csv: string) {
 }
 
 export default function FeePaymentsByClassClient() {
-  const [currency, setCurrency] = useState<"USD" | "CDF">("USD");
+  const [currency, setCurrency] = useState<"USD" | "CDF">("CDF");
   const [feeId, setFeeId] = useState<string>("");
+  const [classId, setClassId] = useState<string>("");
   const [moduleId, setModuleId] = useState<string>("");
   const [trancheId, setTrancheId] = useState<string>("");
 
@@ -79,6 +82,7 @@ export default function FeePaymentsByClassClient() {
 
   const [modules, setModules] = useState<ModuleRow[]>([]);
   const [fees, setFees] = useState<FeeOption[]>([]);
+  const [classes, setClasses] = useState<ClassOption[]>([]);
   const [loadingMeta, setLoadingMeta] = useState(true);
   const [metaError, setMetaError] = useState<string | null>(null);
 
@@ -99,14 +103,17 @@ export default function FeePaymentsByClassClient() {
       setLoadingMeta(true);
       setMetaError(null);
       try {
-        const [modRes, feeRes] = await Promise.all([
+        const [modRes, feeRes, filterRes] = await Promise.all([
           fetch("/api/admin/finance/modules"),
           fetch("/api/admin/finance/fees"),
+          fetch("/api/admin/reports/school-filters"),
         ]);
         const modData = await modRes.json().catch(() => null);
         const feeData = await feeRes.json().catch(() => null);
+        const filterData = await filterRes.json().catch(() => null);
         if (!modRes.ok) throw new Error(modData?.error ?? "Impossible de charger les modules");
         if (!feeRes.ok) throw new Error(feeData?.error ?? "Impossible de charger les frais");
+        if (!filterRes.ok) throw new Error(filterData?.error ?? "Impossible de charger les classes");
         if (!cancelled) {
           setModules(Array.isArray(modData?.modules) ? modData.modules : []);
           const rawFees = Array.isArray(feeData?.fees) ? feeData.fees : [];
@@ -116,6 +123,17 @@ export default function FeePaymentsByClassClient() {
               code: f.code,
               name: f.name,
             })),
+          );
+          const rawClasses = Array.isArray(filterData?.classes) ? filterData.classes : [];
+          setClasses(
+            rawClasses
+              .map((c: { id: number; label: string }) => ({
+                id: c.id,
+                label: c.label,
+              }))
+              .sort((a: ClassOption, b: ClassOption) =>
+                a.label.localeCompare(b.label, "fr", { numeric: true }),
+              ),
           );
         }
       } catch (e) {
@@ -140,7 +158,7 @@ export default function FeePaymentsByClassClient() {
 
   useEffect(() => {
     setPage(1);
-  }, [currency, feeId, moduleId, trancheId, pageSize]);
+  }, [currency, feeId, classId, moduleId, trancheId, pageSize]);
 
   const fetchReport = useCallback(async () => {
     setLoadingReport(true);
@@ -149,6 +167,7 @@ export default function FeePaymentsByClassClient() {
       const params = new URLSearchParams();
       params.set("currency", currency);
       if (feeId) params.set("feeId", feeId);
+      if (classId) params.set("classId", classId);
       if (trancheId) params.set("trancheId", trancheId);
       else if (moduleId) params.set("moduleId", moduleId);
       params.set("page", String(page));
@@ -164,7 +183,7 @@ export default function FeePaymentsByClassClient() {
     } finally {
       setLoadingReport(false);
     }
-  }, [currency, feeId, moduleId, trancheId, page, pageSize]);
+  }, [currency, feeId, classId, moduleId, trancheId, page, pageSize]);
 
   useEffect(() => {
     if (loadingMeta) return;
@@ -187,6 +206,7 @@ export default function FeePaymentsByClassClient() {
       params.set("currency", currency);
       params.set("all", "1");
       if (feeId) params.set("feeId", feeId);
+      if (classId) params.set("classId", classId);
       if (trancheId) params.set("trancheId", trancheId);
       else if (moduleId) params.set("moduleId", moduleId);
 
@@ -224,8 +244,9 @@ export default function FeePaymentsByClassClient() {
           <p className={adminKicker}>Finances</p>
           <h1 className={`mt-1 ${adminTitle}`}>Paiements des frais par classe</h1>
           <p className={adminSubtitle}>
-            Montants imputés aux modules et tranches (lignes de répartition des paiements), pour l’année scolaire en cours.
-            Filtre optionnel par type de frais. Table paginée ; l’export CSV inclut toutes les lignes correspondant aux filtres.
+            Montants payés par élève pour l’année scolaire en cours (devise, type de frais, module/tranche).
+            Sans filtre classe : uniquement les élèves ayant au moins un paiement. Avec une classe : tous les élèves
+            de la classe (y compris sans paiement).
           </p>
         </div>
         <Link href="/admin/reports" className={adminBackLink}>
@@ -234,7 +255,7 @@ export default function FeePaymentsByClassClient() {
       </header>
 
       <div className={`${adminCard} mt-6`}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">Devise</label>
             <select
@@ -242,8 +263,24 @@ export default function FeePaymentsByClassClient() {
               onChange={(e) => setCurrency(e.target.value as "USD" | "CDF")}
               className={`mt-2 ${adminInput}`}
             >
-              <option value="USD">USD</option>
               <option value="CDF">CDF</option>
+              <option value="USD">USD</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">Classe</label>
+            <select
+              value={classId}
+              onChange={(e) => setClassId(e.target.value)}
+              className={`mt-2 ${adminInput}`}
+              disabled={loadingMeta}
+            >
+              <option value="">Toutes les classes</option>
+              {classes.map((c) => (
+                <option key={c.id} value={String(c.id)}>
+                  {c.label}
+                </option>
+              ))}
             </select>
           </div>
           <div>

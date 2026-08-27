@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { formatClassShortLabel } from "@/lib/class-label";
 import { prisma } from "@/lib/prisma";
 import { requireFinanceReadApi } from "@/lib/rbac";
 
@@ -25,6 +26,7 @@ export async function GET() {
           select: {
             id: true,
             name: true,
+            codeLevel: true,
             option: {
               select: {
                 id: true,
@@ -47,7 +49,7 @@ export async function GET() {
     optionName: c.level.option.nameOption,
     sectionId: c.level.option.section.id,
     sectionName: c.level.option.section.nameSection,
-    label: `${c.level.option.section.nameSection} — ${c.level.name} — Classe ${c.codeClass}`,
+    label: formatClassShortLabel(c),
   }));
 
   return NextResponse.json({ sections, options, classes });

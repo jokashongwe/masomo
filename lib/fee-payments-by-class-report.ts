@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Currency, Prisma } from "@/generated/prisma/client";
+import { formatClassShortLabel } from "@/lib/class-label";
 import { prisma } from "@/lib/prisma";
 
 function round2(n: number) {
@@ -16,7 +17,6 @@ export type FeePaymentsByClassStudentRow = {
 export type FeePaymentsByClassGroup = {
   classId: number;
   label: string;
-  /** Tri stable : option / niveau / code classe */
   sortKey: string;
   students: FeePaymentsByClassStudentRow[];
   subtotalPaid: number;
@@ -45,6 +45,7 @@ export async function getFeePaymentsByClassReport(input: {
   feeId?: number | null;
   moduleId?: number | null;
   trancheId?: number | null;
+  classId?: number | null;
   page?: number;
   pageSize?: number;
   all?: boolean;
@@ -71,92 +72,174 @@ export async function getFeePaymentsByClassReport(input: {
     };
   }
 
-  const paymentWhere: Prisma.FeePaymentWhereInput = { academicYearId: year.id };
-  if (input.feeId != null && input.feeId > 0) {
-    paymentWhere.feeId = input.feeId;
+  const studentWhere: Prisma.StudentWhereInput = { academicYearId: year.id };
+  if (input.classId != null && input.classId > 0) {
+    studentWhere.classId = input.classId;
   }
 
-  const allocationWhere: Prisma.FeePaymentAllocationWhereInput = {
-    currency: input.currency,
-    payment: paymentWhere,
-  };
+  const useAllocationFilter =
+    (input.trancheId != null && input.trancheId > 0) ||
+    (input.moduleId != null && input.moduleId > 0);
 
-  if (input.trancheId != null && input.trancheId > 0) {
-    allocationWhere.trancheId = input.trancheId;
-  } else if (input.moduleId != null && input.moduleId > 0) {
-    allocationWhere.OR = [{ moduleId: input.moduleId }, { tranche: { moduleId: input.moduleId } }];
-  }
+  const paidByStudent = new Map<number, number>();
 
-  const [allocations, students] = await Promise.all([
-    prisma.feePaymentAllocation.findMany({
+  if (useAllocationFilter) {
+    const paymentWhere: Prisma.FeePaymentWhereInput = { academicYearId: year.id };
+    if (input.feeId != null && input.feeId > 0) {
+      paymentWhere.feeId = input.feeId;
+    }
+    if (input.classId != null && input.classId > 0) {
+      paymentWhere.student = { classId: input.classId };
+    }
+
+    const allocationWhere: Prisma.FeePaymentAllocationWhereInput = {
+      currency: input.currency,
+      payment: paymentWhere,
+    };
+
+    if (input.trancheId != null && input.trancheId > 0) {
+      allocationWhere.trancheId = input.trancheId;
+    } else if (input.moduleId != null && input.moduleId > 0) {
+      allocationWhere.OR = [{ moduleId: input.moduleId }, { tranche: { moduleId: input.moduleId } }];
+    }
+
+    const allocations = await prisma.feePaymentAllocation.findMany({
       where: allocationWhere,
       select: {
         amount: true,
         payment: { select: { studentId: true } },
       },
-    }),
-    prisma.student.findMany({
-      where: { academicYearId: year.id },
-      select: {
-        id: true,
-        firstName: true,
-        name: true,
-        postnom: true,
-        classId: true,
-        schoolClass: {
-          select: {
-            id: true,
-            codeClass: true,
-            level: {
-              select: {
-                name: true,
-                codeLevel: true,
-                option: {
-                  select: {
-                    nameOption: true,
-                    codeOption: true,
-                    section: { select: { codeSection: true, nameSection: true } },
-                  },
+    });
+
+    for (const a of allocations) {
+      const sid = a.payment.studentId;
+      paidByStudent.set(sid, round2((paidByStudent.get(sid) ?? 0) + Number(a.amount)));
+    }
+  } else {
+    const paymentWhere: Prisma.FeePaymentWhereInput = {
+      academicYearId: year.id,
+      currency: input.currency,
+    };
+    if (input.feeId != null && input.feeId > 0) {
+      paymentWhere.feeId = input.feeId;
+    }
+    if (input.classId != null && input.classId > 0) {
+      paymentWhere.student = { classId: input.classId };
+    }
+
+    const payments = await prisma.feePayment.findMany({
+      where: paymentWhere,
+      select: { studentId: true, amount: true },
+    });
+
+    for (const p of payments) {
+      paidByStudent.set(p.studentId, round2((paidByStudent.get(p.studentId) ?? 0) + Number(p.amount)));
+    }
+  }
+
+  const students = await prisma.student.findMany({
+    where: studentWhere,
+    select: {
+      id: true,
+      firstName: true,
+      name: true,
+      postnom: true,
+      classId: true,
+      schoolClass: {
+        select: {
+          id: true,
+          codeClass: true,
+          level: {
+            select: {
+              name: true,
+              codeLevel: true,
+              option: {
+                select: {
+                  nameOption: true,
+                  codeOption: true,
+                  section: { select: { codeSection: true, nameSection: true } },
                 },
               },
             },
           },
         },
       },
-    }),
-  ]);
+    },
+  });
 
-  const paidByStudent = new Map<number, number>();
-  for (const a of allocations) {
-    const sid = a.payment.studentId;
-    paidByStudent.set(sid, (paidByStudent.get(sid) ?? 0) + Number(a.amount));
+  const studentById = new Map(students.map((s) => [s.id, s]));
+  const classFilterActive = input.classId != null && input.classId > 0;
+
+  let candidateStudentIds: number[];
+  if (classFilterActive) {
+    candidateStudentIds = students.map((s) => s.id);
+  } else {
+    candidateStudentIds = [...paidByStudent.entries()]
+      .filter(([, paid]) => paid > 0)
+      .map(([sid]) => sid);
+  }
+
+  if (!classFilterActive && candidateStudentIds.length > 0) {
+    const missingIds = candidateStudentIds.filter((id) => !studentById.has(id));
+    if (missingIds.length > 0) {
+      const extra = await prisma.student.findMany({
+        where: { id: { in: missingIds }, academicYearId: year.id },
+        select: {
+          id: true,
+          firstName: true,
+          name: true,
+          postnom: true,
+          classId: true,
+          schoolClass: {
+            select: {
+              id: true,
+              codeClass: true,
+              level: {
+                select: {
+                  name: true,
+                  codeLevel: true,
+                  option: {
+                    select: {
+                      nameOption: true,
+                      codeOption: true,
+                      section: { select: { codeSection: true, nameSection: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      for (const s of extra) {
+        studentById.set(s.id, s);
+      }
+    }
   }
 
   type ClassInfo = NonNullable<(typeof students)[number]["schoolClass"]>;
 
-  const byClass = new Map<number, { info: ClassInfo; studentIds: Set<number> }>();
-  for (const s of students) {
-    const c = s.schoolClass;
-    const cur = byClass.get(c.id) ?? { info: c, studentIds: new Set<number>() };
-    cur.studentIds.add(s.id);
+  const byClass = new Map<number, { info: ClassInfo; studentIds: number[] }>();
+
+  for (const sid of candidateStudentIds) {
+    const st = studentById.get(sid);
+    if (!st) continue;
+    const paid = round2(paidByStudent.get(sid) ?? 0);
+    if (!classFilterActive && paid <= 0) continue;
+
+    const c = st.schoolClass;
+    const cur = byClass.get(c.id) ?? { info: c, studentIds: [] };
+    cur.studentIds.push(sid);
     byClass.set(c.id, cur);
   }
-
-  const studentById = new Map(students.map((s) => [s.id, s]));
 
   const classes: FeePaymentsByClassGroup[] = [];
 
   for (const [classId, { info, studentIds }] of byClass) {
     const level = info.level;
     const opt = level.option;
-    const sortKey = [
-      opt.section.codeSection,
-      opt.codeOption,
-      level.codeLevel,
-      info.codeClass,
-    ].join("\0");
-
-    const label = `${opt.section.nameSection} — ${opt.nameOption} — ${level.name} — Classe ${info.codeClass}`;
+    const sortKey = [opt.section.codeSection, opt.codeOption, level.codeLevel, info.codeClass].join("\0");
+    const label = formatClassShortLabel(info);
 
     const rowStudents: FeePaymentsByClassStudentRow[] = [];
     let subtotal = 0;

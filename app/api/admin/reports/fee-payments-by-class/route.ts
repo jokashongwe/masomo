@@ -8,6 +8,7 @@ const querySchema = z.object({
   feeId: z.coerce.number().int().positive().optional(),
   moduleId: z.coerce.number().int().positive().optional(),
   trancheId: z.coerce.number().int().positive().optional(),
+  classId: z.coerce.number().int().positive().optional(),
   page: z.coerce.number().int().min(1).optional(),
   pageSize: z.coerce.number().int().min(1).max(100).optional(),
   all: z.enum(["0", "1"]).optional(),
@@ -23,6 +24,7 @@ export async function GET(req: Request) {
     feeId: url.searchParams.get("feeId") ?? undefined,
     moduleId: url.searchParams.get("moduleId") ?? undefined,
     trancheId: url.searchParams.get("trancheId") ?? undefined,
+    classId: url.searchParams.get("classId") ?? undefined,
     page: url.searchParams.get("page") ?? undefined,
     pageSize: url.searchParams.get("pageSize") ?? undefined,
     all: url.searchParams.get("all") ?? undefined,
@@ -30,13 +32,14 @@ export async function GET(req: Request) {
   if (raw.feeId === "") delete raw.feeId;
   if (raw.moduleId === "") delete raw.moduleId;
   if (raw.trancheId === "") delete raw.trancheId;
+  if (raw.classId === "") delete raw.classId;
 
   const parsed = querySchema.safeParse(raw);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { currency, feeId, moduleId, trancheId, page, pageSize, all } = parsed.data;
+  const { currency, feeId, moduleId, trancheId, classId, page, pageSize, all } = parsed.data;
 
   try {
     const report = await getFeePaymentsByClassReport({
@@ -44,6 +47,7 @@ export async function GET(req: Request) {
       feeId: feeId ?? null,
       moduleId: moduleId ?? null,
       trancheId: trancheId ?? null,
+      classId: classId ?? null,
       page: page ?? undefined,
       pageSize: pageSize ?? undefined,
       all: all === "1",
