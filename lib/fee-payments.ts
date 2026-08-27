@@ -282,9 +282,9 @@ export async function createFeePayment(input: CreateFeePaymentInput) {
       const due = applySupportToDue(baseDue, supportRule, input.currency);
       const paid = alreadyPaid.get("total") ?? 0;
       const outstanding = Math.max(0, due - paid);
-      if (input.amount > outstanding + 0.00001) {
+      /*if (input.amount > outstanding + 0.00001) {
         throw new Error("Montant supérieur au reste à payer pour ce frais");
-      }
+      }*/
       allocationsToCreate = [{ moduleId: null, trancheId: null, amount: input.amount }];
     } else {
       const dueLinesRaw = await buildDueLinesForByModule(tx, fee.id, input.currency);
