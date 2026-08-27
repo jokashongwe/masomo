@@ -8,11 +8,13 @@ import { cell, type ImportRow } from "@/lib/student-import";
 import {
   currencyFromPaymentImportSheet,
   defaultPaymentImportCurrency,
+  findExistingPaymentByJournal,
   isEmptyPaymentImportRow,
   isJournalPaymentImportFormat,
   isSkippedPaymentImportSheet,
   parseJournalPaymentRow,
   PAYMENT_JOURNAL_TEMPLATE_COLUMNS,
+  resolveOrCreateStudentForPaymentImport,
   type PaymentImportSheetBatch,
 } from "@/lib/payment-import";
 
@@ -32,6 +34,7 @@ type ImportResultRow = {
   index: number;
   sheet: string;
   ok: boolean;
+  skipped?: boolean;
   message: string;
   receiptNumber?: string;
   currency?: Currency;
@@ -125,22 +128,40 @@ async function importJournalRow(
     studentByMatricule: Map<string, number>;
     feeCache: Map<string, FeeCacheEntry>;
     sheetCurrency: Currency | null;
+    seenJournals: Set<string>;
   },
 ) {
   const parsed = parseJournalPaymentRow(row);
-  let studentId = ctx.studentByMatricule.get(parsed.studentMatricule.toUpperCase());
-  if (studentId == null) {
-    const student = await prisma.student.findFirst({
-      where: {
-        academicYearId: ctx.academicYearId,
-        matricule: { equals: parsed.studentMatricule, mode: "insensitive" },
-      },
-      select: { id: true },
-    });
-    if (!student) throw new Error(`Élève introuvable pour matricule: ${parsed.studentMatricule}`);
-    studentId = student.id;
-    ctx.studentByMatricule.set(parsed.studentMatricule.toUpperCase(), studentId);
+
+  if (parsed.txnJournal) {
+    const journalKey = parsed.txnJournal.trim().toUpperCase();
+    if (ctx.seenJournals.has(journalKey)) {
+      const existing = await findExistingPaymentByJournal(parsed.txnJournal);
+      return {
+        skipped: true as const,
+        receiptNumber: existing?.receiptNumber,
+        message: `TXN_JOURNAL déjà traité dans ce fichier : ${parsed.txnJournal}`,
+      };
+    }
+
+    const existing = await findExistingPaymentByJournal(parsed.txnJournal);
+    if (existing) {
+      ctx.seenJournals.add(journalKey);
+      return {
+        skipped: true as const,
+        receiptNumber: existing.receiptNumber,
+        message: `TXN_JOURNAL déjà enregistré : ${parsed.txnJournal}`,
+      };
+    }
   }
+
+  const studentId = await resolveOrCreateStudentForPaymentImport({
+    academicYearId: ctx.academicYearId,
+    matricule: parsed.studentMatricule,
+    studentName: parsed.studentName,
+    classe: parsed.classe,
+    studentByMatricule: ctx.studentByMatricule,
+  });
 
   const fee = await resolveFeeForStudent(parsed.feeCode, studentId, ctx.feeCache);
   const currency = ctx.sheetCurrency
@@ -152,7 +173,7 @@ async function importJournalRow(
   if (parsed.classe) noteParts.push(`Classe: ${parsed.classe}`);
   if (parsed.txnJournal) noteParts.push(`Journal: ${parsed.txnJournal}`);
 
-  return createFeePayment({
+  const created = await createFeePayment({
     studentId,
     feeId: fee.id,
     amount: parsed.amount,
@@ -163,12 +184,19 @@ async function importJournalRow(
     note: noteParts.length ? noteParts.join(" | ") : undefined,
     allocationMode: "AUTO",
   });
+
+  if (parsed.txnJournal) {
+    ctx.seenJournals.add(parsed.txnJournal.trim().toUpperCase());
+  }
+
+  return { skipped: false as const, payment: created };
 }
 
 async function importLegacyRow(
   row: LegacyImportRow,
   feeCache: Map<string, FeeCacheEntry>,
   sheetCurrency: Currency | null,
+  seenJournals: Set<string>,
 ) {
   const studentId = Number(row.studentId);
   const amount = Number(row.amount);
@@ -180,17 +208,43 @@ async function importLegacyRow(
   const currency = await resolveCurrencyForFee(fee.id, currencyRaw);
   if (!Number.isFinite(amount) || amount <= 0) throw new Error("amount invalide");
 
-  return createFeePayment({
+  const bankRef = row.bankSlipReference ? String(row.bankSlipReference).trim() : "";
+  if (bankRef) {
+    const journalKey = bankRef.toUpperCase();
+    if (seenJournals.has(journalKey)) {
+      const existing = await findExistingPaymentByJournal(bankRef);
+      return {
+        skipped: true as const,
+        receiptNumber: existing?.receiptNumber,
+        message: `Référence déjà traitée dans ce fichier : ${bankRef}`,
+      };
+    }
+    const existing = await findExistingPaymentByJournal(bankRef);
+    if (existing) {
+      seenJournals.add(journalKey);
+      return {
+        skipped: true as const,
+        receiptNumber: existing.receiptNumber,
+        message: `Référence déjà enregistrée : ${bankRef}`,
+      };
+    }
+  }
+
+  const created = await createFeePayment({
     studentId,
     feeId: fee.id,
     amount,
     currency,
     source: "IMPORT",
     paidAt: row.paidAt ? new Date(row.paidAt) : undefined,
-    bankSlipReference: row.bankSlipReference ? String(row.bankSlipReference) : undefined,
+    bankSlipReference: bankRef || undefined,
     note: row.note ? String(row.note) : undefined,
     allocationMode: "AUTO",
   });
+
+  if (bankRef) seenJournals.add(bankRef.toUpperCase());
+
+  return { skipped: false as const, payment: created };
 }
 
 export async function POST(req: Request) {
@@ -224,6 +278,7 @@ export async function POST(req: Request) {
 
   const feeCache = new Map<string, FeeCacheEntry>();
   const studentByMatricule = new Map<string, number>();
+  const seenJournals = new Set<string>();
   const results: ImportResultRow[] = [];
 
   for (const batch of batches) {
@@ -231,22 +286,36 @@ export async function POST(req: Request) {
     for (let i = 0; i < batch.rows.length; i++) {
       const row = batch.rows[i];
       try {
-        const created = useJournalFormat
+        const outcome = useJournalFormat
           ? await importJournalRow(row, {
               academicYearId: currentYear.id,
               studentByMatricule,
               feeCache,
               sheetCurrency: batch.currency,
+              seenJournals,
             })
-          : await importLegacyRow(row as LegacyImportRow, feeCache, batch.currency);
-        results.push({
-          index: i + 1,
-          sheet: batch.sheetName,
-          ok: true,
-          message: "OK — compte crédité",
-          receiptNumber: created.receiptNumber,
-          currency: batch.currency ?? undefined,
-        });
+          : await importLegacyRow(row as LegacyImportRow, feeCache, batch.currency, seenJournals);
+
+        if (outcome.skipped) {
+          results.push({
+            index: i + 1,
+            sheet: batch.sheetName,
+            ok: true,
+            skipped: true,
+            message: outcome.message,
+            receiptNumber: outcome.receiptNumber,
+            currency: batch.currency ?? undefined,
+          });
+        } else {
+          results.push({
+            index: i + 1,
+            sheet: batch.sheetName,
+            ok: true,
+            message: "OK — compte crédité",
+            receiptNumber: outcome.payment.receiptNumber,
+            currency: batch.currency ?? undefined,
+          });
+        }
       } catch (e) {
         results.push({
           index: i + 1,
@@ -259,12 +328,14 @@ export async function POST(req: Request) {
     }
   }
 
-  const successCount = results.filter((r) => r.ok).length;
-  const failedCount = results.length - successCount;
+  const successCount = results.filter((r) => r.ok && !r.skipped).length;
+  const skippedCount = results.filter((r) => r.skipped).length;
+  const failedCount = results.filter((r) => !r.ok).length;
   const useJournalFormat = batches.some((b) => isJournalPaymentImportFormat(b.rows));
 
   return NextResponse.json({
     successCount,
+    skippedCount,
     failedCount,
     format: useJournalFormat ? "journal" : "legacy",
     sheetsProcessed: batches.map((b) => ({ name: b.sheetName, currency: b.currency, rowCount: b.rows.length })),

@@ -360,7 +360,9 @@ export default function PaymentsClient({
       if (!res.ok) throw new Error(data?.error ?? "Échec import");
       const results: PaymentImportRowResult[] = data.results ?? [];
       setImportSummary(
-        `Import terminé : ${data.successCount} réussite(s), ${data.failedCount} échec(s).`,
+        `Import terminé : ${data.successCount} réussite(s)` +
+          (data.skippedCount ? `, ${data.skippedCount} ignorée(s) (doublon TXN_JOURNAL)` : "") +
+          `, ${data.failedCount} échec(s).`,
       );
       setImportFailedRows(results.filter((r) => !r.ok));
       await loadList();
