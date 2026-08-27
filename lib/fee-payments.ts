@@ -348,9 +348,9 @@ export async function createFeePayment(input: CreateFeePaymentInput) {
         }
 
         const { allocations, remaining } = allocateAmount(targetLines, alreadyPaid, input.amount);
-        if (remaining > 0.00001) {
+        /*if (remaining > 0.00001) {
           throw new Error("Montant supérieur au reste à payer pour la sélection");
-        }
+        }*/
         allocationsToCreate = allocations;
       }
     }
